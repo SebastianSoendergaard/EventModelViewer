@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Event Model Viewer</title>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -154,9 +153,7 @@
             flex: 1;
             padding: 2rem;
             overflow: auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background-color: #fafafa;
         }
 
         .error-message {
@@ -175,8 +172,133 @@
 
         #diagram {
             width: 100%;
+            min-width: max-content;
+        }
+
+        .event-model-diagram {
+            display: inline-block;
+            padding: 20px;
+            background-color: white;
+        }
+
+        .diagram-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            text-align: center;
+            color: #2c3e50;
+        }
+
+        .timeline {
             display: flex;
+            gap: 40px;
+            align-items: flex-start;
+        }
+
+        .slice {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 250px;
+            position: relative;
+        }
+
+        .slice.with-border {
+            padding: 15px;
+            border: 3px solid;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+
+        .slice-name {
+            font-weight: bold;
+            font-size: 14px;
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .pattern-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .element {
+            border-radius: 6px;
+            padding: 12px 16px;
+            min-height: 80px;
+            width: 220px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
             justify-content: center;
+        }
+
+        .element-title {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 6px;
+            word-wrap: break-word;
+        }
+
+        .element-properties {
+            font-size: 11px;
+            color: #555;
+            line-height: 1.4;
+        }
+
+        .element-property {
+            margin: 2px 0;
+        }
+
+        .trigger {
+            background-color: #ecf0f1;
+            border: 2px solid #95a5a6;
+            color: #2c3e50;
+        }
+
+        .trigger .element-role {
+            font-size: 10px;
+            color: #7f8c8d;
+            font-style: italic;
+            margin-bottom: 4px;
+        }
+
+        .command {
+            background-color: #3498db;
+            color: white;
+            border: 2px solid #2980b9;
+        }
+
+        .view {
+            background-color: #2ecc71;
+            color: white;
+            border: 2px solid #27ae60;
+        }
+
+        .event {
+            background-color: #e67e22;
+            color: white;
+            border: 2px solid #d35400;
+        }
+
+        .arrow {
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 12px solid #7f8c8d;
+            align-self: center;
+        }
+
+        .events-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
         }
     </style>
 </head>
@@ -217,13 +339,6 @@
     </div>
 
     <script>
-        // Initialize Mermaid
-        mermaid.initialize({ 
-            startOnLoad: false,
-            theme: 'default',
-            securityLevel: 'loose'
-        });
-
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName');
         const jsonEditor = document.getElementById('jsonEditor');
@@ -274,80 +389,292 @@
         function renderDiagram(jsonString) {
             try {
                 const data = JSON.parse(jsonString);
-                const mermaidCode = convertJsonToMermaid(data);
-                
-                diagramContainer.innerHTML = `<div class="mermaid">${mermaidCode}</div>`;
-                mermaid.run({
-                    nodes: document.querySelectorAll('.mermaid')
-                });
+                const html = generateEventModelDiagram(data);
+                diagramContainer.innerHTML = html;
+                drawEventToViewArrows();
             } catch (error) {
                 showError('Error rendering diagram: ' + error.message);
             }
         }
 
-        function convertJsonToMermaid(data) {
-            // Example: Convert JSON to Mermaid flowchart
-            // This is a simple example - customize based on your JSON structure
-            
-            if (data.type === 'flowchart' && data.nodes) {
-                let mermaidCode = 'graph TD\n';
-                
-                // Add nodes
-                if (data.nodes) {
-                    data.nodes.forEach(node => {
-                        mermaidCode += `    ${node.id}[${node.label || node.id}]\n`;
-                    });
-                }
-                
-                // Add edges
-                if (data.edges) {
-                    data.edges.forEach(edge => {
-                        const label = edge.label ? `|${edge.label}|` : '';
-                        mermaidCode += `    ${edge.from} -->${label} ${edge.to}\n`;
-                    });
-                }
-                
-                return mermaidCode;
-            } else if (data.nodes && data.edges) {
-                // Generic graph structure
-                let mermaidCode = 'graph LR\n';
-                
-                data.nodes.forEach(node => {
-                    const label = node.label || node.name || node.id;
-                    mermaidCode += `    ${node.id}[${label}]\n`;
-                });
-                
-                if (data.edges) {
-                    data.edges.forEach(edge => {
-                        const label = edge.label ? `|${edge.label}|` : '';
-                        mermaidCode += `    ${edge.from} -->${label} ${edge.to}\n`;
-                    });
-                }
-                
-                return mermaidCode;
-            } else {
-                // Default: show JSON structure as a simple visualization
-                return 'graph TD\n    A[Data Loaded]\n    A --> B[Customize convertJsonToMermaid function]\n    B --> C[To match your JSON structure]';
+        function drawEventToViewArrows() {
+            // Remove existing SVG if any
+            const existingSvg = document.getElementById('arrow-svg');
+            if (existingSvg) {
+                existingSvg.remove();
             }
+
+            const views = document.querySelectorAll('.element.view[data-view-events]');
+            if (views.length === 0) return;
+
+            const diagramDiv = document.querySelector('.event-model-diagram');
+            if (!diagramDiv) return;
+
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('id', 'arrow-svg');
+            svg.style.position = 'absolute';
+            svg.style.top = '0';
+            svg.style.left = '0';
+            svg.style.width = '100%';
+            svg.style.height = '100%';
+            svg.style.pointerEvents = 'none';
+            svg.style.zIndex = '1';
+
+            diagramDiv.style.position = 'relative';
+            diagramDiv.appendChild(svg);
+
+            // Create arrow marker
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            marker.setAttribute('id', 'arrowhead');
+            marker.setAttribute('markerWidth', '10');
+            marker.setAttribute('markerHeight', '10');
+            marker.setAttribute('refX', '9');
+            marker.setAttribute('refY', '3');
+            marker.setAttribute('orient', 'auto');
+
+            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygon.setAttribute('points', '0 0, 10 3, 0 6');
+            polygon.setAttribute('fill', '#e67e22');
+
+            marker.appendChild(polygon);
+            defs.appendChild(marker);
+            svg.appendChild(defs);
+
+            views.forEach(view => {
+                const eventNames = view.getAttribute('data-view-events');
+                if (!eventNames) return;
+
+                const eventNameList = eventNames.split(',').filter(n => n.trim());
+                
+                eventNameList.forEach(eventName => {
+                    const events = document.querySelectorAll(`.element.event[data-event-name="${eventName}"]`);
+                    
+                    events.forEach(event => {
+                        drawArrow(svg, event, view, diagramDiv);
+                    });
+                });
+            });
+        }
+
+        function drawArrow(svg, fromElement, toElement, container) {
+            const fromRect = fromElement.getBoundingClientRect();
+            const toRect = toElement.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            const startX = fromRect.right - containerRect.left;
+            const startY = fromRect.top + fromRect.height / 2 - containerRect.top;
+            const endX = toRect.left - containerRect.left;
+            const endY = toRect.top + toRect.height / 2 - containerRect.top;
+
+            const midX = (startX + endX) / 2;
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const d = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
+            path.setAttribute('d', d);
+            path.setAttribute('stroke', '#e67e22');
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('fill', 'none');
+            path.setAttribute('marker-end', 'url(#arrowhead)');
+
+            svg.appendChild(path);
+        }
+
+        // Redraw arrows on window resize
+        window.addEventListener('resize', () => {
+            if (document.querySelector('.event-model-diagram')) {
+                drawEventToViewArrows();
+            }
+        });
+
+        function generateEventModelDiagram(data) {
+            if (!data.slices || !Array.isArray(data.slices)) {
+                return '<div class="info-message">Invalid event model: slices array is required</div>';
+            }
+
+            let html = '<div class="event-model-diagram">';
+            
+            if (data.title) {
+                html += `<div class="diagram-title">${escapeHtml(data.title)}</div>`;
+            }
+
+            html += '<div class="timeline">';
+
+            data.slices.forEach((slice, index) => {
+                html += generateSlice(slice, index, data.slices);
+            });
+
+            html += '</div></div>';
+            return html;
+        }
+
+        function generateSlice(slice, index, allSlices) {
+            const hasBorder = slice.border ? 'with-border' : '';
+            const borderStyle = slice.border ? `border-color: ${slice.border};` : '';
+            
+            let html = `<div class="slice ${hasBorder}" style="${borderStyle}" data-slice-index="${index}">`;
+            
+            if (slice.name) {
+                html += `<div class="slice-name">${escapeHtml(slice.name)}</div>`;
+            }
+
+            html += '<div class="pattern-flow">';
+
+            // Command Pattern: trigger -> command -> events
+            if (slice.command) {
+                if (slice.trigger) {
+                    html += generateTrigger(slice.trigger);
+                    html += '<div class="arrow"></div>';
+                }
+                
+                html += generateCommand(slice.command);
+                
+                if (slice.command.events && slice.command.events.length > 0) {
+                    html += '<div class="arrow"></div>';
+                    html += '<div class="events-container">';
+                    slice.command.events.forEach((event, eventIndex) => {
+                        html += generateEvent(event, index, eventIndex);
+                    });
+                    html += '</div>';
+                }
+            }
+            // View Pattern: trigger -> view (events connected via arrows)
+            else if (slice.view) {
+                if (slice.trigger) {
+                    html += generateTrigger(slice.trigger);
+                    html += '<div class="arrow"></div>';
+                }
+                
+                html += generateView(slice.view, index, slice.view.events || []);
+            }
+            // Automation Pattern: events -> command (future support)
+            else if (slice.automation) {
+                if (slice.automation.events && slice.automation.events.length > 0) {
+                    html += '<div class="events-container">';
+                    slice.automation.events.forEach(eventName => {
+                        html += generateEventReference(eventName);
+                    });
+                    html += '</div>';
+                    html += '<div class="arrow"></div>';
+                }
+                
+                html += generateCommand(slice.automation.command);
+                
+                if (slice.automation.command.events && slice.automation.command.events.length > 0) {
+                    html += '<div class="arrow"></div>';
+                    html += '<div class="events-container">';
+                    slice.automation.command.events.forEach(event => {
+                        html += generateEvent(event);
+                    });
+                    html += '</div>';
+                }
+            }
+            // Policy Pattern: event -> event (future support)
+            else if (slice.policy) {
+                html += generateEventReference(slice.policy.triggerEvent);
+                html += '<div class="arrow"></div>';
+                html += generateEvent(slice.policy.resultEvent);
+            }
+
+            html += '</div></div>';
+            return html;
+        }
+
+        function generateTrigger(trigger) {
+            let html = '<div class="element trigger">';
+            
+            if (trigger.role) {
+                html += `<div class="element-role">${escapeHtml(trigger.role)}</div>`;
+            }
+            
+            html += `<div class="element-title">Trigger: ${escapeHtml(trigger.type)}</div>`;
+            
+            if (trigger.buttons && trigger.buttons.length > 0) {
+                html += '<div class="element-properties">';
+                html += `Buttons: ${trigger.buttons.map(b => escapeHtml(b)).join(', ')}`;
+                html += '</div>';
+            }
+            
+            if (trigger.properties && trigger.properties.length > 0) {
+                html += '<div class="element-properties">';
+                trigger.properties.forEach(prop => {
+                    html += `<div class="element-property">${escapeHtml(prop.label)}: ${escapeHtml(prop.propertyName)}</div>`;
+                });
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        function generateCommand(command) {
+            let html = '<div class="element command">';
+            html += `<div class="element-title">${escapeHtml(command.name)}</div>`;
+            
+            if (command.properties && command.properties.length > 0) {
+                html += '<div class="element-properties">';
+                command.properties.forEach(prop => {
+                    html += `<div class="element-property">${escapeHtml(prop.name)}: ${escapeHtml(prop.type)}</div>`;
+                });
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        function generateEvent(event, sliceIndex, eventIndex) {
+            const eventId = `event-${sliceIndex}-${eventIndex}-${event.name.replace(/\s+/g, '-')}`;
+            let html = `<div class="element event" id="${eventId}" data-event-name="${escapeHtml(event.name)}">`;
+            html += `<div class="element-title">${escapeHtml(event.name)}</div>`;
+            
+            if (event.properties && event.properties.length > 0) {
+                html += '<div class="element-properties">';
+                event.properties.forEach(prop => {
+                    html += `<div class="element-property">${escapeHtml(prop.name)}: ${escapeHtml(prop.type)}</div>`;
+                });
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        function generateEventReference(eventName) {
+            let html = '<div class="element event">';
+            html += `<div class="element-title">${escapeHtml(eventName)}</div>`;
+            html += '</div>';
+            return html;
+        }
+
+        function generateView(view, sliceIndex, eventNames) {
+            const viewId = `view-${sliceIndex}`;
+            const eventNamesAttr = eventNames ? eventNames.join(',') : '';
+            let html = `<div class="element view" id="${viewId}" data-view-events="${escapeHtml(eventNamesAttr)}">`;
+            html += `<div class="element-title">${escapeHtml(view.name)}</div>`;
+            
+            if (view.properties && view.properties.length > 0) {
+                html += '<div class="element-properties">';
+                view.properties.forEach(prop => {
+                    html += `<div class="element-property">${escapeHtml(prop.name)}: ${escapeHtml(prop.type)}</div>`;
+                });
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        function escapeHtml(text) {
+            if (typeof text !== 'string') return text;
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function showError(message) {
-            diagramContainer.innerHTML = `<div class="error-message">${message}</div>`;
+            diagramContainer.innerHTML = `<div class="error-message">${escapeHtml(message)}</div>`;
         }
-
-        // Example JSON structure for reference
-        const exampleJson = {
-            "type": "flowchart",
-            "nodes": [
-                {"id": "A", "label": "Start"},
-                {"id": "B", "label": "Process"},
-                {"id": "C", "label": "End"}
-            ],
-            "edges": [
-                {"from": "A", "to": "B", "label": "begin"},
-                {"from": "B", "to": "C", "label": "finish"}
-            ]
-        };
     </script>
 </body>
 </html>
