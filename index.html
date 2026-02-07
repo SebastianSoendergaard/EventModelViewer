@@ -467,6 +467,86 @@
         const options = {
             mode: 'tree',
             modes: ['tree', 'code', 'view'],
+            name: 'Event Model',
+            onClassName: function({ path, field, value }) {
+                // Custom class names if needed
+                return undefined;
+            },
+            onNodeName: function({ path, type, size, value }) {
+                // Customize node names for slices array
+                if (path.length === 2 && path[0] === 'slices' && typeof path[1] === 'number') {
+                    // Get the slice name from the value
+                    if (value && value.name) {
+                        return value.name;
+                    }
+                }
+                
+                // Customize trigger to show role
+                if (path.length === 3 && path[0] === 'slices' && path[2] === 'trigger') {
+                    if (value && value.role) {
+                        return `${value.role}`;
+                    }
+                }
+                
+                // Customize command to show name
+                if (path.length >= 3 && path[0] === 'slices' && typeof path[1] === 'number' && path[2] === 'command') {
+                    if (value && value.name) {
+                        return value.name;
+                    }
+                }
+                
+                // Customize view to show name
+                if (path.length >= 3 && path[0] === 'slices' && typeof path[1] === 'number' && path[2] === 'view') {
+                    if (value && value.name) {
+                        return value.name;
+                    }
+                }
+                
+                // Customize command events array items to show event name
+                if (path.length === 5 && path[0] === 'slices' && path[2] === 'command' && path[3] === 'events' && typeof path[4] === 'number') {
+                    if (value && value.name) {
+                        return value.name;
+                    }
+                }
+                
+                // Customize test case given events to show event name
+                if (path.length === 6 && path[0] === 'slices' && path[2] === 'tests' && path[4] === 'given' && typeof path[5] === 'number') {
+                    if (value && value.name) {
+                        return value.name;
+                    }
+                }
+                
+                // Customize test case then items to show event name or error
+                if (path.length === 6 && path[0] === 'slices' && path[2] === 'tests' && path[4] === 'then' && typeof path[5] === 'number') {
+                    if (value) {
+                        if (value.error) {
+                            return `Error: ${value.error}`;
+                        } else if (value.name) {
+                            return value.name;
+                        }
+                    }
+                }
+                
+                // Customize test case array items to show test name
+                if (path.length >= 4 && path[0] === 'slices' && typeof path[1] === 'number' && path[2] === 'tests' && typeof path[3] === 'number') {
+                    if (value && value.name) {
+                        return value.name;
+                    }
+                }
+                
+                // Customize properties array items to show property name
+                if (path[path.length - 2] === 'properties' && typeof path[path.length - 1] === 'number') {
+                    if (value && value.name) {
+                        return value.name;
+                    }
+                    // For trigger properties that use 'label' instead of 'name'
+                    if (value && value.label) {
+                        return value.label;
+                    }
+                }
+                
+                return undefined; // Use default name
+            },
             onChange: function() {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
@@ -868,6 +948,11 @@
 
         function generateTestCase(test) {
             let html = '<div class="test-case">';
+            
+            // Test name
+            if (test.name) {
+                html += `<div class="test-section-label" style="margin-bottom: 6px; font-size: 12px; color: #2c3e50;">${escapeHtml(test.name)}</div>`;
+            }
             
             // Given section
             if (test.given && test.given.length > 0) {
