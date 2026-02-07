@@ -221,7 +221,7 @@
         .pattern-flow {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 100px;
             align-items: center;
         }
 
@@ -283,27 +283,6 @@
             background-color: #e67e22;
             color: white;
             border: 2px solid #d35400;
-        }
-
-        .arrow {
-            width: 2px;
-            height: 30px;
-            background-color: black;
-            align-self: center;
-            position: relative;
-        }
-
-        .arrow::after {
-            content: '';
-            position: absolute;
-            bottom: -6px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 6px solid transparent;
-            border-right: 6px solid transparent;
-            border-top: 8px solid black;
         }
 
         .events-container {
@@ -403,21 +382,18 @@
                 const data = JSON.parse(jsonString);
                 const html = generateEventModelDiagram(data);
                 diagramContainer.innerHTML = html;
-                drawEventToViewArrows();
+                drawAllArrows();
             } catch (error) {
                 showError('Error rendering diagram: ' + error.message);
             }
         }
 
-        function drawEventToViewArrows() {
+        function drawAllArrows() {
             // Remove existing SVG if any
             const existingSvg = document.getElementById('arrow-svg');
             if (existingSvg) {
                 existingSvg.remove();
             }
-
-            const views = document.querySelectorAll('.element.view[data-view-events]');
-            if (views.length === 0) return;
 
             const diagramDiv = document.querySelector('.event-model-diagram');
             if (!diagramDiv) return;
@@ -453,6 +429,33 @@
             defs.appendChild(marker);
             svg.appendChild(defs);
 
+            // Draw all connections
+            document.querySelectorAll('.slice').forEach(slice => {
+                const trigger = slice.querySelector('.element.trigger');
+                const command = slice.querySelector('.element.command');
+                const view = slice.querySelector('.element.view');
+                const events = slice.querySelectorAll('.element.event');
+
+                // Trigger -> Command
+                if (trigger && command) {
+                    drawArrow(svg, trigger, command, diagramDiv, 'bottom', 'top');
+                }
+
+                // Command -> Events
+                if (command && events.length > 0) {
+                    events.forEach(event => {
+                        drawArrow(svg, command, event, diagramDiv, 'bottom', 'top');
+                    });
+                }
+
+                // Trigger -> View
+                if (trigger && view && !command) {
+                    drawArrow(svg, trigger, view, diagramDiv, 'bottom', 'top');
+                }
+            });
+
+            // Event -> View (across slices)
+            const views = document.querySelectorAll('.element.view[data-view-events]');
             views.forEach(view => {
                 const eventNames = view.getAttribute('data-view-events');
                 if (!eventNames) return;
@@ -463,26 +466,90 @@
                     const events = document.querySelectorAll(`.element.event[data-event-name="${eventName}"]`);
                     
                     events.forEach(event => {
-                        drawArrow(svg, event, view, diagramDiv);
+                        drawArrow(svg, event, view, diagramDiv, 'top', 'bottom');
                     });
                 });
             });
+
+            // View -> Trigger (find triggers that reference view events)
+            views.forEach(view => {
+                const viewSlice = view.closest('.slice');
+                const nextSlice = viewSlice?.nextElementSibling;
+                if (nextSlice) {
+                    const nextTrigger = nextSlice.querySelector('.element.trigger');
+                    if (nextTrigger) {
+                        drawArrow(svg, view, nextTrigger, diagramDiv, 'right', 'left');
+                    }
+                }
+            });
         }
 
-        function drawArrow(svg, fromElement, toElement, container) {
+        function drawArrow(svg, fromElement, toElement, container, fromSide = 'bottom', toSide = 'top') {
             const fromRect = fromElement.getBoundingClientRect();
             const toRect = toElement.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
 
-            const startX = fromRect.left + fromRect.width / 2 - containerRect.left;
-            const startY = fromRect.top - containerRect.top;
-            const endX = toRect.left + toRect.width / 2 - containerRect.left;
-            const endY = toRect.bottom - containerRect.top;
+            // Calculate start point based on fromSide
+            let startX, startY;
+            switch (fromSide) {
+                case 'top':
+                    startX = fromRect.left + fromRect.width / 2 - containerRect.left;
+                    startY = fromRect.top - containerRect.top;
+                    break;
+                case 'bottom':
+                    startX = fromRect.left + fromRect.width / 2 - containerRect.left;
+                    startY = fromRect.bottom - containerRect.top;
+                    break;
+                case 'left':
+                    startX = fromRect.left - containerRect.left;
+                    startY = fromRect.top + fromRect.height / 2 - containerRect.top;
+                    break;
+                case 'right':
+                    startX = fromRect.right - containerRect.left;
+                    startY = fromRect.top + fromRect.height / 2 - containerRect.top;
+                    break;
+            }
 
-            const midY = (startY + endY) / 2;
+            // Calculate end point based on toSide
+            let endX, endY;
+            switch (toSide) {
+                case 'top':
+                    endX = toRect.left + toRect.width / 2 - containerRect.left;
+                    endY = toRect.top - containerRect.top;
+                    break;
+                case 'bottom':
+                    endX = toRect.left + toRect.width / 2 - containerRect.left;
+                    endY = toRect.bottom - containerRect.top;
+                    break;
+                case 'left':
+                    endX = toRect.left - containerRect.left;
+                    endY = toRect.top + toRect.height / 2 - containerRect.top;
+                    break;
+                case 'right':
+                    endX = toRect.right - containerRect.left;
+                    endY = toRect.top + toRect.height / 2 - containerRect.top;
+                    break;
+            }
 
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            const d = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
+            
+            // Choose curve based on direction
+            let d;
+            if ((fromSide === 'bottom' && toSide === 'top') || (fromSide === 'top' && toSide === 'bottom')) {
+                // Vertical connection
+                const midY = (startY + endY) / 2;
+                d = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
+            } else if ((fromSide === 'right' && toSide === 'left') || (fromSide === 'left' && toSide === 'right')) {
+                // Horizontal connection
+                const midX = (startX + endX) / 2;
+                d = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
+            } else {
+                // Mixed connection - use both control points
+                const midX = (startX + endX) / 2;
+                const midY = (startY + endY) / 2;
+                d = `M ${startX} ${startY} Q ${midX} ${midY}, ${endX} ${endY}`;
+            }
+            
             path.setAttribute('d', d);
             path.setAttribute('stroke', 'black');
             path.setAttribute('stroke-width', '2');
@@ -495,7 +562,7 @@
         // Redraw arrows on window resize
         window.addEventListener('resize', () => {
             if (document.querySelector('.event-model-diagram')) {
-                drawEventToViewArrows();
+                drawAllArrows();
             }
         });
 
@@ -536,13 +603,11 @@
             if (slice.command) {
                 if (slice.trigger) {
                     html += generateTrigger(slice.trigger);
-                    html += '<div class="arrow"></div>';
                 }
                 
                 html += generateCommand(slice.command);
                 
                 if (slice.command.events && slice.command.events.length > 0) {
-                    html += '<div class="arrow"></div>';
                     html += '<div class="events-container">';
                     slice.command.events.forEach((event, eventIndex) => {
                         html += generateEvent(event, index, eventIndex);
@@ -554,7 +619,6 @@
             else if (slice.view) {
                 if (slice.trigger) {
                     html += generateTrigger(slice.trigger);
-                    html += '<div class="arrow"></div>';
                 }
                 
                 html += generateView(slice.view, index, slice.view.events || []);
@@ -567,13 +631,11 @@
                         html += generateEventReference(eventName);
                     });
                     html += '</div>';
-                    html += '<div class="arrow"></div>';
                 }
                 
                 html += generateCommand(slice.automation.command);
                 
                 if (slice.automation.command.events && slice.automation.command.events.length > 0) {
-                    html += '<div class="arrow"></div>';
                     html += '<div class="events-container">';
                     slice.automation.command.events.forEach(event => {
                         html += generateEvent(event);
@@ -584,7 +646,6 @@
             // Policy Pattern: event -> event (future support)
             else if (slice.policy) {
                 html += generateEventReference(slice.policy.triggerEvent);
-                html += '<div class="arrow"></div>';
                 html += generateEvent(slice.policy.resultEvent);
             }
 
