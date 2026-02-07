@@ -198,13 +198,13 @@
         .slice {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 2px;
             min-width: 250px;
             position: relative;
         }
 
         .slice.with-border {
-            padding: 15px;
+            padding: 4px;
             border: 3px solid;
             border-radius: 8px;
             background-color: #fafafa;
@@ -221,7 +221,7 @@
         .pattern-flow {
             display: flex;
             flex-direction: column;
-            gap: 100px;
+            gap: 150px;
             align-items: center;
         }
 
@@ -290,6 +290,69 @@
             flex-direction: row;
             gap: 10px;
             align-items: center;
+        }
+
+        .tests-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            align-items: center;
+        }
+
+        .test-case {
+            border: 1px solid black;
+            border-radius: 4px;
+            padding: 4px;
+            background-color: white;
+            font-size: 12px;
+            width: 90%;
+        }
+
+        .test-section {
+            margin-bottom: 1px;
+        }
+
+        .test-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .test-section-label {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 1px;
+            font-size: 11px;
+        }
+
+        .test-event, .test-command, .test-error {
+            padding: 4px 6px;
+            border-radius: 4px;
+            margin-bottom: 1px;
+        }
+
+        .test-event {
+            background-color: #e67e22;
+            color: white;
+            border: 2px solid #d35400;
+        }
+
+        .test-command {
+            background-color: #3498db;
+            color: white;
+            border: 2px solid #2980b9;
+        }
+
+        .test-error {
+            background-color: #d63031;
+            border: 1px solid #d63031;
+            color: white;
+        }
+
+        .test-property {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.9);
+            margin-left: 8px;
+            margin-top: 2px;
         }
     </style>
 </head>
@@ -649,7 +712,75 @@
                 html += generateEvent(slice.policy.resultEvent);
             }
 
+            // Add test cases if present
+            if (slice.tests && slice.tests.length > 0) {
+                html += '<div class="tests-container">';
+                slice.tests.forEach(test => {
+                    html += generateTestCase(test);
+                });
+                html += '</div>';
+            }
+
             html += '</div></div>';
+            return html;
+        }
+
+        function generateTestCase(test) {
+            let html = '<div class="test-case">';
+            
+            // Given section
+            if (test.given && test.given.length > 0) {
+                html += '<div class="test-section">';
+                html += '<div class="test-section-label">Given:</div>';
+                test.given.forEach(event => {
+                    html += `<div class="test-event">`;
+                    html += `${escapeHtml(event.name)}`;
+                    if (event.properties && event.properties.length > 0) {
+                        event.properties.forEach(prop => {
+                            html += `<div class="test-property">${escapeHtml(prop.name)}: ${escapeHtml(prop.value)}</div>`;
+                        });
+                    }
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+            
+            // When section
+            if (test.when) {
+                html += '<div class="test-section">';
+                html += '<div class="test-section-label">When:</div>';
+                html += `<div class="test-command">${escapeHtml(test.when.name)}`;
+                if (test.when.properties && test.when.properties.length > 0) {
+                    test.when.properties.forEach(prop => {
+                        html += `<div class="test-property">${escapeHtml(prop.name)}: ${escapeHtml(prop.value)}</div>`;
+                    });
+                }
+                html += '</div>';
+                html += '</div>';
+            }
+            
+            // Then section
+            if (test.then && test.then.length > 0) {
+                html += '<div class="test-section">';
+                html += '<div class="test-section-label">Then:</div>';
+                test.then.forEach(result => {
+                    if (result.error) {
+                        html += `<div class="test-error">Error: ${escapeHtml(result.error)}</div>`;
+                    } else {
+                        html += `<div class="test-event">`;
+                        html += `${escapeHtml(result.name)}`;
+                        if (result.properties && result.properties.length > 0) {
+                            result.properties.forEach(prop => {
+                                html += `<div class="test-property">${escapeHtml(prop.name)}: ${escapeHtml(prop.value)}</div>`;
+                            });
+                        }
+                        html += '</div>';
+                    }
+                });
+                html += '</div>';
+            }
+            
+            html += '</div>';
             return html;
         }
 
