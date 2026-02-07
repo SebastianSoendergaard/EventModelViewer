@@ -65,6 +65,28 @@
             font-style: italic;
         }
 
+        .checkbox-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .checkbox-item label {
+            cursor: pointer;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
         .main-container {
             flex: 1;
             display: flex;
@@ -210,6 +232,11 @@
             background-color: #fafafa;
         }
 
+        .slice.hide-border {
+            border: none;
+            background-color: transparent;
+        }
+
         .slice-name {
             font-weight: bold;
             font-size: 14px;
@@ -300,6 +327,10 @@
             align-items: center;
         }
 
+        .tests-container.hidden {
+            display: none;
+        }
+
         .test-case {
             border: 1px solid black;
             border-radius: 4px;
@@ -354,6 +385,14 @@
             margin-left: 8px;
             margin-top: 2px;
         }
+
+        .element-property .property-type {
+            display: inline;
+        }
+
+        .element-property .property-type.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -367,6 +406,20 @@
             <label for="fileInput" class="file-label">Choose JSON File</label>
         </div>
         <span class="file-name" id="fileName">No file selected</span>
+        <div class="checkbox-group">
+            <div class="checkbox-item">
+                <input type="checkbox" id="showSlices" checked>
+                <label for="showSlices">Show slices</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="showTests" checked>
+                <label for="showTests">Show tests</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="showTypes" checked>
+                <label for="showTypes">Show types</label>
+            </div>
+        </div>
     </div>
 
     <div class="main-container">
@@ -399,12 +452,77 @@
         const diagramContainer = document.getElementById('diagram');
         const editorPanel = document.getElementById('editorPanel');
         const collapseBtn = document.getElementById('collapseBtn');
+        const showSlicesCheckbox = document.getElementById('showSlices');
+        const showTestsCheckbox = document.getElementById('showTests');
+        const showTypesCheckbox = document.getElementById('showTypes');
 
         // Collapse/Expand handler
         collapseBtn.addEventListener('click', () => {
             editorPanel.classList.toggle('collapsed');
             collapseBtn.textContent = editorPanel.classList.contains('collapsed') ? '▶' : '◀';
         });
+
+        // Checkbox handlers
+        showSlicesCheckbox.addEventListener('change', () => {
+            toggleSliceBorders(showSlicesCheckbox.checked);
+        });
+
+        showTestsCheckbox.addEventListener('change', () => {
+            toggleTests(showTestsCheckbox.checked);
+        });
+
+        showTypesCheckbox.addEventListener('change', () => {
+            toggleTypes(showTypesCheckbox.checked);
+        });
+
+        function toggleSliceBorders(show) {
+            const slices = document.querySelectorAll('.slice.with-border');
+            slices.forEach(slice => {
+                if (show) {
+                    slice.classList.remove('hide-border');
+                } else {
+                    slice.classList.add('hide-border');
+                }
+            });
+        }
+
+        function toggleTests(show) {
+            const testsContainers = document.querySelectorAll('.tests-container');
+            testsContainers.forEach(container => {
+                if (show) {
+                    container.classList.remove('hidden');
+                } else {
+                    container.classList.add('hidden');
+                }
+            });
+        }
+
+        function toggleTypes(show) {
+            const propertyElements = document.querySelectorAll('.element-property');
+            propertyElements.forEach(prop => {
+                // Skip trigger properties - they don't have types
+                if (prop.hasAttribute('data-trigger-property')) {
+                    return;
+                }
+                
+                // Store original content if not already stored
+                if (!prop.hasAttribute('data-original-content')) {
+                    prop.setAttribute('data-original-content', prop.textContent);
+                }
+                
+                const originalContent = prop.getAttribute('data-original-content');
+                const colonIndex = originalContent.indexOf(':');
+                
+                if (colonIndex !== -1) {
+                    if (show) {
+                        prop.textContent = originalContent;
+                    } else {
+                        const name = originalContent.substring(0, colonIndex);
+                        prop.textContent = name;
+                    }
+                }
+            });
+        }
 
         // File upload handler
         fileInput.addEventListener('change', (event) => {
@@ -446,6 +564,11 @@
                 const html = generateEventModelDiagram(data);
                 diagramContainer.innerHTML = html;
                 drawAllArrows();
+                
+                // Apply current checkbox states
+                toggleSliceBorders(showSlicesCheckbox.checked);
+                toggleTests(showTestsCheckbox.checked);
+                toggleTypes(showTypesCheckbox.checked);
             } catch (error) {
                 showError('Error rendering diagram: ' + error.message);
             }
@@ -802,7 +925,7 @@
             if (trigger.properties && trigger.properties.length > 0) {
                 html += '<div class="element-properties">';
                 trigger.properties.forEach(prop => {
-                    html += `<div class="element-property">${escapeHtml(prop.label)}: ${escapeHtml(prop.propertyName)}</div>`;
+                    html += `<div class="element-property" data-trigger-property="true">${escapeHtml(prop.label)}: ${escapeHtml(prop.propertyName)}</div>`;
                 });
                 html += '</div>';
             }
