@@ -1,0 +1,195 @@
+{
+	"title": "em diagram",
+	"slices": [
+		{
+			"id": "1",
+			"name": "Add item",
+			"border": "#4CBB17",
+			"trigger": {
+				"role": "User"
+				"type": "input-ui",
+				"buttons": [
+					"Add"
+				]
+			},
+			"command": {
+				"name": "Add item",
+				"properties": [
+					{
+						"name": "CartId",
+						"type": "Guid"
+					},
+					{
+						"name": "Description",
+						"type": "string"
+					},
+					{
+						"name": "Price",
+						"type": "decimal"
+					}
+				],
+				"events": [
+					{
+						"name": "Cart created",
+						"properties": [
+							{
+								"name": "CartId",
+								"type": "Guid"
+							}
+						]
+					},
+					{
+						"name": "Item added",
+						"properties": [
+							{
+							"name": "CartId",
+							"type": "Guid"
+							},
+							{
+								"name": "Description",
+								"type": "string"
+							},
+							{
+								"name": "Price",
+								"type": "decimal"
+							}
+						]
+					}
+				],
+			},
+			"tests": [
+				{
+					"when": {
+						"name": "Add item",
+					},
+					"then": [
+						{
+							"name": "Cart created",
+						},
+						{
+							"name": "Item added",
+						}
+					]
+				},
+				{
+					"given": [
+						{
+							"name": "Cart created",
+						},
+						{
+							"name": "Item added",
+						}
+					]
+					"when": {
+						"name": "Add item",
+					},
+					"then": [
+						{
+							"name": "Item added",
+						}
+					]
+				},
+				{
+					"given": [
+						{
+							"name": "Cart created",
+						},
+						{
+							"name": "Item added",
+						},
+						{
+							"name": "Item added",
+						},
+						{
+							"name": "Item added",
+						}
+					]
+					"when": {
+						"name": "Add item",
+					},
+					"then": [
+						{
+							"error": "Too many items"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "2",
+			"name": "Cart items",
+			"border": "#FF0000",
+			"trigger": {
+				"type": "list-ui",
+				"properties": [
+					{
+						"label": "Description",
+						"propertyName": "description"
+					}
+				]
+			},
+			"view": {
+				"name": "Cart items",
+				"properties": [
+					{
+						"name": "description",
+						"type": "string"
+					},
+					{
+						"name": "description",
+						"type": "string"
+					}
+				],
+				"events": [
+					"Item added"
+				]
+			},
+			"tests": [
+				{
+					"given": [
+						{
+							"name": "Item added",
+							"properties": [
+								{
+									"name": "Price",
+									"value": "5"
+								}
+							]
+						},
+						{
+							"name": "Item added",
+							"properties": [
+								{
+									"name": "Price",
+									"value": "7"
+								}
+							]
+						}
+					],
+					"then": [
+						{
+							"name": "Cart items",
+							"properties": [
+								{
+									"name": "Price",
+									"value": "12"
+								}
+							]
+						}
+					]
+				},
+				{
+					"given": [
+					],
+					"then": [
+						{
+							"error": "Too many items"
+						}
+					]
+				}
+			]
+		}
+	
+	]
+	
+}
