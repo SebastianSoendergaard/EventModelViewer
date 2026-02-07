@@ -59,6 +59,7 @@
 			},
 			"tests": [
 				{
+					"name": "Creates cart and add initial item",
 					"when": {
 						"name": "Add item"
 					},
@@ -72,6 +73,7 @@
 					]
 				},
 				{
+					"name": "Adds item to existing cart",
 					"given": [
 						{
 							"name": "Cart created"
@@ -90,6 +92,7 @@
 					]
 				},
 				{
+					"name": "Fails when too many items are added",
 					"given": [
 						{
 							"name": "Cart created"
