@@ -286,12 +286,24 @@
         }
 
         .arrow {
+            width: 2px;
+            height: 30px;
+            background-color: black;
+            align-self: center;
+            position: relative;
+        }
+
+        .arrow::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
             width: 0;
             height: 0;
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-top: 12px solid #7f8c8d;
-            align-self: center;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid black;
         }
 
         .events-container {
@@ -435,7 +447,7 @@
 
             const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
             polygon.setAttribute('points', '0 0, 10 3, 0 6');
-            polygon.setAttribute('fill', '#e67e22');
+            polygon.setAttribute('fill', 'black');
 
             marker.appendChild(polygon);
             defs.appendChild(marker);
@@ -462,17 +474,17 @@
             const toRect = toElement.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
 
-            const startX = fromRect.right - containerRect.left;
-            const startY = fromRect.top + fromRect.height / 2 - containerRect.top;
-            const endX = toRect.left - containerRect.left;
-            const endY = toRect.top + toRect.height / 2 - containerRect.top;
+            const startX = fromRect.left + fromRect.width / 2 - containerRect.left;
+            const startY = fromRect.top - containerRect.top;
+            const endX = toRect.left + toRect.width / 2 - containerRect.left;
+            const endY = toRect.bottom - containerRect.top;
 
-            const midX = (startX + endX) / 2;
+            const midY = (startY + endY) / 2;
 
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            const d = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
+            const d = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
             path.setAttribute('d', d);
-            path.setAttribute('stroke', '#e67e22');
+            path.setAttribute('stroke', 'black');
             path.setAttribute('stroke-width', '2');
             path.setAttribute('fill', 'none');
             path.setAttribute('marker-end', 'url(#arrowhead)');
