@@ -6,7 +6,7 @@
 			"name": "Add item",
 			"border": "#4CBB17",
 			"trigger": {
-				"role": "User"
+				"role": "User",
 				"type": "input-ui",
 				"buttons": [
 					"Add"
@@ -55,57 +55,57 @@
 							}
 						]
 					}
-				],
+				]
 			},
 			"tests": [
 				{
 					"when": {
-						"name": "Add item",
+						"name": "Add item"
 					},
 					"then": [
 						{
-							"name": "Cart created",
+							"name": "Cart created"
 						},
 						{
-							"name": "Item added",
+							"name": "Item added"
 						}
 					]
 				},
 				{
 					"given": [
 						{
-							"name": "Cart created",
+							"name": "Cart created"
 						},
 						{
-							"name": "Item added",
+							"name": "Item added"
 						}
-					]
+					],
 					"when": {
-						"name": "Add item",
+						"name": "Add item"
 					},
 					"then": [
 						{
-							"name": "Item added",
+							"name": "Item added"
 						}
 					]
 				},
 				{
 					"given": [
 						{
-							"name": "Cart created",
+							"name": "Cart created"
 						},
 						{
-							"name": "Item added",
+							"name": "Item added"
 						},
 						{
-							"name": "Item added",
+							"name": "Item added"
 						},
 						{
-							"name": "Item added",
+							"name": "Item added"
 						}
-					]
+					],
 					"when": {
-						"name": "Add item",
+						"name": "Add item"
 					},
 					"then": [
 						{
@@ -120,6 +120,7 @@
 			"name": "Cart items",
 			"border": "#FF0000",
 			"trigger": {
+				"role": "User",
 				"type": "list-ui",
 				"properties": [
 					{
