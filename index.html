@@ -1005,46 +1005,52 @@
             const fromRect = fromElement.getBoundingClientRect();
             const toRect = toElement.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
+            const wrapperRect = diagramWrapper.getBoundingClientRect();
 
-            // Calculate start point based on fromSide
+            // Account for zoom and scroll offset
+            const scale = currentZoom;
+            const offsetX = (wrapperRect.left - containerRect.left) / scale;
+            const offsetY = (wrapperRect.top - containerRect.top) / scale;
+
+            // Calculate start point based on fromSide (in unscaled coordinates)
             let startX, startY;
             switch (fromSide) {
                 case 'top':
-                    startX = fromRect.left + fromRect.width / 2 - containerRect.left;
-                    startY = fromRect.top - containerRect.top;
+                    startX = (fromRect.left - wrapperRect.left) / scale + (fromRect.width / scale) / 2 + offsetX;
+                    startY = (fromRect.top - wrapperRect.top) / scale + offsetY;
                     break;
                 case 'bottom':
-                    startX = fromRect.left + fromRect.width / 2 - containerRect.left;
-                    startY = fromRect.bottom - containerRect.top;
+                    startX = (fromRect.left - wrapperRect.left) / scale + (fromRect.width / scale) / 2 + offsetX;
+                    startY = (fromRect.bottom - wrapperRect.top) / scale + offsetY;
                     break;
                 case 'left':
-                    startX = fromRect.left - containerRect.left;
-                    startY = fromRect.top + fromRect.height / 2 - containerRect.top;
+                    startX = (fromRect.left - wrapperRect.left) / scale + offsetX;
+                    startY = (fromRect.top - wrapperRect.top) / scale + (fromRect.height / scale) / 2 + offsetY;
                     break;
                 case 'right':
-                    startX = fromRect.right - containerRect.left;
-                    startY = fromRect.top + fromRect.height / 2 - containerRect.top;
+                    startX = (fromRect.right - wrapperRect.left) / scale + offsetX;
+                    startY = (fromRect.top - wrapperRect.top) / scale + (fromRect.height / scale) / 2 + offsetY;
                     break;
             }
 
-            // Calculate end point based on toSide
+            // Calculate end point based on toSide (in unscaled coordinates)
             let endX, endY;
             switch (toSide) {
                 case 'top':
-                    endX = toRect.left + toRect.width / 2 - containerRect.left;
-                    endY = toRect.top - containerRect.top;
+                    endX = (toRect.left - wrapperRect.left) / scale + (toRect.width / scale) / 2 + offsetX;
+                    endY = (toRect.top - wrapperRect.top) / scale + offsetY;
                     break;
                 case 'bottom':
-                    endX = toRect.left + toRect.width / 2 - containerRect.left;
-                    endY = toRect.bottom - containerRect.top;
+                    endX = (toRect.left - wrapperRect.left) / scale + (toRect.width / scale) / 2 + offsetX;
+                    endY = (toRect.bottom - wrapperRect.top) / scale + offsetY;
                     break;
                 case 'left':
-                    endX = toRect.left - containerRect.left;
-                    endY = toRect.top + toRect.height / 2 - containerRect.top;
+                    endX = (toRect.left - wrapperRect.left) / scale + offsetX;
+                    endY = (toRect.top - wrapperRect.top) / scale + (toRect.height / scale) / 2 + offsetY;
                     break;
                 case 'right':
-                    endX = toRect.right - containerRect.left;
-                    endY = toRect.top + toRect.height / 2 - containerRect.top;
+                    endX = (toRect.right - wrapperRect.left) / scale + offsetX;
+                    endY = (toRect.top - wrapperRect.top) / scale + (toRect.height / scale) / 2 + offsetY;
                     break;
             }
 
