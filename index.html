@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Event Model Viewer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsoneditor@9.10.4/dist/jsoneditor.min.css">
     <style>
         * {
             margin: 0;
@@ -153,15 +154,20 @@
             overflow: auto;
         }
 
-        textarea {
+        #jsonEditor {
             width: 100%;
             height: 100%;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 14px;
             border: 1px solid #ddd;
-            padding: 1rem;
-            resize: none;
             border-radius: 4px;
+        }
+
+        .jsoneditor {
+            border: 1px solid #ddd;
+        }
+
+        .jsoneditor-menu {
+            background-color: #34495e;
+            border-bottom: 1px solid #2c3e50;
         }
 
         .diagram-panel {
@@ -429,7 +435,7 @@
                 <button class="collapse-btn" id="collapseBtn" title="Collapse/Expand">◀</button>
             </div>
             <div class="editor-container">
-                <textarea id="jsonEditor" placeholder="Upload a JSON file or paste your JSON here..."></textarea>
+                <div id="jsonEditor"></div>
             </div>
         </div>
 
@@ -445,16 +451,38 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/jsoneditor@9.10.4/dist/jsoneditor.min.js"></script>
     <script>
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName');
-        const jsonEditor = document.getElementById('jsonEditor');
+        const editorContainer = document.getElementById('jsonEditor');
         const diagramContainer = document.getElementById('diagram');
         const editorPanel = document.getElementById('editorPanel');
         const collapseBtn = document.getElementById('collapseBtn');
         const showSlicesCheckbox = document.getElementById('showSlices');
         const showTestsCheckbox = document.getElementById('showTests');
         const showTypesCheckbox = document.getElementById('showTypes');
+
+        // Initialize JSON Editor
+        const options = {
+            mode: 'tree',
+            modes: ['tree', 'code', 'view'],
+            onChange: function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    try {
+                        const jsonData = jsonEditor.get();
+                        renderDiagram(JSON.stringify(jsonData));
+                    } catch (error) {
+                        // Don't show error while typing
+                    }
+                }, 1000);
+            },
+            onModeChange: function(newMode, oldMode) {
+                // Handle mode changes if needed
+            }
+        };
+        const jsonEditor = new JSONEditor(editorContainer, options);
 
         // Collapse/Expand handler
         collapseBtn.addEventListener('click', () => {
@@ -524,6 +552,9 @@
             });
         }
 
+        // Debounce timer
+        let debounceTimer;
+
         // File upload handler
         fileInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
@@ -534,7 +565,8 @@
                 reader.onload = (e) => {
                     try {
                         const jsonContent = e.target.result;
-                        jsonEditor.value = JSON.stringify(JSON.parse(jsonContent), null, 2);
+                        const jsonData = JSON.parse(jsonContent);
+                        jsonEditor.set(jsonData);
                         renderDiagram(jsonContent);
                     } catch (error) {
                         showError('Invalid JSON file: ' + error.message);
@@ -542,20 +574,6 @@
                 };
                 reader.readAsText(file);
             }
-        });
-
-        // Editor change handler with debounce
-        let debounceTimer;
-        jsonEditor.addEventListener('input', () => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                try {
-                    const jsonData = JSON.parse(jsonEditor.value);
-                    renderDiagram(jsonEditor.value);
-                } catch (error) {
-                    // Don't show error while typing
-                }
-            }, 1000);
         });
 
         function renderDiagram(jsonString) {
