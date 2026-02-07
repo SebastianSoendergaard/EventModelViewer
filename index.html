@@ -95,19 +95,22 @@
         }
 
         .editor-panel {
-            width: 40%;
+            width: 25%;
             display: flex;
             flex-direction: column;
             border-right: 1px solid #ddd;
             background-color: white;
-            transition: width 0.3s ease;
+            position: relative;
         }
 
         .editor-panel.collapsed {
-            width: 40px;
         }
 
         .editor-panel.collapsed .editor-container {
+            display: none;
+        }
+
+        .editor-panel.collapsed .resizer {
             display: none;
         }
 
@@ -168,6 +171,25 @@
         .jsoneditor-menu {
             background-color: #34495e;
             border-bottom: 1px solid #2c3e50;
+        }
+
+        .resizer {
+            width: 5px;
+            cursor: col-resize;
+            background-color: #ddd;
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 10;
+        }
+
+        .resizer:hover {
+            background-color: #3498db;
+        }
+
+        .resizer.resizing {
+            background-color: #3498db;
         }
 
         .diagram-panel {
@@ -437,6 +459,7 @@
             <div class="editor-container">
                 <div id="jsonEditor"></div>
             </div>
+            <div class="resizer" id="resizer"></div>
         </div>
 
         <div class="diagram-panel">
@@ -462,6 +485,49 @@
         const showSlicesCheckbox = document.getElementById('showSlices');
         const showTestsCheckbox = document.getElementById('showTests');
         const showTypesCheckbox = document.getElementById('showTypes');
+        const resizer = document.getElementById('resizer');
+
+        // Resizer functionality
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+        let savedWidth = null; // Store width before collapse
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = editorPanel.offsetWidth;
+            resizer.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            const deltaX = e.clientX - startX;
+            const newWidth = startWidth + deltaX;
+            const containerWidth = editorPanel.parentElement.offsetWidth;
+            
+            // Set minimum and maximum widths (10% to 80% of container)
+            const minWidth = containerWidth * 0.1;
+            const maxWidth = containerWidth * 0.8;
+            
+            if (newWidth >= minWidth && newWidth <= maxWidth) {
+                const widthPercent = (newWidth / containerWidth) * 100;
+                editorPanel.style.width = widthPercent + '%';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                resizer.classList.remove('resizing');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
 
         // Initialize JSON Editor
         const options = {
@@ -566,8 +632,20 @@
 
         // Collapse/Expand handler
         collapseBtn.addEventListener('click', () => {
-            editorPanel.classList.toggle('collapsed');
-            collapseBtn.textContent = editorPanel.classList.contains('collapsed') ? '▶' : '◀';
+            if (editorPanel.classList.contains('collapsed')) {
+                // Expanding
+                editorPanel.classList.remove('collapsed');
+                if (savedWidth) {
+                    editorPanel.style.width = savedWidth;
+                }
+                collapseBtn.textContent = '◀';
+            } else {
+                // Collapsing
+                savedWidth = editorPanel.style.width || '27%';
+                editorPanel.classList.add('collapsed');
+                editorPanel.style.width = '40px';
+                collapseBtn.textContent = '▶';
+            }
         });
 
         // Checkbox handlers
