@@ -1,5 +1,5 @@
 {
-	"title": "em diagram",
+	"title": "Understanding Eventsourcing - Cart",
 	"slices": [
 		{
 			"id": "1",
@@ -24,8 +24,24 @@
 						"type": "string"
 					},
 					{
+						"name": "Image",
+						"type": "string"
+					},
+					{
 						"name": "Price",
 						"type": "decimal"
+					},
+					{
+						"name": "TotalPrice",
+						"type": "decimal"
+					},
+					{
+						"name": "ItemId",
+						"type": "Guid"
+					},
+					{
+						"name": "ProductId",
+						"type": "Guid"
 					}
 				],
 				"events": [
@@ -42,16 +58,32 @@
 						"name": "Item added",
 						"properties": [
 							{
-							"name": "CartId",
-							"type": "Guid"
+								"name": "CartId",
+								"type": "Guid"
 							},
 							{
 								"name": "Description",
 								"type": "string"
 							},
 							{
+								"name": "Image",
+								"type": "string"
+							},
+							{
 								"name": "Price",
 								"type": "decimal"
+							},
+							{
+								"name": "TotalPrice",
+								"type": "decimal"
+							},
+							{
+								"name": "ItemId",
+								"type": "Guid"
+							},
+							{
+								"name": "ProductId",
+								"type": "Guid"
 							}
 						]
 					}
@@ -122,26 +154,24 @@
 			"id": "2",
 			"name": "Cart items",
 			"border": "#FF0000",
-			"trigger": {
-				"role": "User",
-				"type": "list-ui",
-				"properties": [
-					{
-						"label": "Description",
-						"propertyName": "description"
-					}
-				]
-			},
 			"view": {
 				"name": "Cart items",
 				"properties": [
 					{
-						"name": "description",
+						"name": "Description",
 						"type": "string"
 					},
 					{
-						"name": "description",
+						"name": "Image",
 						"type": "string"
+					},
+					{
+						"name": "Price",
+						"type": "decimal"
+					},
+					{
+						"name": "TotalPrice",
+						"type": "decimal"
 					}
 				],
 				"events": [
@@ -150,6 +180,7 @@
 			},
 			"tests": [
 				{
+					"name": "Sums the prices",
 					"given": [
 						{
 							"name": "Item added",
@@ -183,17 +214,315 @@
 					]
 				},
 				{
+					"name": "Fails when no cart yet",
 					"given": [
 					],
 					"then": [
 						{
-							"error": "Too many items"
+							"error": "Cart not found"
 						}
 					]
 				}
 			]
-		}
-	
+		},
+		{
+			"id": "3",
+			"name": "Remove item",
+			"border": "#000000",
+			"trigger": {
+				"role": "User",
+				"type": "input-ui",
+				"buttons": [
+					"Add",
+					"Remove"
+				]
+			},
+			"command": {
+				"name": "Remove item",
+				"properties": [
+					{
+						"name": "CartId",
+						"type": "Guid"
+					},
+					{
+						"name": "ItemId",
+						"type": "string"
+					}
+				],
+				"events": [
+					{
+						"name": "Item removed",
+						"properties": [
+							{
+								"name": "CartId",
+								"type": "Guid"
+							},
+							{
+								"name": "ItemId",
+								"type": "Guid"
+							}
+						]
+					}
+				]
+			},
+			"tests": [
+				{
+					"name": "Item is removed",
+					"given": [
+						{
+							"name": "Cart created"
+						},
+						{
+							"name": "Item added"
+						}
+					],
+					"when": {
+						"name": "Remove item"
+					},
+					"then": [
+						{
+							"name": "Item removed"
+						}
+					]
+				},
+				{
+					"name": "Fails when item not in cart",
+					"given": [
+						{
+							"name": "Cart created"
+						},
+						{
+							"name": "Item added"
+						},
+						{
+							"name": "Item removed"
+						}
+					],
+					"when": {
+						"name": "Remove item"
+					},
+					"then": [
+						{
+							"error": "Item already removed"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "2",
+			"name": "Cart items",
+			"view": {
+				"name": "Cart items",
+				"properties": [
+					{
+						"name": "Description",
+						"type": "string"
+					},
+					{
+						"name": "Image",
+						"type": "string"
+					},
+					{
+						"name": "Price",
+						"type": "decimal"
+					},
+					{
+						"name": "TotalPrice",
+						"type": "decimal"
+					}
+				],
+				"events": [
+					"Item removed"
+				]
+			},
+			"tests": [
+				{
+					"name": "Subtracts from total when item removed",
+					"given": [
+						{
+							"name": "Item added",
+							"properties": [
+								{
+									"name": "Price",
+									"value": "5"
+								}
+							]
+						},
+						{
+							"name": "Item removed"
+						}
+					],
+					"then": [
+						{
+							"name": "Cart items",
+							"properties": [
+								{
+									"name": "Price",
+									"value": "0"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "4",
+			"name": "Clear cart",
+			"border": "#000000",
+			"trigger": {
+				"role": "User",
+				"type": "input-ui",
+				"buttons": [
+					"Add",
+					"Remove",
+					"Clear"
+				]
+			},
+			"command": {
+				"name": "Clear cart",
+				"properties": [
+					{
+						"name": "CartId",
+						"type": "Guid"
+					}
+				],
+				"events": [
+					{
+						"name": "Cart cleared",
+						"properties": [
+							{
+								"name": "CartId",
+								"type": "Guid"
+							}
+						]
+					}
+				]
+			},
+			"tests": [
+				{
+					"name": "Item is removed",
+					"given": [
+						{
+							"name": "Cart created"
+						},
+						{
+							"name": "Item added"
+						}
+					],
+					"when": {
+						"name": "Clear cart"
+					},
+					"then": [
+						{
+							"name": "Cart cleared"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "2",
+			"name": "Cart items",
+			"view": {
+				"name": "Cart items",
+				"properties": [
+					{
+						"name": "Description",
+						"type": "string"
+					},
+					{
+						"name": "Image",
+						"type": "string"
+					},
+					{
+						"name": "Price",
+						"type": "decimal"
+					},
+					{
+						"name": "TotalPrice",
+						"type": "decimal"
+					}
+				],
+				"events": [
+					"Cart cleared"
+				]
+			},
+			"tests": [
+				{
+					"name": "Cleares cart",
+					"given": [
+						{
+							"name": "Item added",
+							"properties": [
+								{
+									"name": "Price",
+									"value": "5"
+								}
+							],
+							"name": "Item added",
+							"properties": [
+								{
+									"name": "Price",
+									"value": "5"
+								}
+							]
+						},
+						{
+							"name": "Cart cleared"
+						}
+					],
+					"then": [
+						{
+							"name": "Cart items",
+							"properties": [
+								{
+									"name": "Price",
+									"value": "0"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "5",
+			"name": "Inventory changed",
+			"border": "#000000",
+			"trigger": {
+				"role": "Bot",
+				"type": "automation"
+			},
+			"command": {
+				"name": "Change inventory",
+				"properties": [
+					{
+						"name": "ProductId",
+						"type": "Guid"
+					},
+					{
+						"name": "Inventory",
+						"type": "int"
+					}
+				],
+				"events": [
+					{
+						"name": "Inventory changed",
+						"properties": [
+							{
+								"name": "ProductId",
+								"type": "Guid"
+							},
+							{
+								"name": "Inventory",
+								"type": "int"
+							}
+						]
+					}
+				]
+			}
+		}	
 	]
-	
 }
