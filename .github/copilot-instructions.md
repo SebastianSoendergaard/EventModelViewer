@@ -18,6 +18,22 @@ The viewer can edit and present Event Model diagrams as defined Adam Dymitruk an
 - Automation Pattern - Event(s) -> View -> Automated Trigger -> Command -> Event(s)
 - Translation Pattern - Event(s) (source system) -> View -> Automated Trigger -> Command -> Event(s) (other systems)
 
+#### Swimlanes
+Swimlanes are horizontal grouping of items in the model. Swimlanes crosses all the slices horizontally thus making a matrix containing the building blocks. The slices are the main asset thus should be very visible while the swimlanes are a secondary feature and can be toned down a bit.
+An example of how the slices and swimlanes form a matrix:
+
+     |Add item | |Cart items | |Remove item | |Inventory changed |
+-----|---------|-|-----------|-|------------|-|------------------|
+bot  |         | |           | |            | |trigger           |
+-----|---------|-|-----------|-|------------|-|------------------|
+user |trigger  | |           | |trigger     | |                  |
+-----|---------|-|-----------|-|------------|-|------------------|
+     |command  | |view       | |command     | |command           |
+-----|---------|-|-----------|-|------------|-|------------------|
+     |events   | |           | |event       | |event             |
+-----|---------|-|-----------|-|------------|-|------------------|
+     |tests    | |tests      | |tests       | |tests             |
+
 ## Project Structure
 
 ```
