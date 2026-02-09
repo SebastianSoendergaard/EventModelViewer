@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Event Model Viewer</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsoneditor@9.10.4/dist/jsoneditor.min.css">
     <style>
         * {
             margin: 0;
@@ -225,22 +224,137 @@
         .editor-container {
             flex: 1;
             overflow: auto;
+            display: flex;
+            flex-direction: column;
         }
 
-        #jsonEditor {
+        .editor-tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
+            padding: 0;
+            margin: 0;
+        }
+
+        .editor-tab {
+            padding: 0.75rem 1.5rem;
+            background: #e0e0e0;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: #555;
+            transition: all 0.2s;
+            border-right: 1px solid #ccc;
+        }
+
+        .editor-tab:hover {
+            background: #d0d0d0;
+        }
+
+        .editor-tab.active {
+            background: white;
+            color: #2c3e50;
+            border-bottom: 2px solid white;
+            margin-bottom: -2px;
+        }
+
+        .editor-view {
+            display: none;
+            flex: 1;
+            overflow: auto;
+            background: white;
+        }
+
+        .editor-view.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #codeEditor {
+            flex: 1;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            padding: 1rem;
+            color: #2c3e50;
+            overflow: auto;
+            background: white;
+        }
+
+        .code-line {
+            display: flex;
+            align-items: flex-start;
+            min-height: 24px;
+            white-space: pre;
+        }
+
+        .code-line:hover {
+            background: #f8f9fa;
+        }
+
+        .line-toggle {
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            color: #666;
+            font-size: 10px;
+            margin-right: 4px;
+            flex-shrink: 0;
+        }
+
+        .line-toggle:hover {
+            color: #3498db;
+            background: #e8f4f8;
+            border-radius: 3px;
+        }
+
+        .line-toggle.empty {
+            visibility: hidden;
+        }
+
+        .line-content {
+            flex: 1;
+            color: #2c3e50;
+        }
+
+        .line-content.editable {
+            outline: none;
+            min-height: 20px;
+        }
+
+        .line-content.editable:focus {
+            background: #fff3cd;
+            border-radius: 3px;
+        }
+
+        .code-collapsed {
+            color: #999;
+            font-style: italic;
+        }
+
+        #codeEditorTextarea {
             width: 100%;
             height: 100%;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            padding: 1rem;
+            border: none;
+            outline: none;
+            resize: none;
+            color: #2c3e50;
+            background: white;
+            tab-size: 2;
         }
 
-        .jsoneditor {
-            border: 1px solid #ddd;
-        }
-
-        .jsoneditor-menu {
-            background-color: #34495e;
-            border-bottom: 1px solid #2c3e50;
+        #treeEditor {
+            flex: 1;
+            padding: 1rem;
+            overflow: auto;
         }
 
         .resizer {
@@ -636,7 +750,16 @@
                 <button class="collapse-btn" id="collapseBtn" title="Collapse/Expand">◀</button>
             </div>
             <div class="editor-container">
-                <div id="jsonEditor"></div>
+                <div class="editor-tabs">
+                    <button class="editor-tab active" data-tab="code">Code</button>
+                    <button class="editor-tab" data-tab="tree">Tree</button>
+                </div>
+                <div class="editor-view active" id="codeView">
+                    <div id="codeEditor"></div>
+                </div>
+                <div class="editor-view" id="treeView">
+                    <div id="treeEditor"></div>
+                </div>
             </div>
             <div class="resizer" id="resizer"></div>
         </div>
@@ -661,11 +784,11 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/jsoneditor@9.10.4/dist/jsoneditor.min.js"></script>
     <script>
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName');
-        const editorContainer = document.getElementById('jsonEditor');
+        const codeEditor = document.getElementById('codeEditor');
+        const treeEditor = document.getElementById('treeEditor');
         const diagramElement = document.getElementById('diagram');
         const diagramContainer = document.getElementById('diagramContainer');
         const diagramWrapper = document.getElementById('diagramWrapper');
@@ -679,6 +802,182 @@
         const zoomOutBtn = document.getElementById('zoomOutBtn');
         const zoomResetBtn = document.getElementById('zoomResetBtn');
         const zoomLevelDisplay = document.getElementById('zoomLevel');
+        const editorTabs = document.querySelectorAll('.editor-tab');
+        const codeView = document.getElementById('codeView');
+        const treeView = document.getElementById('treeView');
+
+        // Current JSON data
+        let currentJson = null;
+        let collapsedLines = new Set();
+        let jsonLines = [];
+        let debounceTimer;
+
+        // Tab switching
+        editorTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.getAttribute('data-tab');
+                
+                // Update active tab
+                editorTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Update active view
+                if (tabName === 'code') {
+                    codeView.classList.add('active');
+                    treeView.classList.remove('active');
+                } else {
+                    treeView.classList.add('active');
+                    codeView.classList.remove('active');
+                    renderTreeView();
+                }
+            });
+        });
+
+        function parseJsonToLines(json) {
+            const lines = [];
+            const text = JSON.stringify(json, null, 2);
+            const textLines = text.split('\n');
+            
+            textLines.forEach((line, index) => {
+                const trimmed = line.trimStart();
+                const indent = line.length - trimmed.length;
+                const isObjectStart = trimmed.startsWith('{');
+                const isArrayStart = trimmed.startsWith('[');
+                const isObjectEnd = trimmed.startsWith('}');
+                const isArrayEnd = trimmed.startsWith(']');
+                
+                lines.push({
+                    index,
+                    text: line,
+                    indent,
+                    isObjectStart,
+                    isArrayStart,
+                    isObjectEnd,
+                    isArrayEnd,
+                    isCollapsible: (isObjectStart || isArrayStart) && index < textLines.length - 1
+                });
+            });
+            
+            return lines;
+        }
+
+        function findMatchingBracket(lines, startIndex) {
+            const startLine = lines[startIndex];
+            let depth = 0;
+            const isObject = startLine.text.trimStart().startsWith('{');
+            const openChar = isObject ? '{' : '[';
+            const closeChar = isObject ? '}' : ']';
+            
+            for (let i = startIndex; i < lines.length; i++) {
+                const line = lines[i].text.trimStart();
+                if (line.includes(openChar)) depth++;
+                if (line.includes(closeChar)) depth--;
+                if (depth === 0) return i;
+            }
+            return startIndex;
+        }
+
+        function renderCodeEditor() {
+            if (!currentJson) {
+                codeEditor.innerHTML = '<div style="color: #999; padding: 1rem;">No JSON loaded. Upload a file to start.</div>';
+                return;
+            }
+
+            jsonLines = parseJsonToLines(currentJson);
+            const html = [];
+            let skipUntil = -1;
+
+            jsonLines.forEach((line, index) => {
+                if (index <= skipUntil) return;
+
+                const isCollapsed = collapsedLines.has(index);
+                const canCollapse = line.isCollapsible;
+
+                html.push('<div class="code-line">');
+                
+                if (canCollapse) {
+                    const icon = isCollapsed ? '▶' : '▼';
+                    html.push(`<span class="line-toggle" data-line="${index}">${icon}</span>`);
+                    
+                    if (isCollapsed) {
+                        const endIndex = findMatchingBracket(jsonLines, index);
+                        const lineCount = endIndex - index;
+                        html.push(`<span class="line-content">${escapeHtml(line.text.trimEnd())} <span class="code-collapsed">... ${lineCount} lines</span> ${jsonLines[endIndex].text.trim()}</span>`);
+                        skipUntil = endIndex;
+                    } else {
+                        html.push(`<span class="line-content editable" contenteditable="true" data-line="${index}">${escapeHtml(line.text)}</span>`);
+                    }
+                } else {
+                    html.push('<span class="line-toggle empty"></span>');
+                    html.push(`<span class="line-content editable" contenteditable="true" data-line="${index}">${escapeHtml(line.text)}</span>`);
+                }
+                
+                html.push('</div>');
+            });
+
+            codeEditor.innerHTML = html.join('');
+            attachCodeEditorListeners();
+        }
+
+        function attachCodeEditorListeners() {
+            // Toggle collapse/expand
+            codeEditor.querySelectorAll('.line-toggle:not(.empty)').forEach(toggle => {
+                toggle.addEventListener('click', (e) => {
+                    const lineIndex = parseInt(e.target.getAttribute('data-line'));
+                    if (collapsedLines.has(lineIndex)) {
+                        collapsedLines.delete(lineIndex);
+                    } else {
+                        collapsedLines.add(lineIndex);
+                    }
+                    renderCodeEditor();
+                });
+            });
+
+            // Handle content editing
+            codeEditor.querySelectorAll('.line-content.editable').forEach(content => {
+                content.addEventListener('blur', () => {
+                    updateJsonFromEditor();
+                });
+
+                content.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        // Could add line break logic here
+                    }
+                });
+            });
+        }
+
+        function updateJsonFromEditor() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                try {
+                    const lines = Array.from(codeEditor.querySelectorAll('.line-content.editable'));
+                    const jsonText = lines.map(el => el.textContent).join('\n');
+                    const parsed = JSON.parse(jsonText);
+                    currentJson = parsed;
+                    updateDiagram();
+                } catch (error) {
+                    // Invalid JSON, don't update
+                    console.log('Invalid JSON, not updating');
+                }
+            }, 1000);
+        }
+
+        function renderTreeView() {
+            if (!currentJson) {
+                treeEditor.innerHTML = '<div style="color: #999; padding: 1rem;">No JSON loaded</div>';
+                return;
+            }
+            
+            treeEditor.innerHTML = '<div style="color: #666; padding: 1rem; font-style: italic;">Tree view coming soon...</div>';
+        }
+
+        function updateDiagram() {
+            if (currentJson) {
+                renderDiagram(JSON.stringify(currentJson));
+            }
+        }
 
         // Zoom and pan state
         let currentZoom = 1;
@@ -802,105 +1101,7 @@
         });
 
         // Initialize JSON Editor
-        const options = {
-            mode: 'tree',
-            modes: ['tree', 'code', 'view'],
-            name: 'Event Model',
-            onClassName: function({ path, field, value }) {
-                // Custom class names if needed
-                return undefined;
-            },
-            onNodeName: function({ path, type, size, value }) {
-                // Customize node names for slices array
-                if (path.length === 2 && path[0] === 'slices' && typeof path[1] === 'number') {
-                    // Get the slice name from the value
-                    if (value && value.name) {
-                        return value.name;
-                    }
-                }
-                
-                // Customize trigger to show role
-                if (path.length === 3 && path[0] === 'slices' && path[2] === 'trigger') {
-                    if (value && value.role) {
-                        return `${value.role}`;
-                    }
-                }
-                
-                // Customize command to show name
-                if (path.length >= 3 && path[0] === 'slices' && typeof path[1] === 'number' && path[2] === 'command') {
-                    if (value && value.name) {
-                        return value.name;
-                    }
-                }
-                
-                // Customize view to show name
-                if (path.length >= 3 && path[0] === 'slices' && typeof path[1] === 'number' && path[2] === 'view') {
-                    if (value && value.name) {
-                        return value.name;
-                    }
-                }
-                
-                // Customize command events array items to show event name
-                if (path.length === 5 && path[0] === 'slices' && path[2] === 'command' && path[3] === 'events' && typeof path[4] === 'number') {
-                    if (value && value.name) {
-                        return value.name;
-                    }
-                }
-                
-                // Customize test case given events to show event name
-                if (path.length === 6 && path[0] === 'slices' && path[2] === 'tests' && path[4] === 'given' && typeof path[5] === 'number') {
-                    if (value && value.name) {
-                        return value.name;
-                    }
-                }
-                
-                // Customize test case then items to show event name or error
-                if (path.length === 6 && path[0] === 'slices' && path[2] === 'tests' && path[4] === 'then' && typeof path[5] === 'number') {
-                    if (value) {
-                        if (value.error) {
-                            return `Error: ${value.error}`;
-                        } else if (value.name) {
-                            return value.name;
-                        }
-                    }
-                }
-                
-                // Customize test case array items to show test name
-                if (path.length >= 4 && path[0] === 'slices' && typeof path[1] === 'number' && path[2] === 'tests' && typeof path[3] === 'number') {
-                    if (value && value.name) {
-                        return value.name;
-                    }
-                }
-                
-                // Customize properties array items to show property name
-                if (path[path.length - 2] === 'properties' && typeof path[path.length - 1] === 'number') {
-                    if (value && value.name) {
-                        return value.name;
-                    }
-                    // For trigger properties that use 'label' instead of 'name'
-                    if (value && value.label) {
-                        return value.label;
-                    }
-                }
-                
-                return undefined; // Use default name
-            },
-            onChange: function() {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(() => {
-                    try {
-                        const jsonData = jsonEditor.get();
-                        renderDiagram(JSON.stringify(jsonData));
-                    } catch (error) {
-                        // Don't show error while typing
-                    }
-                }, 1000);
-            },
-            onModeChange: function(newMode, oldMode) {
-                // Handle mode changes if needed
-            }
-        };
-        const jsonEditor = new JSONEditor(editorContainer, options);
+        // (Custom editor initialized above)
 
         // Collapse/Expand handler
         collapseBtn.addEventListener('click', () => {
@@ -982,12 +1183,18 @@
             });
         }
 
-        // Debounce timer
-        let debounceTimer;
+        // Initialize editor
+        console.log('Initializing editor...');
+        console.log('codeEditor element:', codeEditor);
+        console.log('currentJson:', currentJson);
+        renderCodeEditor();
+        console.log('Editor initialized');
 
         // File upload handler
         fileInput.addEventListener('change', (event) => {
+            console.log('File input changed');
             const file = event.target.files[0];
+            console.log('File:', file);
             if (file) {
                 fileName.textContent = file.name;
                 
@@ -995,12 +1202,22 @@
                 reader.onload = (e) => {
                     try {
                         const jsonContent = e.target.result;
-                        const jsonData = JSON.parse(jsonContent);
-                        jsonEditor.set(jsonData);
+                        console.log('File loaded, length:', jsonContent.length);
+                        currentJson = JSON.parse(jsonContent);
+                        console.log('JSON parsed successfully, keys:', Object.keys(currentJson));
+                        collapsedLines.clear();
+                        renderCodeEditor();
+                        console.log('Code editor rendered');
                         renderDiagram(jsonContent);
+                        console.log('Diagram rendered');
                     } catch (error) {
+                        console.error('Error loading file:', error);
                         showError('Invalid JSON file: ' + error.message);
                     }
+                };
+                reader.onerror = (e) => {
+                    console.error('FileReader error:', e);
+                    showError('Error reading file');
                 };
                 reader.readAsText(file);
             }
