@@ -251,7 +251,7 @@
 						}
 					]
 				},
-								{
+				{
 					"name": "Cleares cart",
 					"given": [
 						{
@@ -398,7 +398,7 @@
 				"events": [
 					"Item removed"
 				]
-			},
+			}
 		},
 		{
 			"id": "4",
@@ -481,7 +481,7 @@
 				"events": [
 					"Cart cleared"
 				]
-			},
+			}
 		},
 		{
 			"id": "5",
