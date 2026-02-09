@@ -877,6 +877,68 @@
             return startIndex;
         }
 
+        function getCollapsedLabel(lines, startIndex, endIndex) {
+            // Try to find a meaningful property value to display
+            const startLine = lines[startIndex];
+            
+            // Look for common identifying properties in the next few lines
+            const searchDepth = Math.min(endIndex, startIndex + 10);
+            let foundName = null;
+            let foundId = null;
+            let foundTitle = null;
+            let foundType = null;
+            let foundRole = null;
+            
+            for (let i = startIndex + 1; i < searchDepth; i++) {
+                const line = lines[i].text.trim();
+                
+                // Match "name": "value" or 'name': 'value'
+                const nameMatch = line.match(/["']name["']\s*:\s*["']([^"']+)["']/i);
+                if (nameMatch && !foundName) {
+                    foundName = nameMatch[1];
+                }
+                
+                // Match "id": "value"
+                const idMatch = line.match(/["']id["']\s*:\s*["']([^"']+)["']/i);
+                if (idMatch && !foundId) {
+                    foundId = idMatch[1];
+                }
+                
+                // Match "title": "value"
+                const titleMatch = line.match(/["']title["']\s*:\s*["']([^"']+)["']/i);
+                if (titleMatch && !foundTitle) {
+                    foundTitle = titleMatch[1];
+                }
+                
+                // Match "type": "value"
+                const typeMatch = line.match(/["']type["']\s*:\s*["']([^"']+)["']/i);
+                if (typeMatch && !foundType) {
+                    foundType = typeMatch[1];
+                }
+                
+                // Match "role": "value"
+                const roleMatch = line.match(/["']role["']\s*:\s*["']([^"']+)["']/i);
+                if (roleMatch && !foundRole) {
+                    foundRole = roleMatch[1];
+                }
+            }
+            
+            // Priority: name > title > role > type > id
+            let label = foundName || foundTitle || foundRole || foundType || foundId;
+            
+            if (label) {
+                // Truncate if too long
+                if (label.length > 40) {
+                    label = label.substring(0, 37) + '...';
+                }
+                return label;
+            }
+            
+            // Fallback to line count
+            const lineCount = endIndex - startIndex;
+            return `${lineCount} lines`;
+        }
+
         function renderCodeEditor() {
             if (!currentJson) {
                 codeEditor.innerHTML = '<div style="color: #999; padding: 1rem;">No JSON loaded. Upload a file to start.</div>';
@@ -901,8 +963,8 @@
                     
                     if (isCollapsed) {
                         const endIndex = findMatchingBracket(jsonLines, index);
-                        const lineCount = endIndex - index;
-                        html.push(`<span class="line-content">${escapeHtml(line.text.trimEnd())} <span class="code-collapsed">... ${lineCount} lines</span> ${jsonLines[endIndex].text.trim()}</span>`);
+                        const collapsedLabel = getCollapsedLabel(jsonLines, index, endIndex);
+                        html.push(`<span class="line-content">${escapeHtml(line.text.trimEnd())} <span class="code-collapsed">... ${escapeHtml(collapsedLabel)}</span> ${jsonLines[endIndex].text.trim()}</span>`);
                         skipUntil = endIndex;
                     } else {
                         html.push(`<span class="line-content editable" contenteditable="true" data-line="${index}">${escapeHtml(line.text)}</span>`);
