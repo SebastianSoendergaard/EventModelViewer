@@ -222,6 +222,69 @@
 							"error": "Cart not found"
 						}
 					]
+				},
+				{
+					"name": "Subtracts from total when item removed",
+					"given": [
+						{
+							"name": "Item added",
+							"properties": [
+								{
+									"name": "Price",
+									"value": "5"
+								}
+							]
+						},
+						{
+							"name": "Item removed"
+						}
+					],
+					"then": [
+						{
+							"name": "Cart items",
+							"properties": [
+								{
+									"name": "Price",
+									"value": "0"
+								}
+							]
+						}
+					]
+				},
+								{
+					"name": "Cleares cart",
+					"given": [
+						{
+							"name": "Item added",
+							"properties": [
+								{
+									"name": "Price",
+									"value": "5"
+								}
+							],
+							"name": "Item added",
+							"properties": [
+								{
+									"name": "Price",
+									"value": "5"
+								}
+							]
+						},
+						{
+							"name": "Cart cleared"
+						}
+					],
+					"then": [
+						{
+							"name": "Cart items",
+							"properties": [
+								{
+									"name": "Price",
+									"value": "0"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -336,36 +399,6 @@
 					"Item removed"
 				]
 			},
-			"tests": [
-				{
-					"name": "Subtracts from total when item removed",
-					"given": [
-						{
-							"name": "Item added",
-							"properties": [
-								{
-									"name": "Price",
-									"value": "5"
-								}
-							]
-						},
-						{
-							"name": "Item removed"
-						}
-					],
-					"then": [
-						{
-							"name": "Cart items",
-							"properties": [
-								{
-									"name": "Price",
-									"value": "0"
-								}
-							]
-						}
-					]
-				}
-			]
 		},
 		{
 			"id": "4",
@@ -449,43 +482,6 @@
 					"Cart cleared"
 				]
 			},
-			"tests": [
-				{
-					"name": "Cleares cart",
-					"given": [
-						{
-							"name": "Item added",
-							"properties": [
-								{
-									"name": "Price",
-									"value": "5"
-								}
-							],
-							"name": "Item added",
-							"properties": [
-								{
-									"name": "Price",
-									"value": "5"
-								}
-							]
-						},
-						{
-							"name": "Cart cleared"
-						}
-					],
-					"then": [
-						{
-							"name": "Cart items",
-							"properties": [
-								{
-									"name": "Price",
-									"value": "0"
-								}
-							]
-						}
-					]
-				}
-			]
 		},
 		{
 			"id": "5",
