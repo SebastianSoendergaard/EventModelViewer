@@ -336,6 +336,41 @@
             font-style: italic;
         }
 
+        .code-toolbar {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            gap: 0.5rem;
+        }
+
+        .collapse-all-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .collapse-all-btn:hover {
+            background: linear-gradient(135deg, #5568d3, #6a3f8f);
+            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .collapse-all-btn:active {
+            transform: translateY(0);
+        }
+
         #codeEditorTextarea {
             width: 100%;
             height: 100%;
@@ -755,6 +790,12 @@
                     <button class="editor-tab" data-tab="tree">Tree</button>
                 </div>
                 <div class="editor-view active" id="codeView">
+                    <div class="code-toolbar">
+                        <button class="collapse-all-btn" id="collapseAllBtn" title="Toggle collapse/expand all JSON objects">
+                            <span>◢</span>
+                            <span id="collapseAllBtnText">Collapse All</span>
+                        </button>
+                    </div>
                     <div id="codeEditor"></div>
                 </div>
                 <div class="editor-view" id="treeView">
@@ -794,6 +835,8 @@
         const diagramWrapper = document.getElementById('diagramWrapper');
         const editorPanel = document.getElementById('editorPanel');
         const collapseBtn = document.getElementById('collapseBtn');
+        const collapseAllBtn = document.getElementById('collapseAllBtn');
+        const collapseAllBtnText = document.getElementById('collapseAllBtnText');
         const showSlicesCheckbox = document.getElementById('showSlices');
         const showTestsCheckbox = document.getElementById('showTests');
         const showTypesCheckbox = document.getElementById('showTypes');
@@ -841,10 +884,20 @@
             textLines.forEach((line, index) => {
                 const trimmed = line.trimStart();
                 const indent = line.length - trimmed.length;
+                
+                // Check if line starts with { or [
                 const isObjectStart = trimmed.startsWith('{');
                 const isArrayStart = trimmed.startsWith('[');
                 const isObjectEnd = trimmed.startsWith('}');
                 const isArrayEnd = trimmed.startsWith(']');
+                
+                // Also check if line contains a property with object/array value
+                // Examples: "trigger": {, "properties": [, "events": [
+                const hasObjectValue = /["']\s*:\s*\{/.test(trimmed);
+                const hasArrayValue = /["']\s*:\s*\[/.test(trimmed);
+                
+                const isCollapsible = ((isObjectStart || isArrayStart || hasObjectValue || hasArrayValue) && 
+                                      index < textLines.length - 1);
                 
                 lines.push({
                     index,
@@ -854,7 +907,9 @@
                     isArrayStart,
                     isObjectEnd,
                     isArrayEnd,
-                    isCollapsible: (isObjectStart || isArrayStart) && index < textLines.length - 1
+                    hasObjectValue,
+                    hasArrayValue,
+                    isCollapsible
                 });
             });
             
@@ -863,16 +918,26 @@
 
         function findMatchingBracket(lines, startIndex) {
             const startLine = lines[startIndex];
-            let depth = 0;
-            const isObject = startLine.text.trimStart().startsWith('{');
+            const trimmed = startLine.text.trimStart();
+            
+            // Determine if we're looking for object or array brackets
+            let isObject = false;
+            if (trimmed.startsWith('{') || trimmed.includes(': {')) {
+                isObject = true;
+            }
+            
             const openChar = isObject ? '{' : '[';
             const closeChar = isObject ? '}' : ']';
             
+            let depth = 0;
             for (let i = startIndex; i < lines.length; i++) {
-                const line = lines[i].text.trimStart();
-                if (line.includes(openChar)) depth++;
-                if (line.includes(closeChar)) depth--;
-                if (depth === 0) return i;
+                const line = lines[i].text;
+                // Count opening brackets
+                for (let char of line) {
+                    if (char === openChar) depth++;
+                    if (char === closeChar) depth--;
+                    if (depth === 0 && i > startIndex) return i;
+                }
             }
             return startIndex;
         }
@@ -880,6 +945,29 @@
         function getCollapsedLabel(lines, startIndex, endIndex) {
             // Try to find a meaningful property value to display
             const startLine = lines[startIndex];
+            const startText = startLine.text.trim();
+            
+            // First, check if the start line itself has a property name
+            // e.g., "trigger": { or "properties": [
+            const propertyMatch = startText.match(/["']([^"']+)["']\s*:\s*[\{\[]/);
+            if (propertyMatch) {
+                const propertyName = propertyMatch[1];
+                // If it's an array, might want to show count
+                if (startText.includes('[')) {
+                    let itemCount = 0;
+                    for (let i = startIndex + 1; i < endIndex; i++) {
+                        const line = lines[i].text.trim();
+                        // Count items (lines that start with { or are simple values after start of array)
+                        if (line === '{' || (line.startsWith('{') && !line.endsWith('{},'))) {
+                            itemCount++;
+                        }
+                    }
+                    if (itemCount > 0) {
+                        return `${propertyName} (${itemCount} ${itemCount === 1 ? 'item' : 'items'})`;
+                    }
+                }
+                return propertyName;
+            }
             
             // Look for common identifying properties in the next few lines
             const searchDepth = Math.min(endIndex, startIndex + 10);
@@ -979,6 +1067,7 @@
 
             codeEditor.innerHTML = html.join('');
             attachCodeEditorListeners();
+            updateCollapseAllButtonState();
         }
 
         function attachCodeEditorListeners() {
@@ -992,6 +1081,7 @@
                         collapsedLines.add(lineIndex);
                     }
                     renderCodeEditor();
+                    updateCollapseAllButtonState();
                 });
             });
 
@@ -1008,6 +1098,46 @@
                     }
                 });
             });
+        }
+
+        // Collapse/Expand All functionality
+        function collapseAll() {
+            jsonLines.forEach((line, index) => {
+                if (line.isCollapsible) {
+                    collapsedLines.add(index);
+                }
+            });
+            updateCollapseAllButtonState();
+            renderCodeEditor();
+        }
+
+        function expandAll() {
+            collapsedLines.clear();
+            updateCollapseAllButtonState();
+            renderCodeEditor();
+        }
+
+        function toggleCollapseExpandAll() {
+            const totalCollapsible = jsonLines.filter(line => line.isCollapsible).length;
+            
+            // If all are collapsed, expand all. Otherwise, collapse all
+            if (collapsedLines.size === totalCollapsible) {
+                expandAll();
+            } else {
+                collapseAll();
+            }
+        }
+
+        function updateCollapseAllButtonState() {
+            const totalCollapsible = jsonLines.filter(line => line.isCollapsible).length;
+            
+            if (collapsedLines.size === totalCollapsible && totalCollapsible > 0) {
+                collapseAllBtnText.textContent = 'Expand All';
+                collapseAllBtn.querySelector('span:first-child').textContent = '◱';
+            } else {
+                collapseAllBtnText.textContent = 'Collapse All';
+                collapseAllBtn.querySelector('span:first-child').textContent = '◢';
+            }
         }
 
         function updateJsonFromEditor() {
@@ -1032,6 +1162,8 @@
                 return;
             }
             
+            // TODO: Future enhancement - Add collapse/expand all functionality for Tree view
+            // Similar to Code view, add a toolbar with toggle button to collapse/expand tree nodes
             treeEditor.innerHTML = '<div style="color: #666; padding: 1rem; font-style: italic;">Tree view coming soon...</div>';
         }
 
@@ -1182,6 +1314,9 @@
                 collapseBtn.textContent = '▶';
             }
         });
+
+        // Collapse/Expand All button handler
+        collapseAllBtn.addEventListener('click', toggleCollapseExpandAll);
 
         // Checkbox handlers
         showSlicesCheckbox.addEventListener('change', () => {
