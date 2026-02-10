@@ -198,7 +198,7 @@
             height: 3.5rem;
         }
 
-        .collapse-btn {
+        .panel-collapse-btn {
             background: rgba(255,255,255,0.15);
             border: 1px solid rgba(255,255,255,0.25);
             color: white;
@@ -216,7 +216,7 @@
             line-height: 1;
         }
 
-        .collapse-btn:hover {
+        .panel-collapse-btn:hover {
             background: rgba(255,255,255,0.25);
             transform: scale(1.1);
         }
@@ -345,30 +345,41 @@
             gap: 0.5rem;
         }
 
-        .collapse-all-btn {
+        .code-collapse-btn, .code-expand-btn {
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
             border: none;
-            padding: 0.5rem 1rem;
+            width: 32px;
+            height: 32px;
             border-radius: 6px;
             cursor: pointer;
-            font-weight: 600;
-            font-size: 12px;
+            font-size: 16px;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
             display: flex;
             align-items: center;
-            gap: 0.25rem;
+            justify-content: center;
         }
 
-        .collapse-all-btn:hover {
+        .code-collapse-btn:hover, .code-expand-btn:hover {
             background: linear-gradient(135deg, #5568d3, #6a3f8f);
             box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
             transform: translateY(-1px);
         }
 
-        .collapse-all-btn:active {
+        .code-collapse-btn:active, .code-expand-btn:active {
             transform: translateY(0);
+        }
+
+        .code-collapse-btn:disabled, .code-expand-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .code-collapse-btn:disabled:hover, .code-expand-btn:disabled:hover {
+            transform: none;
+            box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
         }
 
         #codeEditorTextarea {
@@ -782,7 +793,7 @@
         <div class="editor-panel" id="editorPanel">
             <div class="panel-header">
                 <span>Editor</span>
-                <button class="collapse-btn" id="collapseBtn" title="Collapse/Expand">◀</button>
+                <button class="panel-collapse-btn" id="panelCollapseBtn" title="Collapse/Expand">◀</button>
             </div>
             <div class="editor-container">
                 <div class="editor-tabs">
@@ -791,10 +802,8 @@
                 </div>
                 <div class="editor-view active" id="codeView">
                     <div class="code-toolbar">
-                        <button class="collapse-all-btn" id="collapseAllBtn" title="Toggle collapse/expand all JSON objects">
-                            <span>◢</span>
-                            <span id="collapseAllBtnText">Collapse All</span>
-                        </button>
+                        <button class="code-collapse-btn" id="codeCollapseBtn" title="Collapse all JSON objects">▼</button>
+                        <button class="code-expand-btn" id="codeExpandBtn" title="Expand all JSON objects">▶</button>
                     </div>
                     <div id="codeEditor"></div>
                 </div>
@@ -834,9 +843,9 @@
         const diagramContainer = document.getElementById('diagramContainer');
         const diagramWrapper = document.getElementById('diagramWrapper');
         const editorPanel = document.getElementById('editorPanel');
-        const collapseBtn = document.getElementById('collapseBtn');
-        const collapseAllBtn = document.getElementById('collapseAllBtn');
-        const collapseAllBtnText = document.getElementById('collapseAllBtnText');
+        const panelCollapseBtn = document.getElementById('panelCollapseBtn');
+        const codeCollapseBtn = document.getElementById('codeCollapseBtn');
+        const codeExpandBtn = document.getElementById('codeExpandBtn');
         const showSlicesCheckbox = document.getElementById('showSlices');
         const showTestsCheckbox = document.getElementById('showTests');
         const showTypesCheckbox = document.getElementById('showTypes');
@@ -1067,7 +1076,7 @@
 
             codeEditor.innerHTML = html.join('');
             attachCodeEditorListeners();
-            updateCollapseAllButtonState();
+            updateCollapseExpandButtonState();
         }
 
         function attachCodeEditorListeners() {
@@ -1081,7 +1090,7 @@
                         collapsedLines.add(lineIndex);
                     }
                     renderCodeEditor();
-                    updateCollapseAllButtonState();
+                    updateCollapseExpandButtonState();
                 });
             });
 
@@ -1107,36 +1116,31 @@
                     collapsedLines.add(index);
                 }
             });
-            updateCollapseAllButtonState();
+            updateCollapseExpandButtonState();
             renderCodeEditor();
         }
 
         function expandAll() {
             collapsedLines.clear();
-            updateCollapseAllButtonState();
+            updateCollapseExpandButtonState();
             renderCodeEditor();
         }
 
-        function toggleCollapseExpandAll() {
-            const totalCollapsible = jsonLines.filter(line => line.isCollapsible).length;
-            
-            // If all are collapsed, expand all. Otherwise, collapse all
-            if (collapsedLines.size === totalCollapsible) {
-                expandAll();
-            } else {
-                collapseAll();
-            }
-        }
-
-        function updateCollapseAllButtonState() {
+        function updateCollapseExpandButtonState() {
             const totalCollapsible = jsonLines.filter(line => line.isCollapsible).length;
             
             if (collapsedLines.size === totalCollapsible && totalCollapsible > 0) {
-                collapseAllBtnText.textContent = 'Expand All';
-                collapseAllBtn.querySelector('span:first-child').textContent = '◱';
+                // All are collapsed - disable collapse button, enable expand button
+                codeCollapseBtn.disabled = true;
+                codeExpandBtn.disabled = false;
+            } else if (collapsedLines.size === 0) {
+                // All are expanded - enable collapse button, disable expand button
+                codeCollapseBtn.disabled = false;
+                codeExpandBtn.disabled = true;
             } else {
-                collapseAllBtnText.textContent = 'Collapse All';
-                collapseAllBtn.querySelector('span:first-child').textContent = '◢';
+                // Partially collapsed - enable both buttons
+                codeCollapseBtn.disabled = false;
+                codeExpandBtn.disabled = false;
             }
         }
 
@@ -1298,25 +1302,26 @@
         // (Custom editor initialized above)
 
         // Collapse/Expand handler
-        collapseBtn.addEventListener('click', () => {
+        panelCollapseBtn.addEventListener('click', () => {
             if (editorPanel.classList.contains('collapsed')) {
                 // Expanding
                 editorPanel.classList.remove('collapsed');
                 if (savedWidth) {
                     editorPanel.style.width = savedWidth;
                 }
-                collapseBtn.textContent = '◀';
+                panelCollapseBtn.textContent = '◀';
             } else {
                 // Collapsing
                 savedWidth = editorPanel.style.width || '27%';
                 editorPanel.classList.add('collapsed');
                 editorPanel.style.width = '40px';
-                collapseBtn.textContent = '▶';
+                panelCollapseBtn.textContent = '▶';
             }
         });
 
-        // Collapse/Expand All button handler
-        collapseAllBtn.addEventListener('click', toggleCollapseExpandAll);
+        // Collapse/Expand button handlers for code editor
+        codeCollapseBtn.addEventListener('click', collapseAll);
+        codeExpandBtn.addEventListener('click', expandAll);
 
         // Checkbox handlers
         showSlicesCheckbox.addEventListener('change', () => {
