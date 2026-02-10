@@ -1,0 +1,21 @@
+# Copilot ignore file
+# Prevent Copilot from indexing large directories
+
+# Node modules
+**/node_modules/
+dev-tools/node_modules/
+node_modules/
+
+# Test reports and results
+dev-tools/playwright-report/
+dev-tools/test-results/
+playwright-report/
+test-results/
+
+# Build artifacts
+dist/
+build/
+.cache/
+
+# Lock files (large and auto-generated)
+**/package-lock.json

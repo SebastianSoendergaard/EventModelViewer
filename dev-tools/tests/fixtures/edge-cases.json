@@ -1,0 +1,61 @@
+{
+  "title": "Edge Cases Model",
+  "slices": [
+    {
+      "id": "1",
+      "name": "Slice with very long name that should wrap properly in the UI",
+      "trigger": {
+        "role": "User with a very long role name",
+        "type": "input-ui",
+        "buttons": ["Button 1", "Button 2", "Button 3", "Button 4"]
+      },
+      "command": {
+        "name": "Command with many properties",
+        "properties": [
+          {"name": "Prop1", "type": "string"},
+          {"name": "Prop2", "type": "string"},
+          {"name": "Prop3", "type": "string"},
+          {"name": "Prop4", "type": "string"},
+          {"name": "Prop5", "type": "string"},
+          {"name": "Prop6", "type": "string"},
+          {"name": "Prop7", "type": "string"},
+          {"name": "Prop8", "type": "string"}
+        ],
+        "events": [
+          {
+            "name": "Event 1",
+            "properties": [{"name": "Id", "type": "Guid"}]
+          },
+          {
+            "name": "Event 2",
+            "properties": [{"name": "Id", "type": "Guid"}]
+          },
+          {
+            "name": "Event 3",
+            "properties": [{"name": "Id", "type": "Guid"}]
+          }
+        ]
+      }
+    },
+    {
+      "id": "2",
+      "name": "Empty Slice",
+      "trigger": null,
+      "command": null,
+      "view": null
+    },
+    {
+      "id": "3",
+      "name": "Special Characters: <>&\"'",
+      "trigger": {
+        "role": "User",
+        "type": "input-ui",
+        "buttons": ["Click & Submit"]
+      },
+      "command": {
+        "name": "Test <script>alert('XSS')</script>",
+        "properties": []
+      }
+    }
+  ]
+}

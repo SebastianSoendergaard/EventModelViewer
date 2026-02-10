@@ -1,0 +1,53 @@
+{
+  "title": "Simple Event Model",
+  "slices": [
+    {
+      "id": "1",
+      "name": "Create Order",
+      "trigger": {
+        "role": "User",
+        "type": "input-ui",
+        "buttons": ["Create"]
+      },
+      "command": {
+        "name": "Create Order",
+        "properties": [
+          {"name": "OrderId", "type": "Guid"},
+          {"name": "CustomerId", "type": "Guid"}
+        ],
+        "events": [
+          {
+            "name": "Order Created",
+            "properties": [
+              {"name": "OrderId", "type": "Guid"},
+              {"name": "CreatedAt", "type": "DateTime"}
+            ]
+          }
+        ]
+      },
+      "tests": [
+        {
+          "given": ["No existing order"],
+          "when": "Create Order",
+          "then": ["Order Created event"]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "name": "View Order",
+      "trigger": {
+        "role": "User",
+        "type": "list-ui"
+      },
+      "view": {
+        "name": "Order Details",
+        "events": ["Order Created"],
+        "properties": [
+          {"name": "OrderId", "type": "Guid"},
+          {"name": "Status", "type": "string"}
+        ]
+      }
+    }
+  ]
+}

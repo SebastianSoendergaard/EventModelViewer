@@ -1,0 +1,32 @@
+{
+  "name": "eventmodelviewer",
+  "version": "1.0.0",
+  "description": "Event Model Viewer - Interactive visualization for event-driven architecture models",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "vitest run",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "playwright test",
+    "test:visual": "playwright test tests/visual",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "event-modeling",
+    "event-sourcing",
+    "visualization",
+    "diagram"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "happy-dom": "^20.6.0",
+    "jsdom": "^28.0.0",
+    "pixelmatch": "^7.1.0",
+    "pngjs": "^7.0.0",
+    "vitest": "^4.0.18"
+  }
+}

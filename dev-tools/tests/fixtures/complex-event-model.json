@@ -1,0 +1,93 @@
+{
+  "title": "Complex Event Model with Multiple Patterns",
+  "slices": [
+    {
+      "id": "1",
+      "name": "Register User",
+      "border": "#4CBB17",
+      "trigger": {
+        "role": "User",
+        "type": "input-ui",
+        "buttons": ["Register"]
+      },
+      "command": {
+        "name": "Register User",
+        "properties": [
+          {"name": "UserId", "type": "Guid"},
+          {"name": "Email", "type": "string"},
+          {"name": "Password", "type": "string"}
+        ],
+        "events": [
+          {
+            "name": "User Registered",
+            "properties": [
+              {"name": "UserId", "type": "Guid"},
+              {"name": "Email", "type": "string"},
+              {"name": "RegisteredAt", "type": "DateTime"}
+            ]
+          }
+        ]
+      },
+      "tests": [
+        {
+          "given": ["No existing user with email"],
+          "when": "Register User",
+          "then": ["User Registered event"]
+        },
+        {
+          "given": ["Existing user with email"],
+          "when": "Register User",
+          "then": ["Registration Failed event"]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "name": "User Profile",
+      "trigger": {
+        "role": "User",
+        "type": "list-ui"
+      },
+      "view": {
+        "name": "User Profile",
+        "events": ["User Registered", "Profile Updated"],
+        "properties": [
+          {"name": "UserId", "type": "Guid"},
+          {"name": "Email", "type": "string"},
+          {"name": "LastUpdated", "type": "DateTime"}
+        ]
+      },
+      "tests": [
+        {
+          "given": ["User Registered"],
+          "when": "View profile",
+          "then": ["Profile displayed with registration data"]
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "name": "Send Welcome Email",
+      "trigger": {
+        "role": "System",
+        "type": "automated"
+      },
+      "command": {
+        "name": "Send Welcome Email",
+        "properties": [
+          {"name": "UserId", "type": "Guid"},
+          {"name": "Email", "type": "string"}
+        ],
+        "events": [
+          {
+            "name": "Welcome Email Sent",
+            "properties": [
+              {"name": "UserId", "type": "Guid"},
+              {"name": "SentAt", "type": "DateTime"}
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
