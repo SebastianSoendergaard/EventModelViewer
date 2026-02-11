@@ -1,15 +1,23 @@
 # Event Model Viewer
 
-A web-based application for visualizing event-driven architecture models defined in JSON format. Features an interactive JSON editor with collapsible objects and a diagram viewer using Mermaid.js.
+A web-based application for visualizing event-driven architecture models defined in JSON format. Features an interactive JSON editor with collapsible objects, a drag-and-drop tree view, and a diagram viewer using Mermaid.js.
 
 ## Features
 
-### 📝 JSON Editor
+### 📝 JSON Editor (Code View)
 - **Collapsible objects and arrays** - Navigate large JSON files easily
 - **Smart labels** - See property names and item counts when collapsed
 - **Live editing** - Changes update the diagram in real-time
 - **Syntax highlighting** - Clear visual distinction
 - **Collapse/Expand All** - Quick navigation controls
+
+### 🌳 Tree View (NEW)
+- **Hierarchical visualization** - See JSON structure as a tree
+- **Drag-and-drop reordering** - Move items by dragging between elements
+- **Meaningful badges** - Shows property names and types clearly
+- **Collapse/Expand** - Individual and global controls
+- **Real-time sync** - Changes update code view and diagram instantly
+- **Visual feedback** - Green/red indicators for valid/invalid drops
 
 ### 📊 Diagram Viewer
 - **Real-time rendering** - See changes instantly
@@ -40,9 +48,17 @@ Visualizes event-driven architecture patterns:
    - Or paste JSON directly into the editor
 
 3. **Navigate the JSON**
+   
+   **Code View:**
    - Click ▼ to collapse sections
    - Click ▶ to expand sections
    - Use "Collapse All" / "Expand All" buttons
+   
+   **Tree View:**
+   - Click "Tree" tab to switch views
+   - Drag boxes to reorder items
+   - Click ▶/▼ to collapse/expand nodes
+   - Drop between items (green line = valid drop)
 
 ## Project Structure
 

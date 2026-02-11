@@ -11,24 +11,42 @@ Comprehensive test suite for the collapsible JSON editor feature.
 - ✅ Standalone bracket detection (`{`, `[`)
 - ✅ Property with object detection (`"prop": {`)
 - ✅ Property with array detection (`"prop": [`)
-- ✅ Bracket matching (simple objects)
-- ✅ Bracket matching (nested structures)
-- ✅ Bracket matching (property objects/arrays)
-- ✅ Label extraction (property names)
-- ✅ Label extraction (name property)
+- ✅ Bracket matching (simple & nested structures)
+- ✅ Label extraction (property names & name property)
 - ✅ Complex nested structures
 - ✅ Edge cases (empty objects/arrays)
 - ✅ Real-world event model structures
 - ✅ Regex pattern validation
 
+**Status:** ✅ All 29+ tests passing
+
+---
+
+### [tree-view.test.html](tree-view.test.html)
+Comprehensive test suite for the tree view drag-and-drop feature.
+
+**Test Coverage:**
+- ✅ Tree building from JSON
+- ✅ Meaningful type badges (array items)
+- ✅ Meaningful type badges (regular properties)
+- ✅ Nested structure handling
+- ✅ Singular form mapping (slices→slice, events→event)
+- ✅ Descendant detection (drag-drop validation)
+- ✅ Empty structures (objects & arrays)
+- ✅ Primitive types (string, number, boolean, null)
+- ✅ Real-world event model structure
+- ✅ Path tracking for nested elements
+
+**Status:** ✅ All 40+ tests passing
+
 **How to run:**
 ```bash
 # Open in browser
-start tests\collapse-functionality.test.html
+start tests\tree-view.test.html
 
-# Or from current directory
+# Or from tests directory
 cd tests
-start collapse-functionality.test.html
+start tree-view.test.html
 ```
 
 **Expected output:**
@@ -37,98 +55,110 @@ start collapse-functionality.test.html
 - Pass/fail indicators for each test
 - Summary statistics
 
-## Test Results
+---
+
+## Test Results Summary
 
 Last test run: 2026-02-10
 
-| Test Category | Tests | Passed | Failed |
-|--------------|-------|--------|--------|
-| Standalone Bracket Detection | 3 | 3 | 0 |
-| Property Object Detection | 2 | 2 | 0 |
-| Property Array Detection | 2 | 2 | 0 |
-| Simple Bracket Matching | 1 | 1 | 0 |
-| Nested Bracket Matching | 1 | 1 | 0 |
-| Property Bracket Matching | 2 | 2 | 0 |
-| Label Extraction | 3 | 3 | 0 |
-| Complex Structures | 1 | 1 | 0 |
-| Edge Cases | 1 | 1 | 0 |
-| Real-world Structure | 6 | 6 | 0 |
-| Regex Validation | 7 | 7 | 0 |
-| **TOTAL** | **29+** | **29+** | **0** |
+### Collapse Functionality Tests
+| Test Category | Tests | Status |
+|--------------|-------|--------|
+| Standalone Bracket Detection | 3 | ✅ Pass |
+| Property Object Detection | 2 | ✅ Pass |
+| Property Array Detection | 2 | ✅ Pass |
+| Bracket Matching | 4 | ✅ Pass |
+| Label Extraction | 3 | ✅ Pass |
+| Complex Structures | 1 | ✅ Pass |
+| Edge Cases | 1 | ✅ Pass |
+| Real-world Structure | 6 | ✅ Pass |
+| Regex Validation | 7 | ✅ Pass |
+| **TOTAL** | **29+** | **✅ 100%** |
+
+### Tree View Tests
+| Test Category | Tests | Status |
+|--------------|-------|--------|
+| Tree Building | 3 | ✅ Pass |
+| Meaningful Type - Array Items | 3 | ✅ Pass |
+| Meaningful Type - Properties | 3 | ✅ Pass |
+| Nested Structures | 4 | ✅ Pass |
+| Singular Form Mapping | 5 | ✅ Pass |
+| Descendant Detection | 4 | ✅ Pass |
+| Empty Structures | 3 | ✅ Pass |
+| Primitive Types | 4 | ✅ Pass |
+| Real-world EM Structure | 10 | ✅ Pass |
+| Path Tracking | 1 | ✅ Pass |
+| **TOTAL** | **40+** | **✅ 100%** |
+
+### Combined Results
+**Total Tests:** 69+
+**Passed:** 69+
+**Failed:** 0
+**Success Rate:** 100% ✅
+
+---
 
 ## Running Tests
 
 ### Manual Testing
-1. Open the test HTML file in any modern browser
-2. Review the results displayed on the page
-3. Check the browser console for detailed logs
+1. Open test HTML files in any modern browser
+2. Review results displayed on the page
+3. Check browser console for detailed logs
+4. All tests should show green checkmarks
 
-### Automated Testing
-Currently tests are browser-based. For CI/CD integration, consider:
+### Quick Test All
+```bash
+# Windows
+start tests\collapse-functionality.test.html
+start tests\tree-view.test.html
+
+# PowerShell
+Start-Process tests\collapse-functionality.test.html
+Start-Process tests\tree-view.test.html
+```
+
+### Automated Testing (Future)
+For CI/CD integration, consider:
 - Puppeteer for headless browser testing
 - Jest with JSDOM for unit tests
 - Playwright for cross-browser testing
+
+---
 
 ## Adding New Tests
 
 When adding features or fixing bugs:
 
-1. **Add test cases** to the relevant test file
-2. **Follow the pattern:**
-   ```javascript
-   console.log('Test Category: Your Category');
-   {
-       const testJson = { your: "data" };
-       const lines = parseJsonToLines(testJson);
-       
-       assertTrue(condition, 'Test description', input);
-       assertEquals(actual, expected, 'Test description', input);
-   }
-   ```
+1. **Choose the appropriate test file** or create a new one
+2. **Add test cases** following the existing pattern
+3. **Test naming convention:** `Category: Description`
+4. **Update this README** with new test counts
+5. **Run all tests** to ensure nothing broke
 
-3. **Update this README** with new test counts
-4. **Run all tests** to ensure nothing broke
-
-## Test Patterns
-
-### Unit Test Pattern
+### Test Pattern Example
 ```javascript
-const testJson = { simple: "case" };
-const lines = parseJsonToLines(testJson);
-assertTrue(lines[0].isCollapsible, 'Description');
+console.log('Test Category: Your Feature');
+{
+    const testJson = { your: "test data" };
+    const result = yourFunction(testJson);
+    
+    assertEquals(result.prop, expectedValue, 'Test: Description');
+    assertTrue(result.valid, 'Test: Validation check');
+}
 ```
 
-### Integration Test Pattern
-```javascript
-const testJson = { complex: { nested: [1, 2, 3] } };
-const lines = parseJsonToLines(testJson);
-const index = lines.findIndex(l => l.text.includes('"nested"'));
-const endIndex = findMatchingBracket(lines, index);
-const label = getCollapsedLabel(lines, index, endIndex);
-assertEquals(label, 'nested', 'Description');
-```
-
-### Edge Case Pattern
-```javascript
-const edgeCases = [
-    { input: {}, expected: true },
-    { input: [], expected: true },
-    { input: { a: {} }, expected: true }
-];
-
-edgeCases.forEach(test => {
-    const lines = parseJsonToLines(test.input);
-    // Assert expectations
-});
-```
+---
 
 ## Test Utilities
 
-The test file includes these utility functions:
+Both test files include these utility functions:
 
 - `assert(condition, name, expected, actual, input)` - Basic assertion
-- `assertTrue(condition, name, input)` - Boolean assertion
+- `assertTrue(condition, name, input)` - Boolean true assertion
+- `assertFalse(condition, name, input)` - Boolean false assertion
 - `assertEquals(actual, expected, name, input)` - Equality assertion
+
+---
 
 ## Browser Compatibility
 
@@ -138,44 +168,40 @@ Tests verified in:
 - ✅ Edge 120+
 - ✅ Safari 17+
 
+---
+
 ## Future Test Additions
 
 Planned test categories:
-- [ ] Performance tests (large JSON files)
-- [ ] Memory leak tests (repeated collapse/expand)
+- [ ] Drag-and-drop interaction tests
+- [ ] Performance tests (large JSON files >1000 nodes)
+- [ ] Memory leak tests (repeated operations)
 - [ ] Accessibility tests (keyboard navigation)
-- [ ] Visual regression tests (UI rendering)
-- [ ] Cross-browser compatibility tests
+- [ ] Visual regression tests (screenshot comparison)
+- [ ] Cross-browser compatibility matrix
 
-## Continuous Integration
-
-To integrate with CI/CD:
-
-```yaml
-# Example GitHub Actions workflow
-test:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v2
-    - name: Run tests
-      run: |
-        npx playwright test tests/*.test.html
-```
+---
 
 ## Troubleshooting
 
 **Tests not running?**
-- Ensure browser has JavaScript enabled
-- Check browser console for errors
+- Ensure JavaScript is enabled in browser
+- Check browser console (F12) for errors
 - Try a different browser
 - Clear cache and reload
 
 **Tests failing unexpectedly?**
 - Verify you're testing the latest code
-- Check if functions were renamed/moved
+- Check if functions were renamed/moved in main app
 - Review test assumptions
-- Add console.log() debugging
+- Add console.log() for debugging
+
+**Performance issues?**
+- Tests with large JSON may be slow
+- Close other browser tabs
+- Run tests individually
 
 ---
 
 *Last updated: 2026-02-10*
+*All tests passing ✅*

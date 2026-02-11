@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tree View Test Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+        
+        h2 {
+            color: #34495e;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        
+        .test-section {
+            margin-bottom: 2rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            background: #f8f9fa;
+        }
+        
+        .test-case {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #95a5a6;
+        }
+        
+        .test-case.pass {
+            border-left-color: #2ecc71;
+            background: #f0fff4;
+        }
+        
+        .test-case.fail {
+            border-left-color: #e74c3c;
+            background: #fff5f5;
+        }
+        
+        .test-name {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+        
+        .test-result {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #555;
+        }
+        
+        .test-input {
+            background: #2c3e50;
+            color: #2ecc71;
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin: 0.5rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        
+        .test-expected {
+            color: #27ae60;
+            margin-top: 0.3rem;
+        }
+        
+        .test-actual {
+            color: #c0392b;
+            margin-top: 0.3rem;
+        }
+        
+        .summary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-around;
+            font-size: 1.1rem;
+        }
+        
+        .summary-item {
+            text-align: center;
+        }
+        
+        .summary-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        .icon {
+            margin-right: 0.5rem;
+        }
+        
+        .pass-icon { color: #2ecc71; }
+        .fail-icon { color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌳 Tree View Test Suite</h1>
+        <div id="summary" class="summary"></div>
+        <div id="test-results"></div>
+    </div>
+
+    <script>
+        // Test framework
+        const tests = {
+            passed: 0,
+            failed: 0,
+            results: []
+        };
+
+        function assert(condition, testName, expected, actual, input = '') {
+            const result = {
+                name: testName,
+                passed: condition,
+                expected,
+                actual,
+                input
+            };
+            
+            if (condition) {
+                tests.passed++;
+            } else {
+                tests.failed++;
+            }
+            
+            tests.results.push(result);
+        }
+
+        function assertEquals(actual, expected, testName, input = '') {
+            assert(actual === expected, testName, expected, actual, input);
+        }
+
+        function assertTrue(condition, testName, input = '') {
+            assert(condition, testName, 'true', String(condition), input);
+        }
+
+        function assertFalse(condition, testName, input = '') {
+            assert(!condition, testName, 'false', String(condition), input);
+        }
+
+        // ============================================
+        // TREE VIEW FUNCTIONS (from main app)
+        // ============================================
+
+        let treeNodeIdCounter = 0;
+
+        function getMeaningfulType(node, parentKey) {
+            // For items inside arrays, use the singular form of the array name
+            if (parentKey && !isNaN(node.key)) {
+                const singularMap = {
+                    'slices': 'slice',
+                    'events': 'event',
+                    'properties': 'property',
+                    'buttons': 'button',
+                    'tests': 'test',
+                    'commands': 'command',
+                    'views': 'view',
+                    'triggers': 'trigger',
+                    'children': 'child',
+                    'items': 'item',
+                    'given': 'given',
+                    'then': 'then'
+                };
+                
+                const lower = parentKey.toLowerCase();
+                if (singularMap[lower]) {
+                    return singularMap[lower];
+                }
+                
+                if (lower.endsWith('s')) {
+                    return lower.slice(0, -1);
+                }
+                
+                return parentKey;
+            }
+            
+            if (node.key && node.key !== 'root') {
+                return node.key;
+            }
+            
+            return node.type;
+        }
+
+        function buildTreeData(data, key = 'root', path = [], parentKey = null) {
+            const nodeId = `node-${treeNodeIdCounter++}`;
+            const nodeType = Array.isArray(data) ? 'array' : 
+                             data === null ? 'null' : 
+                             typeof data;
+            
+            const node = {
+                id: nodeId,
+                key: key,
+                type: nodeType,
+                meaningfulType: null,
+                value: data,
+                path: [...path],
+                children: []
+            };
+
+            if (nodeType === 'object' && data !== null) {
+                for (const [childKey, childValue] of Object.entries(data)) {
+                    const childNode = buildTreeData(childValue, childKey, [...path, childKey], key);
+                    node.children.push(childNode);
+                }
+            } else if (nodeType === 'array') {
+                data.forEach((item, index) => {
+                    const childNode = buildTreeData(item, index.toString(), [...path, index], key);
+                    node.children.push(childNode);
+                });
+            }
+
+            node.meaningfulType = getMeaningfulType(node, parentKey);
+
+            return node;
+        }
+
+        function isDescendant(sourceNode, targetNode) {
+            if (sourceNode.id === targetNode.id) return true;
+            for (const child of sourceNode.children) {
+                if (isDescendant(child, targetNode)) return true;
+            }
+            return false;
+        }
+
+        // ============================================
+        // TEST SUITE
+        // ============================================
+
+        console.log('🌳 Running Tree View Tests...\n');
+
+        // Test Category 1: Tree Building
+        console.log('Test Category: Tree Building');
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                title: "Test",
+                slices: [
+                    { name: "Slice 1" },
+                    { name: "Slice 2" }
+                ]
+            };
+            const tree = buildTreeData(testJson);
+            
+            assertTrue(tree !== null, 'Tree: Builds tree from JSON');
+            assertEquals(tree.type, 'object', 'Tree: Root is object type');
+            assertEquals(tree.children.length, 2, 'Tree: Root has 2 children (title, slices)');
+        }
+
+        // Test Category 2: Meaningful Type - Array Items
+        console.log('Test Category: Meaningful Type - Array Items');
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                slices: [{ id: "1" }],
+                events: [{ name: "Created" }],
+                properties: [{ name: "CartId" }]
+            };
+            const tree = buildTreeData(testJson);
+            
+            const slicesArray = tree.children.find(c => c.key === 'slices');
+            assertEquals(slicesArray.children[0].meaningfulType, 'slice', 
+                        'Type: Array item in "slices" shows "slice"');
+            
+            const eventsArray = tree.children.find(c => c.key === 'events');
+            assertEquals(eventsArray.children[0].meaningfulType, 'event',
+                        'Type: Array item in "events" shows "event"');
+            
+            const propsArray = tree.children.find(c => c.key === 'properties');
+            assertEquals(propsArray.children[0].meaningfulType, 'property',
+                        'Type: Array item in "properties" shows "property"');
+        }
+
+        // Test Category 3: Meaningful Type - Regular Properties
+        console.log('Test Category: Meaningful Type - Regular Properties');
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                title: "My Title",
+                trigger: { role: "User" },
+                command: { name: "Add" }
+            };
+            const tree = buildTreeData(testJson);
+            
+            const titleNode = tree.children.find(c => c.key === 'title');
+            assertEquals(titleNode.meaningfulType, 'title',
+                        'Type: Property "title" shows "title"');
+            
+            const triggerNode = tree.children.find(c => c.key === 'trigger');
+            assertEquals(triggerNode.meaningfulType, 'trigger',
+                        'Type: Property "trigger" shows "trigger"');
+            
+            const commandNode = tree.children.find(c => c.key === 'command');
+            assertEquals(commandNode.meaningfulType, 'command',
+                        'Type: Property "command" shows "command"');
+        }
+
+        // Test Category 4: Nested Structures
+        console.log('Test Category: Nested Structures');
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                slices: [
+                    {
+                        trigger: { role: "User" },
+                        command: {
+                            events: [
+                                { name: "Created" }
+                            ]
+                        }
+                    }
+                ]
+            };
+            const tree = buildTreeData(testJson);
+            
+            const slicesArray = tree.children.find(c => c.key === 'slices');
+            const sliceItem = slicesArray.children[0];
+            assertEquals(sliceItem.meaningfulType, 'slice',
+                        'Nested: Slice item shows "slice"');
+            
+            const triggerNode = sliceItem.children.find(c => c.key === 'trigger');
+            assertEquals(triggerNode.meaningfulType, 'trigger',
+                        'Nested: Trigger shows "trigger"');
+            
+            const commandNode = sliceItem.children.find(c => c.key === 'command');
+            const eventsArray = commandNode.children.find(c => c.key === 'events');
+            const eventItem = eventsArray.children[0];
+            assertEquals(eventItem.meaningfulType, 'event',
+                        'Nested: Event in nested array shows "event"');
+        }
+
+        // Test Category 5: Singular Form Mapping
+        console.log('Test Category: Singular Form Mapping');
+        {
+            const testCases = [
+                { plural: 'slices', singular: 'slice' },
+                { plural: 'events', singular: 'event' },
+                { plural: 'tests', singular: 'test' },
+                { plural: 'buttons', singular: 'button' },
+                { plural: 'items', singular: 'item' }
+            ];
+            
+            testCases.forEach(tc => {
+                treeNodeIdCounter = 0;
+                const testJson = {};
+                testJson[tc.plural] = [{ value: 1 }];
+                const tree = buildTreeData(testJson);
+                
+                const arrayNode = tree.children.find(c => c.key === tc.plural);
+                const item = arrayNode.children[0];
+                assertEquals(item.meaningfulType, tc.singular,
+                            `Singular: "${tc.plural}" → "${tc.singular}"`);
+            });
+        }
+
+        // Test Category 6: Descendant Detection
+        console.log('Test Category: Descendant Detection');
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                parent: {
+                    child: {
+                        grandchild: { value: 1 }
+                    }
+                }
+            };
+            const tree = buildTreeData(testJson);
+            
+            const parent = tree.children[0];
+            const child = parent.children[0];
+            const grandchild = child.children[0];
+            
+            assertTrue(isDescendant(parent, child),
+                      'Descendant: Child is descendant of parent');
+            assertTrue(isDescendant(parent, grandchild),
+                      'Descendant: Grandchild is descendant of parent');
+            assertFalse(isDescendant(child, parent),
+                       'Descendant: Parent is NOT descendant of child');
+            assertTrue(isDescendant(parent, parent),
+                      'Descendant: Node is descendant of itself');
+        }
+
+        // Test Category 7: Empty Structures
+        console.log('Test Category: Empty Structures');
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                emptyObject: {},
+                emptyArray: [],
+                normalObject: { value: 1 }
+            };
+            const tree = buildTreeData(testJson);
+            
+            const emptyObj = tree.children.find(c => c.key === 'emptyObject');
+            assertEquals(emptyObj.children.length, 0,
+                        'Empty: Empty object has 0 children');
+            
+            const emptyArr = tree.children.find(c => c.key === 'emptyArray');
+            assertEquals(emptyArr.children.length, 0,
+                        'Empty: Empty array has 0 children');
+            
+            const normalObj = tree.children.find(c => c.key === 'normalObject');
+            assertEquals(normalObj.children.length, 1,
+                        'Empty: Normal object has children');
+        }
+
+        // Test Category 8: Primitive Types
+        console.log('Test Category: Primitive Types');
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                stringVal: "text",
+                numberVal: 123,
+                boolVal: true,
+                nullVal: null
+            };
+            const tree = buildTreeData(testJson);
+            
+            const strNode = tree.children.find(c => c.key === 'stringVal');
+            assertEquals(strNode.type, 'string', 'Primitive: String type detected');
+            assertEquals(strNode.meaningfulType, 'stringVal', 'Primitive: String shows key name');
+            
+            const numNode = tree.children.find(c => c.key === 'numberVal');
+            assertEquals(numNode.type, 'number', 'Primitive: Number type detected');
+            
+            const boolNode = tree.children.find(c => c.key === 'boolVal');
+            assertEquals(boolNode.type, 'boolean', 'Primitive: Boolean type detected');
+            
+            const nullNode = tree.children.find(c => c.key === 'nullVal');
+            assertEquals(nullNode.type, 'null', 'Primitive: Null type detected');
+        }
+
+        // Test Category 9: Real-world em.json Structure
+        console.log('Test Category: Real-world Event Model Structure');
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                title: "Understanding Eventsourcing - Cart",
+                slices: [
+                    {
+                        id: "1",
+                        name: "Add item",
+                        border: "#4CBB17",
+                        trigger: {
+                            role: "User",
+                            type: "input-ui",
+                            buttons: ["Add"]
+                        },
+                        command: {
+                            name: "Add item",
+                            properties: [
+                                { name: "CartId", type: "Guid" },
+                                { name: "Description", type: "string" }
+                            ],
+                            events: [
+                                { name: "Cart created" },
+                                { name: "Item added" }
+                            ]
+                        },
+                        tests: [
+                            { name: "Creates cart and add initial item" }
+                        ]
+                    }
+                ]
+            };
+            const tree = buildTreeData(testJson);
+            
+            // Verify structure
+            assertEquals(tree.children.length, 2, 'EM: Root has 2 children (title, slices)');
+            
+            const titleNode = tree.children.find(c => c.key === 'title');
+            assertEquals(titleNode.meaningfulType, 'title', 'EM: Title shows "title"');
+            
+            const slicesNode = tree.children.find(c => c.key === 'slices');
+            assertEquals(slicesNode.meaningfulType, 'slices', 'EM: Slices array shows "slices"');
+            
+            const sliceItem = slicesNode.children[0];
+            assertEquals(sliceItem.meaningfulType, 'slice', 'EM: Slice item shows "slice"');
+            
+            const idNode = sliceItem.children.find(c => c.key === 'id');
+            assertEquals(idNode.meaningfulType, 'id', 'EM: id property shows "id"');
+            
+            const triggerNode = sliceItem.children.find(c => c.key === 'trigger');
+            assertEquals(triggerNode.meaningfulType, 'trigger', 'EM: trigger shows "trigger"');
+            
+            const commandNode = sliceItem.children.find(c => c.key === 'command');
+            const propsArray = commandNode.children.find(c => c.key === 'properties');
+            const propItem = propsArray.children[0];
+            assertEquals(propItem.meaningfulType, 'property', 'EM: Property item shows "property"');
+            
+            const eventsArray = commandNode.children.find(c => c.key === 'events');
+            const eventItem = eventsArray.children[0];
+            assertEquals(eventItem.meaningfulType, 'event', 'EM: Event item shows "event"');
+            
+            const testsArray = sliceItem.children.find(c => c.key === 'tests');
+            const testItem = testsArray.children[0];
+            assertEquals(testItem.meaningfulType, 'test', 'EM: Test item shows "test"');
+        }
+
+        // Test Category 10: Path Tracking
+        console.log('Test Category: Path Tracking');
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                slices: [
+                    {
+                        command: {
+                            events: [{ name: "Created" }]
+                        }
+                    }
+                ]
+            };
+            const tree = buildTreeData(testJson);
+            
+            const slicesArray = tree.children[0];
+            const slice = slicesArray.children[0];
+            const command = slice.children[0];
+            const events = command.children[0];
+            const event = events.children[0];
+            
+            assertEquals(JSON.stringify(event.path), 
+                        JSON.stringify(['slices', 0, 'command', 'events', 0]),
+                        'Path: Deep nested path tracked correctly');
+        }
+
+        // ============================================
+        // RENDER RESULTS
+        // ============================================
+
+        function renderResults() {
+            const total = tests.passed + tests.failed;
+            const percentage = total > 0 ? Math.round((tests.passed / total) * 100) : 0;
+            
+            // Summary
+            const summaryHtml = `
+                <div class="summary-item">
+                    <div class="summary-value">${total}</div>
+                    <div>Total Tests</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-value" style="color: #2ecc71;">${tests.passed}</div>
+                    <div>Passed</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-value" style="color: #e74c3c;">${tests.failed}</div>
+                    <div>Failed</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-value">${percentage}%</div>
+                    <div>Success Rate</div>
+                </div>
+            `;
+            document.getElementById('summary').innerHTML = summaryHtml;
+            
+            // Group results by category
+            const categories = {};
+            tests.results.forEach(result => {
+                const category = result.name.split(':')[0] || 'General';
+                if (!categories[category]) {
+                    categories[category] = [];
+                }
+                categories[category].push(result);
+            });
+            
+            // Render each category
+            let resultsHtml = '';
+            Object.keys(categories).forEach(category => {
+                resultsHtml += `<div class="test-section"><h2>${category}</h2>`;
+                
+                categories[category].forEach(result => {
+                    const status = result.passed ? 'pass' : 'fail';
+                    const icon = result.passed ? '✓' : '✗';
+                    const iconClass = result.passed ? 'pass-icon' : 'fail-icon';
+                    
+                    resultsHtml += `
+                        <div class="test-case ${status}">
+                            <div class="test-name">
+                                <span class="icon ${iconClass}">${icon}</span>
+                                ${result.name}
+                            </div>
+                            ${result.input ? `<div class="test-input">Input: ${result.input}</div>` : ''}
+                            <div class="test-result">
+                                <div class="test-expected">Expected: ${result.expected}</div>
+                                <div class="test-actual">Actual: ${result.actual}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                resultsHtml += '</div>';
+            });
+            
+            document.getElementById('test-results').innerHTML = resultsHtml;
+            
+            // Console summary
+            console.log('\n' + '='.repeat(50));
+            console.log('TEST SUMMARY');
+            console.log('='.repeat(50));
+            console.log(`Total Tests: ${total}`);
+            console.log(`Passed: ${tests.passed} ✓`);
+            console.log(`Failed: ${tests.failed} ✗`);
+            console.log(`Success Rate: ${percentage}%`);
+            console.log('='.repeat(50));
+            
+            if (tests.failed > 0) {
+                console.log('\n❌ Some tests failed. See details above.');
+            } else {
+                console.log('\n✅ All tests passed!');
+            }
+        }
+
+        // Run tests
+        window.addEventListener('load', () => {
+            renderResults();
+        });
+    </script>
+</body>
+</html>
