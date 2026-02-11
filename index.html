@@ -345,7 +345,8 @@
             gap: 0.25rem;
         }
 
-        .code-collapse-btn, .code-expand-btn {
+        .code-toolbar button,
+        .tree-toolbar button {
             background: #e0e0e0;
             color: #555;
             border: 1px solid #ccc;
@@ -360,26 +361,21 @@
             justify-content: center;
         }
 
-        .code-collapse-btn:hover, .code-expand-btn:hover {
+        .code-toolbar button:hover:not(:disabled),
+        .tree-toolbar button:hover:not(:disabled) {
             background: #d0d0d0;
             border-color: #999;
-            color: #333;
         }
 
-        .code-collapse-btn:active, .code-expand-btn:active {
-            background: #c0c0c0;
-        }
-
-        .code-collapse-btn:disabled, .code-expand-btn:disabled {
+        .code-toolbar button:disabled,
+        .tree-toolbar button:disabled {
             opacity: 0.4;
             cursor: not-allowed;
-            background: #f0f0f0;
         }
 
-        .code-collapse-btn:disabled:hover, .code-expand-btn:disabled:hover {
-            background: #f0f0f0;
-            border-color: #ccc;
-            color: #555;
+        /* Add spacing before undo/redo buttons */
+        #codeUndoBtn, #treeUndoBtn {
+            margin-left: 8px;
         }
 
         #codeEditorTextarea {
@@ -411,31 +407,6 @@
             background: #f8f9fa;
             border-bottom: 1px solid #e0e0e0;
             gap: 0.25rem;
-        }
-
-        .tree-toolbar button {
-            background: #e0e0e0;
-            color: #555;
-            border: 1px solid #ccc;
-            width: 28px;
-            height: 28px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .tree-toolbar button:hover {
-            background: #d0d0d0;
-            border-color: #999;
-        }
-
-        .tree-toolbar button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
         }
 
         .tree-container {
@@ -1064,6 +1035,8 @@
                     <div class="code-toolbar">
                         <button class="code-collapse-btn" id="codeCollapseBtn" title="Collapse all JSON objects">▼</button>
                         <button class="code-expand-btn" id="codeExpandBtn" title="Expand all JSON objects">▶</button>
+                        <button id="codeUndoBtn" title="Undo (Ctrl+Z)" disabled>↶</button>
+                        <button id="codeRedoBtn" title="Redo (Ctrl+Y)" disabled>↷</button>
                     </div>
                     <div id="codeEditor"></div>
                 </div>
@@ -1071,6 +1044,8 @@
                     <div class="tree-toolbar">
                         <button id="treeCollapseAllBtn" title="Collapse all nodes">▼</button>
                         <button id="treeExpandAllBtn" title="Expand all nodes">▶</button>
+                        <button id="treeUndoBtn" title="Undo (Ctrl+Z)" disabled>↶</button>
+                        <button id="treeRedoBtn" title="Redo (Ctrl+Y)" disabled>↷</button>
                     </div>
                     <div id="treeEditor"></div>
                 </div>
@@ -1139,6 +1114,107 @@
         let collapsedLines = new Set();
         let jsonLines = [];
         let debounceTimer;
+
+        // History Manager for Undo/Redo
+        const historyManager = {
+            states: [],
+            currentIndex: -1,
+            maxStates: 50,
+            isRestoring: false,
+
+            pushState(json) {
+                if (this.isRestoring) return; // Don't push during undo/redo
+                if (!json) return;
+
+                // Check if JSON actually changed
+                const jsonString = JSON.stringify(json);
+                if (this.states.length > 0 && this.currentIndex >= 0) {
+                    const lastState = this.states[this.currentIndex];
+                    if (JSON.stringify(lastState) === jsonString) {
+                        return; // No change, don't push
+                    }
+                }
+
+                // Remove any states after current position (if we're in middle of history)
+                if (this.currentIndex < this.states.length - 1) {
+                    this.states = this.states.slice(0, this.currentIndex + 1);
+                }
+
+                // Deep clone the JSON to avoid reference issues
+                const clonedJson = JSON.parse(jsonString);
+                this.states.push(clonedJson);
+
+                // Limit to maxStates (remove oldest if exceeded)
+                if (this.states.length > this.maxStates) {
+                    this.states.shift();
+                } else {
+                    this.currentIndex++;
+                }
+
+                this.updateButtons();
+            },
+
+            undo() {
+                if (!this.canUndo()) return;
+
+                this.currentIndex--;
+                this.restoreState(this.states[this.currentIndex]);
+                this.updateButtons();
+            },
+
+            redo() {
+                if (!this.canRedo()) return;
+
+                this.currentIndex++;
+                this.restoreState(this.states[this.currentIndex]);
+                this.updateButtons();
+            },
+
+            restoreState(json) {
+                this.isRestoring = true;
+                
+                // Deep clone to avoid reference issues
+                currentJson = JSON.parse(JSON.stringify(json));
+                
+                // Update all views
+                renderCodeEditor();
+                renderTreeView();
+                updateDiagram();
+                
+                this.isRestoring = false;
+            },
+
+            canUndo() {
+                return this.currentIndex > 0;
+            },
+
+            canRedo() {
+                return this.currentIndex < this.states.length - 1;
+            },
+
+            clear() {
+                this.states = [];
+                this.currentIndex = -1;
+                this.updateButtons();
+            },
+
+            updateButtons() {
+                const canUndo = this.canUndo();
+                const canRedo = this.canRedo();
+
+                // Update code toolbar buttons
+                const codeUndoBtn = document.getElementById('codeUndoBtn');
+                const codeRedoBtn = document.getElementById('codeRedoBtn');
+                if (codeUndoBtn) codeUndoBtn.disabled = !canUndo;
+                if (codeRedoBtn) codeRedoBtn.disabled = !canRedo;
+
+                // Update tree toolbar buttons
+                const treeUndoBtn = document.getElementById('treeUndoBtn');
+                const treeRedoBtn = document.getElementById('treeRedoBtn');
+                if (treeUndoBtn) treeUndoBtn.disabled = !canUndo;
+                if (treeRedoBtn) treeRedoBtn.disabled = !canRedo;
+            }
+        };
 
         // Tab switching
         editorTabs.forEach(tab => {
@@ -1372,7 +1448,14 @@
 
             // Handle content editing
             codeEditor.querySelectorAll('.line-content.editable').forEach(content => {
+                // Listen for input events to track changes as user types
+                content.addEventListener('input', () => {
+                    console.log('Code editor: input event fired');
+                    updateJsonFromEditor();
+                });
+                
                 content.addEventListener('blur', () => {
+                    console.log('Code editor: blur event fired');
                     updateJsonFromEditor();
                 });
 
@@ -1423,15 +1506,62 @@
         function updateJsonFromEditor() {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
+                console.log('updateJsonFromEditor: Attempting to parse JSON from editor');
                 try {
-                    const lines = Array.from(codeEditor.querySelectorAll('.line-content.editable'));
-                    const jsonText = lines.map(el => el.textContent).join('\n');
+                    // Get ALL line-content spans (including collapsed ones)
+                    const allLines = Array.from(codeEditor.querySelectorAll('.code-line'));
+                    const jsonLines = [];
+                    
+                    // Extract text from each line, handling both expanded and collapsed states
+                    allLines.forEach(lineDiv => {
+                        const contentSpan = lineDiv.querySelector('.line-content');
+                        if (contentSpan) {
+                            // For collapsed lines, we need to skip the collapsed indicator
+                            if (contentSpan.classList.contains('editable')) {
+                                // Expanded line - use textContent directly
+                                jsonLines.push(contentSpan.textContent);
+                            } else {
+                                // Collapsed line - extract original text before the collapse indicator
+                                // This is problematic - we've lost the original lines!
+                                // For now, skip collapsed sections - user must expand to edit
+                            }
+                        }
+                    });
+                    
+                    // Check if there are any collapsed sections
+                    const hasCollapsed = collapsedLines.size > 0;
+                    if (hasCollapsed) {
+                        console.log('updateJsonFromEditor: Cannot update - some sections are collapsed. Expand all to edit.');
+                        return; // Don't attempt to parse if anything is collapsed
+                    }
+                    
+                    const jsonText = jsonLines.join('\n');
+                    console.log('updateJsonFromEditor: Extracted text, length:', jsonText.length);
+                    
                     const parsed = JSON.parse(jsonText);
+                    console.log('updateJsonFromEditor: JSON parsed successfully');
+                    
                     currentJson = parsed;
+                    
+                    // Rebuild tree view
+                    console.log('updateJsonFromEditor: Rebuilding tree view...');
+                    if (currentJson) {
+                        treeData = buildTreeData(currentJson);
+                        renderTreeView();
+                        console.log('updateJsonFromEditor: Tree view rebuilt');
+                    }
+                    
+                    // Update diagram
+                    console.log('updateJsonFromEditor: Updating diagram...');
                     updateDiagram();
+                    console.log('updateJsonFromEditor: Diagram updated');
+                    
+                    // Push to history after successful parse
+                    historyManager.pushState(currentJson);
+                    console.log('updateJsonFromEditor: State pushed to history');
                 } catch (error) {
                     // Invalid JSON, don't update
-                    console.log('Invalid JSON, not updating');
+                    console.log('updateJsonFromEditor: Invalid JSON, not updating -', error.message);
                 }
             }, 1000);
         }
@@ -1805,6 +1935,9 @@
                 renderTreeView();
                 renderCodeEditor();
                 updateDiagram();
+                
+                // Push to history after successful drop
+                historyManager.pushState(currentJson);
             } catch (error) {
                 console.error('Error during drop operation:', error);
                 renderTreeView();
@@ -2070,6 +2203,9 @@
             renderTreeView();
             renderCodeEditor();
             updateDiagram();
+            
+            // Push to history after copy
+            historyManager.pushState(currentJson);
             hideContextMenu();
         }
 
@@ -2091,6 +2227,9 @@
             renderTreeView();
             renderCodeEditor();
             updateDiagram();
+            
+            // Push to history after delete
+            historyManager.pushState(currentJson);
             hideContextMenu();
         }
 
@@ -2206,6 +2345,9 @@
                 renderTreeView();
                 renderCodeEditor();
                 updateDiagram();
+                
+                // Push to history after inline edit
+                historyManager.pushState(currentJson);
             };
             
             const cancelEdit = () => {
@@ -2406,6 +2548,36 @@
             renderTreeView();
         });
 
+        // Undo/Redo button handlers
+        const codeUndoBtn = document.getElementById('codeUndoBtn');
+        const codeRedoBtn = document.getElementById('codeRedoBtn');
+        const treeUndoBtn = document.getElementById('treeUndoBtn');
+        const treeRedoBtn = document.getElementById('treeRedoBtn');
+
+        codeUndoBtn.addEventListener('click', () => historyManager.undo());
+        codeRedoBtn.addEventListener('click', () => historyManager.redo());
+        treeUndoBtn.addEventListener('click', () => historyManager.undo());
+        treeRedoBtn.addEventListener('click', () => historyManager.redo());
+
+        // Keyboard shortcuts for undo/redo
+        document.addEventListener('keydown', (e) => {
+            // Check if we're in an input field (contenteditable code editor)
+            const target = e.target;
+            const isInEditor = target.closest('#codeEditor') !== null;
+            
+            // Ctrl+Z for undo
+            if (e.ctrlKey && e.key === 'z' && !e.shiftKey && !isInEditor) {
+                e.preventDefault();
+                historyManager.undo();
+            }
+            
+            // Ctrl+Y for redo
+            if (e.ctrlKey && e.key === 'y' && !isInEditor) {
+                e.preventDefault();
+                historyManager.redo();
+            }
+        });
+
         // Checkbox handlers
         showSlicesCheckbox.addEventListener('change', () => {
             toggleSliceBorders(showSlicesCheckbox.checked);
@@ -2491,6 +2663,11 @@
                         currentJson = JSON.parse(jsonContent);
                         console.log('JSON parsed successfully, keys:', Object.keys(currentJson));
                         collapsedLines.clear();
+                        
+                        // Clear history and push initial state
+                        historyManager.clear();
+                        historyManager.pushState(currentJson);
+                        
                         renderCodeEditor();
                         console.log('Code editor rendered');
                         renderDiagram(jsonContent);

@@ -91,6 +91,43 @@ start inline-edit.test.html
 
 ---
 
+### [history.test.html](history.test.html)
+Comprehensive test suite for the history manager (undo/redo functionality).
+
+**Test Coverage:**
+- ✅ History initialization (empty state)
+- ✅ Push state functionality
+- ✅ Undo/redo operations
+- ✅ Multiple undo/redo sequences
+- ✅ Forward history clearing on new state
+- ✅ Duplicate state prevention
+- ✅ Maximum state limit (50 states)
+- ✅ History clearing
+- ✅ Restore flag (prevents loops)
+- ✅ Deep cloning (prevents mutation)
+- ✅ canUndo/canRedo edge cases
+- ✅ Null/undefined state handling
+
+**Status:** ✅ All 17 tests passing
+
+**How to run:**
+```bash
+# Open in browser
+start tests\history.test.html
+
+# Or from tests directory
+cd tests
+start history.test.html
+```
+
+**Expected output:**
+- Visual test report in browser
+- Console output with detailed results
+- Pass/fail indicators for each test
+- Summary statistics
+
+---
+
 ## Test Results Summary
 
 Last test run: 2026-02-11
@@ -150,9 +187,26 @@ Last test run: 2026-02-11
 | Type Validation | 12 | ✅ Pass |
 | **TOTAL** | **44** | **✅ 100%** |
 
+### History Manager Tests
+| Test Category | Tests | Status |
+|--------------|-------|--------|
+| Initialization | 1 | ✅ Pass |
+| Push State | 2 | ✅ Pass |
+| Undo/Redo Operations | 2 | ✅ Pass |
+| Multiple Undo/Redo | 1 | ✅ Pass |
+| Forward History Clearing | 1 | ✅ Pass |
+| Duplicate Prevention | 1 | ✅ Pass |
+| Max State Limit | 1 | ✅ Pass |
+| Clear History | 1 | ✅ Pass |
+| Restore Flag | 1 | ✅ Pass |
+| Deep Cloning | 2 | ✅ Pass |
+| Edge Cases | 3 | ✅ Pass |
+| Null/Undefined Handling | 1 | ✅ Pass |
+| **TOTAL** | **17** | **✅ 100%** |
+
 ### Combined Results
-**Total Tests:** 147+
-**Passed:** 147+
+**Total Tests:** 164+
+**Passed:** 164+
 **Failed:** 0
 **Success Rate:** 100% ✅
 
@@ -173,12 +227,14 @@ start tests\collapse-functionality.test.html
 start tests\tree-view.test.html
 start tests\context-menu.test.html
 start tests\inline-edit.test.html
+start tests\history.test.html
 
 # PowerShell
 Start-Process tests\collapse-functionality.test.html
 Start-Process tests\tree-view.test.html
 Start-Process tests\context-menu.test.html
 Start-Process tests\inline-edit.test.html
+Start-Process tests\history.test.html
 ```
 
 ### Automated Testing (Future)

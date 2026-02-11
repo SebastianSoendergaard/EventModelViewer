@@ -107,6 +107,52 @@ Implementation guide for drag-and-drop item reordering in tree view.
 
 ---
 
+### [history-undo-redo.md](history-undo-redo.md)
+Comprehensive guide for the history manager and undo/redo functionality.
+
+**Topics covered:**
+- Unified history tracking (code + tree view)
+- State management with circular buffer
+- Undo/redo operations and algorithms
+- Keyboard shortcuts (Ctrl+Z, Ctrl+Y)
+- Button state management
+- Memory optimization (50 state limit)
+- Deep cloning and mutation prevention
+- Integration points (code editor, tree actions)
+- Restore loop prevention
+- Debouncing strategies
+
+**Best for:**
+- Understanding undo/redo implementation
+- Learning about state management patterns
+- Reference for history tracking
+- Understanding memory optimization techniques
+
+---
+
+### [code-editor-sync-learnings.md](code-editor-sync-learnings.md)
+Deep dive into code editor multi-view synchronization issue and solution.
+
+**Topics covered:**
+- Root cause analysis (collapsed sections problem)
+- DOM as source of truth pitfall
+- ContentEditable complexity and trade-offs
+- Event listener lifecycle management
+- Debouncing strategies for user input
+- Multi-view synchronization patterns
+- Debug strategies with console logging
+- Edge cases and validation
+- User experience considerations
+
+**Best for:**
+- Understanding code editor limitations
+- Learning about DOM manipulation pitfalls
+- Reference for contenteditable implementations
+- Understanding synchronization challenges
+- Debugging async operations
+
+---
+
 ## Contributing to Documentation
 
 When adding new features or making significant changes:

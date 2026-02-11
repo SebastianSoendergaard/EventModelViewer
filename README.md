@@ -23,6 +23,16 @@ A web-based application for visualizing event-driven architecture models defined
 - **Real-time sync** - Changes update code view and diagram instantly
 - **Visual feedback** - Green/red indicators for valid/invalid drops
 
+### ⏪ History & Undo/Redo (NEW)
+- **Unified history** - Tracks changes from both code and tree view
+- **Undo/Redo buttons** - Available in both toolbars
+- **Keyboard shortcuts** - Ctrl+Z (undo), Ctrl+Y (redo)
+- **Smart tracking** - Debounced for code editor, immediate for tree actions
+- **50 state limit** - Prevents memory bloat
+- **Button states** - Disabled when undo/redo not available
+- **Tooltips** - All buttons have helpful hints
+- **Session history** - Clears on file upload
+
 ### 📊 Diagram Viewer
 - **Real-time rendering** - See changes instantly
 - **Event Model visualization** - Purpose-built for event modeling
@@ -57,6 +67,7 @@ Visualizes event-driven architecture patterns:
    - Click ▼ to collapse sections
    - Click ▶ to expand sections
    - Use "Collapse All" / "Expand All" buttons
+   - Use ↶/↷ buttons or Ctrl+Z/Ctrl+Y to undo/redo changes
    
    **Tree View:**
    - Click "Tree" tab to switch views

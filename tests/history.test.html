@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History Manager Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 3px;
+        }
+        .test-result.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+        .test-result.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .summary.all-pass {
+            background: #d4edda;
+            color: #155724;
+        }
+        .summary.some-fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: 1px solid #007bff;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .code-block {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 History Manager Tests</h1>
+    <p>Testing undo/redo functionality for Event Model Viewer</p>
+
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <script>
+        // Mock historyManager
+        const historyManager = {
+            states: [],
+            currentIndex: -1,
+            maxStates: 50,
+            isRestoring: false,
+
+            pushState(json) {
+                if (this.isRestoring) return;
+                if (!json) return;
+
+                const jsonString = JSON.stringify(json);
+                if (this.states.length > 0 && this.currentIndex >= 0) {
+                    const lastState = this.states[this.currentIndex];
+                    if (JSON.stringify(lastState) === jsonString) {
+                        return;
+                    }
+                }
+
+                if (this.currentIndex < this.states.length - 1) {
+                    this.states = this.states.slice(0, this.currentIndex + 1);
+                }
+
+                const clonedJson = JSON.parse(jsonString);
+                this.states.push(clonedJson);
+
+                if (this.states.length > this.maxStates) {
+                    this.states.shift();
+                } else {
+                    this.currentIndex++;
+                }
+            },
+
+            undo() {
+                if (!this.canUndo()) return null;
+                this.currentIndex--;
+                return JSON.parse(JSON.stringify(this.states[this.currentIndex]));
+            },
+
+            redo() {
+                if (!this.canRedo()) return null;
+                this.currentIndex++;
+                return JSON.parse(JSON.stringify(this.states[this.currentIndex]));
+            },
+
+            canUndo() {
+                return this.currentIndex > 0;
+            },
+
+            canRedo() {
+                return this.currentIndex < this.states.length - 1;
+            },
+
+            clear() {
+                this.states = [];
+                this.currentIndex = -1;
+            }
+        };
+
+        // Test framework
+        const results = [];
+        
+        function test(name, fn) {
+            try {
+                historyManager.clear();
+                fn();
+                results.push({ name, status: 'pass', error: null });
+            } catch (error) {
+                results.push({ name, status: 'fail', error: error.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || 'Assertion failed');
+            }
+        }
+
+        function assertEquals(actual, expected, message) {
+            if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+                throw new Error(message || `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+            }
+        }
+
+        // Run tests
+        test('History starts empty', () => {
+            assertEquals(historyManager.states.length, 0, 'States should be empty');
+            assertEquals(historyManager.currentIndex, -1, 'Index should be -1');
+            assert(!historyManager.canUndo(), 'Should not be able to undo');
+            assert(!historyManager.canRedo(), 'Should not be able to redo');
+        });
+
+        test('Push first state', () => {
+            const state1 = { name: 'state1' };
+            historyManager.pushState(state1);
+            
+            assertEquals(historyManager.states.length, 1, 'Should have 1 state');
+            assertEquals(historyManager.currentIndex, 0, 'Index should be 0');
+            assert(!historyManager.canUndo(), 'Should not be able to undo with only 1 state');
+            assert(!historyManager.canRedo(), 'Should not be able to redo');
+        });
+
+        test('Push multiple states', () => {
+            historyManager.pushState({ name: 'state1' });
+            historyManager.pushState({ name: 'state2' });
+            historyManager.pushState({ name: 'state3' });
+            
+            assertEquals(historyManager.states.length, 3, 'Should have 3 states');
+            assertEquals(historyManager.currentIndex, 2, 'Index should be 2');
+            assert(historyManager.canUndo(), 'Should be able to undo');
+            assert(!historyManager.canRedo(), 'Should not be able to redo');
+        });
+
+        test('Undo once', () => {
+            historyManager.pushState({ name: 'state1' });
+            historyManager.pushState({ name: 'state2' });
+            
+            const restored = historyManager.undo();
+            
+            assertEquals(restored, { name: 'state1' }, 'Should restore state1');
+            assertEquals(historyManager.currentIndex, 0, 'Index should be 0');
+            assert(!historyManager.canUndo(), 'Should not be able to undo further');
+            assert(historyManager.canRedo(), 'Should be able to redo');
+        });
+
+        test('Redo once', () => {
+            historyManager.pushState({ name: 'state1' });
+            historyManager.pushState({ name: 'state2' });
+            historyManager.undo();
+            
+            const restored = historyManager.redo();
+            
+            assertEquals(restored, { name: 'state2' }, 'Should restore state2');
+            assertEquals(historyManager.currentIndex, 1, 'Index should be 1');
+            assert(historyManager.canUndo(), 'Should be able to undo');
+            assert(!historyManager.canRedo(), 'Should not be able to redo further');
+        });
+
+        test('Multiple undo/redo', () => {
+            historyManager.pushState({ name: 'state1' });
+            historyManager.pushState({ name: 'state2' });
+            historyManager.pushState({ name: 'state3' });
+            
+            // Undo twice
+            historyManager.undo();
+            const state = historyManager.undo();
+            assertEquals(state, { name: 'state1' }, 'Should be at state1');
+            
+            // Redo once
+            const state2 = historyManager.redo();
+            assertEquals(state2, { name: 'state2' }, 'Should be at state2');
+            
+            // Redo again
+            const state3 = historyManager.redo();
+            assertEquals(state3, { name: 'state3' }, 'Should be at state3');
+        });
+
+        test('New state after undo clears forward history', () => {
+            historyManager.pushState({ name: 'state1' });
+            historyManager.pushState({ name: 'state2' });
+            historyManager.pushState({ name: 'state3' });
+            
+            // Undo twice (back to state1)
+            historyManager.undo();
+            historyManager.undo();
+            
+            // Push new state
+            historyManager.pushState({ name: 'state2b' });
+            
+            assertEquals(historyManager.states.length, 2, 'Should have 2 states');
+            assertEquals(historyManager.states[1], { name: 'state2b' }, 'New state should replace forward history');
+            assert(!historyManager.canRedo(), 'Should not be able to redo');
+        });
+
+        test('Duplicate states are not added', () => {
+            historyManager.pushState({ name: 'state1' });
+            historyManager.pushState({ name: 'state1' }); // Duplicate
+            
+            assertEquals(historyManager.states.length, 1, 'Should still have only 1 state');
+        });
+
+        test('Max states limit (50)', () => {
+            // Push 60 states
+            for (let i = 0; i < 60; i++) {
+                historyManager.pushState({ name: `state${i}` });
+            }
+            
+            assertEquals(historyManager.states.length, 50, 'Should have max 50 states');
+            assertEquals(historyManager.states[0].name, 'state10', 'First state should be state10 (oldest 10 removed)');
+            assertEquals(historyManager.states[49].name, 'state59', 'Last state should be state59');
+        });
+
+        test('Clear history', () => {
+            historyManager.pushState({ name: 'state1' });
+            historyManager.pushState({ name: 'state2' });
+            
+            historyManager.clear();
+            
+            assertEquals(historyManager.states.length, 0, 'States should be empty');
+            assertEquals(historyManager.currentIndex, -1, 'Index should be -1');
+        });
+
+        test('isRestoring flag prevents pushState', () => {
+            historyManager.pushState({ name: 'state1' });
+            
+            historyManager.isRestoring = true;
+            historyManager.pushState({ name: 'state2' });
+            historyManager.isRestoring = false;
+            
+            assertEquals(historyManager.states.length, 1, 'Should still have only 1 state');
+        });
+
+        test('Deep clone prevents mutation', () => {
+            const original = { name: 'state1', nested: { value: 42 } };
+            historyManager.pushState(original);
+            
+            // Mutate original
+            original.nested.value = 99;
+            
+            // Stored state should not be affected
+            assertEquals(historyManager.states[0].nested.value, 42, 'Stored state should not be mutated');
+        });
+
+        test('Undo returns deep clone', () => {
+            historyManager.pushState({ name: 'state1', data: { value: 10 } });
+            historyManager.pushState({ name: 'state2', data: { value: 20 } });
+            
+            const restored = historyManager.undo();
+            restored.data.value = 999;
+            
+            // Original state should not be affected
+            assertEquals(historyManager.states[0].data.value, 10, 'Original state should not be mutated');
+        });
+
+        test('canUndo with single state', () => {
+            historyManager.pushState({ name: 'state1' });
+            assert(!historyManager.canUndo(), 'Cannot undo with only 1 state');
+        });
+
+        test('canRedo at end of history', () => {
+            historyManager.pushState({ name: 'state1' });
+            historyManager.pushState({ name: 'state2' });
+            assert(!historyManager.canRedo(), 'Cannot redo at end of history');
+        });
+
+        test('Null/undefined states are ignored', () => {
+            historyManager.pushState({ name: 'state1' });
+            historyManager.pushState(null);
+            historyManager.pushState(undefined);
+            
+            assertEquals(historyManager.states.length, 1, 'Should only have 1 state');
+        });
+
+        // Display results
+        const resultsContainer = document.getElementById('results');
+        const summaryContainer = document.getElementById('summary');
+
+        results.forEach(result => {
+            const div = document.createElement('div');
+            div.className = `test-result ${result.status}`;
+            
+            if (result.status === 'pass') {
+                div.innerHTML = `✅ <strong>${result.name}</strong>`;
+            } else {
+                div.innerHTML = `
+                    ❌ <strong>${result.name}</strong>
+                    <div class="code-block">${result.error}</div>
+                `;
+            }
+            
+            resultsContainer.appendChild(div);
+        });
+
+        // Summary
+        const passed = results.filter(r => r.status === 'pass').length;
+        const failed = results.filter(r => r.status === 'fail').length;
+        const total = results.length;
+
+        summaryContainer.textContent = `${passed}/${total} tests passed`;
+        summaryContainer.className = failed === 0 ? 'summary all-pass' : 'summary some-fail';
+
+        if (failed === 0) {
+            summaryContainer.textContent += ' 🎉';
+        }
+    </script>
+</body>
+</html>
