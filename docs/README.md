@@ -4,7 +4,29 @@ This directory contains detailed documentation about the Event Model Viewer impl
 
 ## Available Documents
 
-### [collapse-feature-learnings.md](collapse-feature-learnings.md)
+### Quick References (For Users)
+
+#### [tree-view-quick-reference.md](tree-view-quick-reference.md)
+User-friendly guide for Tree View features.
+
+**Topics covered:**
+- How to reorder items (drag-and-drop)
+- How to copy/delete items (context menu)
+- How to edit values (inline editing)
+- Keyboard shortcuts and tips
+- Common workflows and troubleshooting
+
+**Best for:**
+- New users learning the tree view
+- Quick feature lookup
+- Understanding what's possible
+- Troubleshooting common issues
+
+---
+
+### Implementation Guides (For Developers)
+
+#### [collapse-feature-learnings.md](collapse-feature-learnings.md)
 Comprehensive documentation of the collapsible JSON editor feature implementation.
 
 **Topics covered:**
@@ -22,6 +44,68 @@ Comprehensive documentation of the collapsible JSON editor feature implementatio
 - Learning about JSON parsing patterns
 - Reference for similar implementations
 - Onboarding new developers
+
+---
+
+### [tree-context-menu-learnings.md](tree-context-menu-learnings.md)
+Implementation guide for the right-click context menu feature in tree view.
+
+**Topics covered:**
+- Context menu implementation (copy/delete)
+- Event handling with `closest()`
+- Deep copy algorithm with unique IDs
+- Multi-view synchronization
+- Menu positioning and dismissal
+- Parent-only restriction logic
+- Edge cases and validation
+
+**Best for:**
+- Understanding context menu patterns
+- Learning about DOM event delegation
+- Reference for copy/delete operations
+- Understanding data synchronization
+
+---
+
+### [tree-inline-edit-learnings.md](tree-inline-edit-learnings.md)
+Implementation guide for double-click inline editing of leaf values.
+
+**Topics covered:**
+- Inline editing activation
+- Type-safe value parsing and validation
+- Race condition prevention (Enter+blur)
+- Event listener cleanup strategies
+- Multi-view synchronization
+- User experience design
+- Error handling and feedback
+
+**Best for:**
+- Understanding inline edit patterns
+- Learning about race condition prevention
+- Reference for type validation
+- Understanding event lifecycle management
+
+---
+
+### [tree-drag-drop-learnings.md](tree-drag-drop-learnings.md)
+Implementation guide for drag-and-drop item reordering in tree view.
+
+**Topics covered:**
+- HTML5 Drag and Drop API
+- Drop zone strategy and positioning
+- Descendant prevention (circular references)
+- Array index renumbering
+- Object key uniqueness
+- Visual feedback during drag
+- State management and cleanup
+
+**Best for:**
+- Understanding drag-and-drop implementation
+- Learning about tree manipulation
+- Reference for move/reorder operations
+- Understanding data structure updates
+
+---
 
 ## Contributing to Documentation
 
@@ -81,4 +165,4 @@ All markdown files can be viewed:
 
 ---
 
-*Last updated: 2026-02-10*
+*Last updated: 2026-02-11*

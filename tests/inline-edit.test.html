@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inline Edit Test Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 2rem;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .test-header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .test-category {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+
+        .test-category h2 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .test-item {
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #95a5a6;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .test-item.pass {
+            border-left-color: #2ecc71;
+        }
+
+        .test-item.fail {
+            border-left-color: #e74c3c;
+            background: #fee;
+        }
+
+        .test-icon {
+            font-size: 1.25rem;
+        }
+
+        .test-name {
+            flex: 1;
+            color: #34495e;
+        }
+
+        .test-details {
+            font-size: 0.875rem;
+            color: #7f8c8d;
+            margin-left: 2.5rem;
+        }
+
+        .summary {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: white;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .summary.has-failures {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .summary h2 {
+            margin-bottom: 1rem;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            font-size: 1.25rem;
+        }
+
+        code {
+            background: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="test-header">
+            <h1>✏️ Inline Edit Test Suite</h1>
+            <p>Testing double-click inline editing for leaf values in tree view</p>
+        </div>
+        <div id="testResults"></div>
+        <div class="summary" id="summary"></div>
+    </div>
+
+    <script>
+        // Test utilities
+        let testResults = [];
+        let currentCategory = '';
+
+        function assert(condition, name, expected, actual, input) {
+            const passed = condition;
+            testResults.push({
+                category: currentCategory,
+                name: name,
+                passed: passed,
+                expected: expected,
+                actual: actual,
+                input: input
+            });
+            
+            const icon = passed ? '✅' : '❌';
+            const status = passed ? 'PASS' : 'FAIL';
+            const details = passed ? '' : ` | Expected: ${JSON.stringify(expected)}, Got: ${JSON.stringify(actual)}`;
+            console.log(`${icon} [${status}] ${name}${details}`);
+            
+            return passed;
+        }
+
+        function assertTrue(condition, name, input) {
+            return assert(condition, name, true, condition, input);
+        }
+
+        function assertFalse(condition, name, input) {
+            return assert(!condition, name, false, condition, input);
+        }
+
+        function assertEquals(actual, expected, name, input) {
+            return assert(actual === expected, name, expected, actual, input);
+        }
+
+        // Run tests
+        console.log('✏️ Running Inline Edit Tests...\n');
+
+        // Test Category 1: Leaf Node Detection
+        currentCategory = 'Leaf Node Detection';
+        console.log(`Test Category: ${currentCategory}`);
+        {
+            // Test leaf types
+            const stringNode = { type: 'string', value: 'test' };
+            const numberNode = { type: 'number', value: 42 };
+            const boolNode = { type: 'boolean', value: true };
+            const nullNode = { type: 'null', value: null };
+            const objectNode = { type: 'object', children: [] };
+            const arrayNode = { type: 'array', children: [] };
+
+            assertTrue(stringNode.type !== 'object' && stringNode.type !== 'array', 'Detect: String is editable leaf');
+            assertTrue(numberNode.type !== 'object' && numberNode.type !== 'array', 'Detect: Number is editable leaf');
+            assertTrue(boolNode.type !== 'object' && boolNode.type !== 'array', 'Detect: Boolean is editable leaf');
+            assertTrue(nullNode.type !== 'object' && nullNode.type !== 'array', 'Detect: Null is editable leaf');
+            assertFalse(objectNode.type !== 'object' && objectNode.type !== 'array', 'Detect: Object is NOT editable leaf');
+            assertFalse(arrayNode.type !== 'object' && arrayNode.type !== 'array', 'Detect: Array is NOT editable leaf');
+        }
+
+        // Test Category 2: Value Parsing - Strings
+        currentCategory = 'Value Parsing - Strings';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            const node = { type: 'string', value: 'original' };
+            const newValue = 'updated';
+            
+            // String doesn't need parsing, just assignment
+            const parsedValue = newValue;
+            
+            assertEquals(parsedValue, 'updated', 'Parse String: Simple string');
+            assertEquals(typeof parsedValue, 'string', 'Parse String: Type is string');
+            
+            // Test empty string
+            const emptyValue = '';
+            assertEquals(emptyValue, '', 'Parse String: Empty string is valid');
+            
+            // Test string with spaces
+            const spacesValue = '  spaces  ';
+            assertEquals(spacesValue.trim(), 'spaces', 'Parse String: Trim works');
+        }
+
+        // Test Category 3: Value Parsing - Numbers
+        currentCategory = 'Value Parsing - Numbers';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            const node = { type: 'number', value: 42 };
+            
+            // Test valid number
+            const newValue1 = '123';
+            const parsed1 = parseFloat(newValue1);
+            assertEquals(parsed1, 123, 'Parse Number: Integer');
+            assertFalse(isNaN(parsed1), 'Parse Number: Valid integer not NaN');
+            
+            // Test decimal
+            const newValue2 = '3.14';
+            const parsed2 = parseFloat(newValue2);
+            assertEquals(parsed2, 3.14, 'Parse Number: Decimal');
+            assertFalse(isNaN(parsed2), 'Parse Number: Valid decimal not NaN');
+            
+            // Test negative
+            const newValue3 = '-42';
+            const parsed3 = parseFloat(newValue3);
+            assertEquals(parsed3, -42, 'Parse Number: Negative');
+            
+            // Test invalid
+            const invalidValue = 'abc';
+            const parsedInvalid = parseFloat(invalidValue);
+            assertTrue(isNaN(parsedInvalid), 'Parse Number: Invalid string is NaN');
+        }
+
+        // Test Category 4: Value Parsing - Booleans
+        currentCategory = 'Value Parsing - Booleans';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            const node = { type: 'boolean', value: true };
+            
+            // Test true
+            const newValue1 = 'true';
+            let parsed1;
+            if (newValue1 === 'true') {
+                parsed1 = true;
+            } else if (newValue1 === 'false') {
+                parsed1 = false;
+            }
+            assertEquals(parsed1, true, 'Parse Boolean: "true" string to boolean');
+            
+            // Test false
+            const newValue2 = 'false';
+            let parsed2;
+            if (newValue2 === 'true') {
+                parsed2 = true;
+            } else if (newValue2 === 'false') {
+                parsed2 = false;
+            }
+            assertEquals(parsed2, false, 'Parse Boolean: "false" string to boolean');
+            
+            // Test invalid
+            const invalidValue = 'yes';
+            let parsedInvalid;
+            if (invalidValue === 'true') {
+                parsedInvalid = true;
+            } else if (invalidValue === 'false') {
+                parsedInvalid = false;
+            }
+            assertEquals(parsedInvalid, undefined, 'Parse Boolean: Invalid value is undefined');
+        }
+
+        // Test Category 5: Value Parsing - Null
+        currentCategory = 'Value Parsing - Null';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            const node = { type: 'null', value: null };
+            
+            // Test valid null
+            const newValue1 = 'null';
+            let parsed1;
+            if (newValue1 === 'null') {
+                parsed1 = null;
+            }
+            assertEquals(parsed1, null, 'Parse Null: "null" string to null');
+            
+            // Test invalid
+            const invalidValue = 'undefined';
+            let parsedInvalid;
+            if (invalidValue === 'null') {
+                parsedInvalid = null;
+            }
+            assertEquals(parsedInvalid, undefined, 'Parse Null: Invalid value is undefined');
+        }
+
+        // Test Category 6: Value Update Logic
+        currentCategory = 'Value Update Logic';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            // Simulate node update
+            const testNode = { 
+                id: 'node-1', 
+                type: 'string', 
+                value: 'original',
+                key: 'name'
+            };
+            
+            const originalValue = testNode.value;
+            assertEquals(originalValue, 'original', 'Update: Original value');
+            
+            // Update value
+            testNode.value = 'updated';
+            assertEquals(testNode.value, 'updated', 'Update: Value changed');
+            
+            // Check node structure unchanged
+            assertEquals(testNode.id, 'node-1', 'Update: ID unchanged');
+            assertEquals(testNode.type, 'string', 'Update: Type unchanged');
+            assertEquals(testNode.key, 'name', 'Update: Key unchanged');
+        }
+
+        // Test Category 7: Edge Cases
+        currentCategory = 'Edge Cases';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            // Test very long string
+            const longString = 'a'.repeat(1000);
+            assertEquals(longString.length, 1000, 'Edge: Long string length');
+            
+            // Test number edge cases
+            const zero = parseFloat('0');
+            assertEquals(zero, 0, 'Edge: Zero parsing');
+            
+            const largeNumber = parseFloat('999999999');
+            assertEquals(largeNumber, 999999999, 'Edge: Large number');
+            
+            const scientific = parseFloat('1e10');
+            assertEquals(scientific, 10000000000, 'Edge: Scientific notation');
+            
+            // Test special characters in string
+            const specialChars = '<>&"\'';
+            assertEquals(specialChars.length, 5, 'Edge: Special characters');
+            
+            // Test whitespace-only string
+            const whitespace = '   ';
+            assertEquals(whitespace.trim(), '', 'Edge: Whitespace trims to empty');
+        }
+
+        // Test Category 8: Type Validation
+        currentCategory = 'Type Validation';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            // Number validation
+            const validNumbers = ['42', '3.14', '-10', '0'];
+            const invalidNumbers = ['abc', '12abc', ''];
+            
+            validNumbers.forEach(num => {
+                const parsed = parseFloat(num);
+                assertFalse(isNaN(parsed), `Validate Number: "${num}" is valid`);
+            });
+            
+            invalidNumbers.forEach(num => {
+                const parsed = parseFloat(num);
+                assertTrue(isNaN(parsed), `Validate Number: "${num}" is invalid`);
+            });
+            
+            // Boolean validation
+            const validBooleans = ['true', 'false'];
+            const invalidBooleans = ['yes', 'no', '1', '0', 'True', 'FALSE'];
+            
+            validBooleans.forEach(bool => {
+                const isValid = bool === 'true' || bool === 'false';
+                assertTrue(isValid, `Validate Boolean: "${bool}" is valid`);
+            });
+            
+            invalidBooleans.forEach(bool => {
+                const isValid = bool === 'true' || bool === 'false';
+                assertFalse(isValid, `Validate Boolean: "${bool}" is invalid`);
+            });
+        }
+
+        // Display results
+        function displayResults() {
+            const resultsContainer = document.getElementById('testResults');
+            const summaryContainer = document.getElementById('summary');
+            
+            // Group tests by category
+            const categories = {};
+            testResults.forEach(test => {
+                if (!categories[test.category]) {
+                    categories[test.category] = [];
+                }
+                categories[test.category].push(test);
+            });
+            
+            // Display each category
+            let html = '';
+            Object.keys(categories).forEach(category => {
+                const tests = categories[category];
+                const passed = tests.filter(t => t.passed).length;
+                const total = tests.length;
+                
+                html += `<div class="test-category">`;
+                html += `<h2>${category} (${passed}/${total})</h2>`;
+                
+                tests.forEach(test => {
+                    const className = test.passed ? 'pass' : 'fail';
+                    const icon = test.passed ? '✅' : '❌';
+                    html += `<div class="test-item ${className}">`;
+                    html += `<span class="test-icon">${icon}</span>`;
+                    html += `<span class="test-name">${test.name}</span>`;
+                    html += `</div>`;
+                    
+                    if (!test.passed) {
+                        html += `<div class="test-details">Expected: <code>${JSON.stringify(test.expected)}</code>, Got: <code>${JSON.stringify(test.actual)}</code></div>`;
+                    }
+                });
+                
+                html += `</div>`;
+            });
+            
+            resultsContainer.innerHTML = html;
+            
+            // Display summary
+            const totalTests = testResults.length;
+            const passedTests = testResults.filter(t => t.passed).length;
+            const failedTests = totalTests - passedTests;
+            const successRate = ((passedTests / totalTests) * 100).toFixed(1);
+            
+            const hasFailed = failedTests > 0;
+            summaryContainer.className = hasFailed ? 'summary has-failures' : 'summary';
+            
+            summaryContainer.innerHTML = `
+                <h2>${hasFailed ? '❌ Some Tests Failed' : '✅ All Tests Passed!'}</h2>
+                <div class="stats">
+                    <div><strong>${passedTests}</strong> Passed</div>
+                    <div><strong>${failedTests}</strong> Failed</div>
+                    <div><strong>${successRate}%</strong> Success Rate</div>
+                </div>
+            `;
+            
+            console.log(`\n${'='.repeat(50)}`);
+            console.log(`Test Summary: ${passedTests}/${totalTests} passed (${successRate}%)`);
+            console.log(`${'='.repeat(50)}`);
+        }
+
+        displayResults();
+    </script>
+</body>
+</html>

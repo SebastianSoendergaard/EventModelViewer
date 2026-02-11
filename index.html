@@ -506,6 +506,20 @@
             cursor: grabbing;
         }
 
+        /* Parent items (objects/arrays) can be right-clicked */
+        .tree-type-object,
+        .tree-type-array {
+            position: relative;
+        }
+
+        .tree-type-object::after,
+        .tree-type-array::after {
+            content: '⋮';
+            margin-left: 4px;
+            opacity: 0.3;
+            font-weight: bold;
+        }
+
         .tree-type-badge {
             font-size: 0.7rem;
             padding: 0.15rem 0.4rem;
@@ -549,6 +563,29 @@
             color: #2c3e50;
         }
 
+        .tree-value-input {
+            font-weight: 500;
+            color: #2c3e50;
+            border: 2px solid #3498db;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+            background: #fff;
+            min-width: 100px;
+        }
+
+        .tree-value-input:focus {
+            border-color: #2980b9;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .tree-box.editing {
+            border-color: #3498db;
+            background: #f8f9fa;
+        }
+
         .tree-children {
             margin-left: 1.5rem;
             border-left: 2px solid #e9ecef;
@@ -581,6 +618,49 @@
             height: 3px;
             margin: 4px 0;
             box-shadow: 0 0 8px rgba(231, 76, 60, 0.5);
+        }
+
+        /* Context Menu Styles */
+        .tree-context-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 10000;
+            min-width: 160px;
+            padding: 4px 0;
+            display: none;
+        }
+
+        .tree-context-menu.visible {
+            display: block;
+        }
+
+        .tree-context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #333;
+            transition: background 0.15s;
+            user-select: none;
+        }
+
+        .tree-context-menu-item:hover {
+            background: #f0f0f0;
+        }
+
+        .tree-context-menu-item:active {
+            background: #e0e0e0;
+        }
+
+        .tree-context-menu-icon {
+            width: 16px;
+            display: inline-block;
+            text-align: center;
         }
 
         .resizer {
@@ -1018,6 +1098,18 @@
         </div>
     </div>
 
+    <!-- Context Menu for Tree Items -->
+    <div class="tree-context-menu" id="treeContextMenu">
+        <div class="tree-context-menu-item" data-action="copy">
+            <span class="tree-context-menu-icon">📋</span>
+            <span>Copy</span>
+        </div>
+        <div class="tree-context-menu-item" data-action="delete">
+            <span class="tree-context-menu-icon">🗑️</span>
+            <span>Delete</span>
+        </div>
+    </div>
+
     <script>
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName');
@@ -1351,6 +1443,10 @@
         let draggedNode = null;
         let dropTarget = null;
 
+        // Context Menu State
+        const treeContextMenu = document.getElementById('treeContextMenu');
+        let contextMenuTargetNode = null;
+
         // Get meaningful type name for a node
         function getMeaningfulType(node, parentKey) {
             // For items inside arrays, use the singular form of the array name
@@ -1548,6 +1644,12 @@
             treeEditor.querySelectorAll('.tree-box').forEach(box => {
                 box.addEventListener('dragstart', handleDragStart);
                 box.addEventListener('dragend', handleDragEnd);
+                
+                // Context menu for tree boxes
+                box.addEventListener('contextmenu', handleContextMenu);
+                
+                // Double-click to edit leaf items
+                box.addEventListener('dblclick', handleDoubleClick);
             });
 
             // Drag and drop events on drop zones
@@ -1845,6 +1947,297 @@
             }
             
             currentJson = nodeToJson(treeData);
+        }
+
+        // Context Menu Functions
+        function handleContextMenu(e) {
+            e.preventDefault();
+            e.stopPropagation(); // Prevent event bubbling
+            
+            // Get the tree-box element (might be clicking on child span)
+            const treeBox = e.target.closest('.tree-box');
+            if (!treeBox) return;
+            
+            const nodeId = treeBox.getAttribute('data-node-id');
+            if (!nodeId) return;
+            
+            contextMenuTargetNode = findNodeById(nodeId, treeData);
+            if (!contextMenuTargetNode) return;
+            
+            // Only show context menu for parent items (objects/arrays)
+            if (contextMenuTargetNode.type !== 'object' && contextMenuTargetNode.type !== 'array') {
+                return; // Don't show menu for leaf items
+            }
+            
+            // Position the menu at cursor
+            showContextMenu(e.clientX, e.clientY);
+        }
+
+        function showContextMenu(x, y) {
+            // Calculate position to keep menu in viewport
+            const menuWidth = 160;
+            const menuHeight = 80;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            let menuX = x;
+            let menuY = y;
+            
+            // Adjust if menu would overflow viewport
+            if (x + menuWidth > viewportWidth) {
+                menuX = viewportWidth - menuWidth - 10;
+            }
+            if (y + menuHeight > viewportHeight) {
+                menuY = viewportHeight - menuHeight - 10;
+            }
+            
+            treeContextMenu.style.left = `${menuX}px`;
+            treeContextMenu.style.top = `${menuY}px`;
+            treeContextMenu.classList.add('visible');
+            
+            // Add dismiss handlers
+            document.addEventListener('click', hideContextMenu);
+            document.addEventListener('keydown', handleContextMenuKeydown);
+        }
+
+        function hideContextMenu() {
+            treeContextMenu.classList.remove('visible');
+            contextMenuTargetNode = null;
+            
+            // Remove dismiss handlers
+            document.removeEventListener('click', hideContextMenu);
+            document.removeEventListener('keydown', handleContextMenuKeydown);
+        }
+
+        function handleContextMenuKeydown(e) {
+            if (e.key === 'Escape') {
+                hideContextMenu();
+            }
+        }
+
+        function deepCopyNode(node) {
+            const newNode = {
+                id: `node-${treeNodeIdCounter++}`,
+                key: node.key,
+                type: node.type,
+                value: node.value,
+                meaningfulType: node.meaningfulType,
+                children: []
+            };
+            
+            // Recursively copy children
+            for (const child of node.children) {
+                newNode.children.push(deepCopyNode(child));
+            }
+            
+            return newNode;
+        }
+
+        function copyTreeNode() {
+            if (!contextMenuTargetNode) return;
+            
+            // Create a deep copy of the node
+            const copiedNode = deepCopyNode(contextMenuTargetNode);
+            
+            // Modify the key to add '_copy' suffix
+            if (!isNaN(copiedNode.key)) {
+                // It's an array index, keep as is (will be renumbered on insert)
+                copiedNode.key = parseInt(copiedNode.key);
+            } else {
+                // It's an object key, add '_copy' suffix
+                copiedNode.key = `${copiedNode.key}_copy`;
+                copiedNode.meaningfulType = `${copiedNode.meaningfulType}_copy`;
+            }
+            
+            // Find parent and insert after original
+            const parent = findParentNode(contextMenuTargetNode);
+            if (!parent) return;
+            
+            const index = parent.children.findIndex(c => c.id === contextMenuTargetNode.id);
+            if (index !== -1) {
+                parent.children.splice(index + 1, 0, copiedNode);
+                
+                // If parent is an array, renumber all children
+                if (parent.type === 'array') {
+                    parent.children.forEach((child, idx) => {
+                        child.key = idx.toString();
+                    });
+                }
+            }
+            
+            // Rebuild JSON and re-render
+            rebuildJsonFromTree();
+            renderTreeView();
+            renderCodeEditor();
+            updateDiagram();
+            hideContextMenu();
+        }
+
+        function deleteTreeNode() {
+            if (!contextMenuTargetNode) return;
+            
+            // Confirm deletion
+            const nodeName = contextMenuTargetNode.meaningfulType || contextMenuTargetNode.key || 'this item';
+            if (!confirm(`Are you sure you want to delete "${nodeName}"?`)) {
+                hideContextMenu();
+                return;
+            }
+            
+            // Remove the node
+            removeNodeFromParent(contextMenuTargetNode);
+            
+            // Rebuild JSON and re-render
+            rebuildJsonFromTree();
+            renderTreeView();
+            renderCodeEditor();
+            updateDiagram();
+            hideContextMenu();
+        }
+
+        // Context menu item click handlers
+        treeContextMenu.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent hiding menu immediately
+            
+            const menuItem = e.target.closest('.tree-context-menu-item');
+            if (!menuItem) return;
+            
+            const action = menuItem.getAttribute('data-action');
+            
+            if (action === 'copy') {
+                copyTreeNode();
+            } else if (action === 'delete') {
+                deleteTreeNode();
+            }
+        });
+
+        // Double-click to edit leaf items
+        function handleDoubleClick(e) {
+            const treeBox = e.target.closest('.tree-box');
+            if (!treeBox) return;
+            
+            const nodeId = treeBox.getAttribute('data-node-id');
+            if (!nodeId) return;
+            
+            const node = findNodeById(nodeId, treeData);
+            if (!node) return;
+            
+            // Only allow editing leaf items (not objects or arrays)
+            if (node.type === 'object' || node.type === 'array') {
+                return;
+            }
+            
+            // Start editing
+            startEditingNode(treeBox, node);
+        }
+
+        function startEditingNode(treeBox, node) {
+            // Prevent drag during edit
+            treeBox.setAttribute('draggable', 'false');
+            treeBox.classList.add('editing');
+            
+            // Find the value span
+            const valueSpan = treeBox.querySelector('.tree-value');
+            if (!valueSpan) return;
+            
+            // Store original value
+            const originalValue = node.value;
+            
+            // Create input field
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'tree-value-input';
+            input.value = originalValue === null ? 'null' : String(originalValue);
+            
+            // Replace span with input
+            valueSpan.replaceWith(input);
+            input.focus();
+            input.select();
+            
+            // Flag to prevent double-saving
+            let isSaving = false;
+            
+            // Save on Enter or blur
+            const saveEdit = () => {
+                if (isSaving) return; // Prevent double-save
+                isSaving = true;
+                
+                const newValue = input.value.trim();
+                
+                // Parse the value based on the node type
+                let parsedValue;
+                if (node.type === 'string') {
+                    parsedValue = newValue;
+                } else if (node.type === 'number') {
+                    parsedValue = parseFloat(newValue);
+                    if (isNaN(parsedValue)) {
+                        alert('Invalid number. Changes not saved.');
+                        cancelEdit();
+                        return;
+                    }
+                } else if (node.type === 'boolean') {
+                    if (newValue === 'true') {
+                        parsedValue = true;
+                    } else if (newValue === 'false') {
+                        parsedValue = false;
+                    } else {
+                        alert('Boolean must be "true" or "false". Changes not saved.');
+                        cancelEdit();
+                        return;
+                    }
+                } else if (node.type === 'null') {
+                    if (newValue === 'null') {
+                        parsedValue = null;
+                    } else {
+                        alert('Null value must be "null". Changes not saved.');
+                        cancelEdit();
+                        return;
+                    }
+                }
+                
+                // Update the node value
+                node.value = parsedValue;
+                
+                // Remove event listeners before re-rendering
+                input.removeEventListener('blur', blurHandler);
+                input.removeEventListener('keydown', keydownHandler);
+                
+                // Rebuild JSON and re-render
+                rebuildJsonFromTree();
+                renderTreeView();
+                renderCodeEditor();
+                updateDiagram();
+            };
+            
+            const cancelEdit = () => {
+                if (isSaving) return; // Prevent multiple cancels
+                isSaving = true;
+                
+                // Remove event listeners before re-rendering
+                input.removeEventListener('blur', blurHandler);
+                input.removeEventListener('keydown', keydownHandler);
+                
+                // Just re-render to restore original state
+                renderTreeView();
+            };
+            
+            // Handle Enter key
+            const keydownHandler = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveEdit();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelEdit();
+                }
+            };
+            
+            // Handle blur (clicking outside)
+            const blurHandler = () => {
+                saveEdit();
+            };
+            
+            input.addEventListener('keydown', keydownHandler);
+            input.addEventListener('blur', blurHandler);
         }
 
         function updateDiagram() {

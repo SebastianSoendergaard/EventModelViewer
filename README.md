@@ -14,6 +14,10 @@ A web-based application for visualizing event-driven architecture models defined
 ### 🌳 Tree View (NEW)
 - **Hierarchical visualization** - See JSON structure as a tree
 - **Drag-and-drop reordering** - Move items by dragging between elements
+- **Context menu for parent items** - Right-click on objects/arrays (not leaf values) to copy or delete
+- **Inline editing** - Double-click on leaf values to edit them in place
+- **Copy with _copy suffix** - Duplicate items instantly with smart naming
+- **Delete with confirmation** - Safely remove items with confirmation dialog
 - **Meaningful badges** - Shows property names and types clearly
 - **Collapse/Expand** - Individual and global controls
 - **Real-time sync** - Changes update code view and diagram instantly
@@ -57,6 +61,12 @@ Visualizes event-driven architecture patterns:
    **Tree View:**
    - Click "Tree" tab to switch views
    - Drag boxes to reorder items
+   - **Double-click leaf values** (strings, numbers, booleans, null) to edit them
+   - Press Enter to save, Escape to cancel editing
+   - Right-click on parent items (objects/arrays with ⋮ indicator) to show context menu
+   - Select "Copy" to duplicate an item (adds _copy suffix)
+   - Select "Delete" to remove an item (with confirmation)
+   - Note: Context menu only works on parent items, not leaf values
    - Click ▶/▼ to collapse/expand nodes
    - Drop between items (green line = valid drop)
 

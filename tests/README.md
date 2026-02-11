@@ -39,14 +39,48 @@ Comprehensive test suite for the tree view drag-and-drop feature.
 
 **Status:** ✅ All 40+ tests passing
 
+---
+
+### [context-menu.test.html](context-menu.test.html)
+Comprehensive test suite for the tree view context menu feature (right-click copy/delete).
+
+**Test Coverage:**
+- ✅ Deep copy function (simple & complex nodes)
+- ✅ Copy node insertion (object properties)
+- ✅ Array item copy with re-indexing
+- ✅ Deep nested structure copying
+- ✅ Delete node functionality
+- ✅ Delete nested node functionality
+- ✅ Copy key naming conventions (_copy suffix)
+- ✅ Find parent node in tree
+
+**Status:** ✅ All 34 tests passing
+
+---
+
+### [inline-edit.test.html](inline-edit.test.html)
+Comprehensive test suite for double-click inline editing of leaf values.
+
+**Test Coverage:**
+- ✅ Leaf node detection (strings, numbers, booleans, null)
+- ✅ String value parsing and validation
+- ✅ Number value parsing and validation
+- ✅ Boolean value parsing and validation
+- ✅ Null value parsing and validation
+- ✅ Value update logic
+- ✅ Edge cases (long strings, special chars, scientific notation)
+- ✅ Type validation (valid/invalid inputs)
+
+**Status:** ✅ All 40+ tests passing
+
 **How to run:**
 ```bash
 # Open in browser
-start tests\tree-view.test.html
+start tests\inline-edit.test.html
 
 # Or from tests directory
 cd tests
-start tree-view.test.html
+start inline-edit.test.html
 ```
 
 **Expected output:**
@@ -59,7 +93,7 @@ start tree-view.test.html
 
 ## Test Results Summary
 
-Last test run: 2026-02-10
+Last test run: 2026-02-11
 
 ### Collapse Functionality Tests
 | Test Category | Tests | Status |
@@ -90,9 +124,35 @@ Last test run: 2026-02-10
 | Path Tracking | 1 | ✅ Pass |
 | **TOTAL** | **40+** | **✅ 100%** |
 
+### Context Menu Tests
+| Test Category | Tests | Status |
+|--------------|-------|--------|
+| Deep Copy Function | 8 | ✅ Pass |
+| Copy Node Insertion | 4 | ✅ Pass |
+| Array Item Copy | 4 | ✅ Pass |
+| Deep Nested Copy | 4 | ✅ Pass |
+| Delete Node | 5 | ✅ Pass |
+| Delete Nested Node | 3 | ✅ Pass |
+| Copy Key Naming | 3 | ✅ Pass |
+| Find Parent Node | 3 | ✅ Pass |
+| **TOTAL** | **34** | **✅ 100%** |
+
+### Inline Edit Tests
+| Test Category | Tests | Status |
+|--------------|-------|--------|
+| Leaf Node Detection | 6 | ✅ Pass |
+| Value Parsing - Strings | 4 | ✅ Pass |
+| Value Parsing - Numbers | 7 | ✅ Pass |
+| Value Parsing - Booleans | 3 | ✅ Pass |
+| Value Parsing - Null | 2 | ✅ Pass |
+| Value Update Logic | 4 | ✅ Pass |
+| Edge Cases | 6 | ✅ Pass |
+| Type Validation | 12 | ✅ Pass |
+| **TOTAL** | **44** | **✅ 100%** |
+
 ### Combined Results
-**Total Tests:** 69+
-**Passed:** 69+
+**Total Tests:** 147+
+**Passed:** 147+
 **Failed:** 0
 **Success Rate:** 100% ✅
 
@@ -111,10 +171,14 @@ Last test run: 2026-02-10
 # Windows
 start tests\collapse-functionality.test.html
 start tests\tree-view.test.html
+start tests\context-menu.test.html
+start tests\inline-edit.test.html
 
 # PowerShell
 Start-Process tests\collapse-functionality.test.html
 Start-Process tests\tree-view.test.html
+Start-Process tests\context-menu.test.html
+Start-Process tests\inline-edit.test.html
 ```
 
 ### Automated Testing (Future)

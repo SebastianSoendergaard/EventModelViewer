@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context Menu Test Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 2rem;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .test-header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .test-category {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+
+        .test-category h2 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .test-item {
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #95a5a6;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .test-item.pass {
+            border-left-color: #2ecc71;
+        }
+
+        .test-item.fail {
+            border-left-color: #e74c3c;
+            background: #fee;
+        }
+
+        .test-icon {
+            font-size: 1.25rem;
+        }
+
+        .test-name {
+            flex: 1;
+            color: #34495e;
+        }
+
+        .test-details {
+            font-size: 0.875rem;
+            color: #7f8c8d;
+            margin-left: 2.5rem;
+        }
+
+        .summary {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: white;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .summary.has-failures {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .summary h2 {
+            margin-bottom: 1rem;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            font-size: 1.25rem;
+        }
+
+        code {
+            background: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="test-header">
+            <h1>🖱️ Context Menu Test Suite</h1>
+            <p>Testing right-click context menu for tree items: Copy and Delete functionality</p>
+        </div>
+        <div id="testResults"></div>
+        <div class="summary" id="summary"></div>
+    </div>
+
+    <script>
+        // Test utilities
+        let testResults = [];
+        let currentCategory = '';
+
+        function assert(condition, name, expected, actual, input) {
+            const passed = condition;
+            testResults.push({
+                category: currentCategory,
+                name: name,
+                passed: passed,
+                expected: expected,
+                actual: actual,
+                input: input
+            });
+            
+            const icon = passed ? '✅' : '❌';
+            const status = passed ? 'PASS' : 'FAIL';
+            const details = passed ? '' : ` | Expected: ${JSON.stringify(expected)}, Got: ${JSON.stringify(actual)}`;
+            console.log(`${icon} [${status}] ${name}${details}`);
+            
+            return passed;
+        }
+
+        function assertTrue(condition, name, input) {
+            return assert(condition, name, true, condition, input);
+        }
+
+        function assertFalse(condition, name, input) {
+            return assert(!condition, name, false, condition, input);
+        }
+
+        function assertEquals(actual, expected, name, input) {
+            return assert(actual === expected, name, expected, actual, input);
+        }
+
+        // Copy the tree functions from main app
+        let treeNodeIdCounter = 0;
+
+        function buildTreeData(data, key = 'root', path = [], parentKey = null) {
+            const nodeId = `node-${treeNodeIdCounter++}`;
+            
+            let type = Array.isArray(data) ? 'array' : typeof data;
+            if (data === null) type = 'null';
+            if (type === 'object') type = 'object';
+            
+            const node = {
+                id: nodeId,
+                key: key,
+                type: type,
+                value: (type === 'object' || type === 'array') ? null : data,
+                children: [],
+                path: path,
+                collapsed: false,
+            };
+
+            if (type === 'object' && data !== null) {
+                for (const [childKey, childValue] of Object.entries(data)) {
+                    const childNode = buildTreeData(childValue, childKey, [...path, childKey], key);
+                    node.children.push(childNode);
+                }
+            } else if (type === 'array') {
+                data.forEach((item, index) => {
+                    const childNode = buildTreeData(item, index.toString(), [...path, index], key);
+                    node.children.push(childNode);
+                });
+            }
+
+            return node;
+        }
+
+        function findNodeById(nodeId, node) {
+            if (!node) return null;
+            if (node.id === nodeId) return node;
+            for (const child of node.children) {
+                const found = findNodeById(nodeId, child);
+                if (found) return found;
+            }
+            return null;
+        }
+
+        function findParentNode(targetNode, currentNode) {
+            if (!currentNode) return null;
+            
+            for (const child of currentNode.children) {
+                if (child.id === targetNode.id) {
+                    return currentNode;
+                }
+            }
+            
+            for (const child of currentNode.children) {
+                const parent = findParentNode(targetNode, child);
+                if (parent) return parent;
+            }
+            
+            return null;
+        }
+
+        function deepCopyNode(node) {
+            const newNode = {
+                id: `node-${treeNodeIdCounter++}`,
+                key: node.key,
+                type: node.type,
+                value: node.value,
+                meaningfulType: node.meaningfulType,
+                children: []
+            };
+            
+            for (const child of node.children) {
+                newNode.children.push(deepCopyNode(child));
+            }
+            
+            return newNode;
+        }
+
+        function removeNodeFromParent(node, parent) {
+            if (!parent) return false;
+            
+            const index = parent.children.findIndex(c => c.id === node.id);
+            if (index !== -1) {
+                parent.children.splice(index, 1);
+                return true;
+            }
+            
+            for (const child of parent.children) {
+                if (removeNodeFromParent(node, child)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Run tests
+        console.log('🖱️ Running Context Menu Tests...\n');
+
+        // Test Category 1: Deep Copy Function
+        currentCategory = 'Deep Copy Function';
+        console.log(`Test Category: ${currentCategory}`);
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                name: "Test",
+                count: 42,
+                nested: {
+                    value: "nested"
+                }
+            };
+            
+            const tree = buildTreeData(testJson);
+            const nameNode = tree.children.find(c => c.key === 'name');
+            const countNode = tree.children.find(c => c.key === 'count');
+            const nestedNode = tree.children.find(c => c.key === 'nested');
+
+            // Test simple node copy
+            const copiedName = deepCopyNode(nameNode);
+            assertTrue(copiedName.id !== nameNode.id, 'Copy: New node has different ID');
+            assertEquals(copiedName.key, nameNode.key, 'Copy: Key is preserved');
+            assertEquals(copiedName.type, nameNode.type, 'Copy: Type is preserved');
+            assertEquals(copiedName.value, nameNode.value, 'Copy: Value is preserved');
+            
+            // Test complex node copy
+            const copiedNested = deepCopyNode(nestedNode);
+            assertTrue(copiedNested.id !== nestedNode.id, 'Copy: Complex node has different ID');
+            assertEquals(copiedNested.children.length, nestedNode.children.length, 'Copy: Children count preserved');
+            assertTrue(copiedNested.children[0].id !== nestedNode.children[0].id, 'Copy: Child has different ID');
+            assertEquals(copiedNested.children[0].value, nestedNode.children[0].value, 'Copy: Child value preserved');
+        }
+
+        // Test Category 2: Copy Node Insertion
+        currentCategory = 'Copy Node Insertion';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                first: "value1",
+                second: "value2",
+                third: "value3"
+            };
+            
+            const tree = buildTreeData(testJson);
+            const secondNode = tree.children.find(c => c.key === 'second');
+            
+            // Simulate copy operation
+            const copiedNode = deepCopyNode(secondNode);
+            copiedNode.key = `${copiedNode.key}_copy`;
+            
+            const parent = tree;
+            const index = parent.children.findIndex(c => c.id === secondNode.id);
+            parent.children.splice(index + 1, 0, copiedNode);
+            
+            assertEquals(parent.children.length, 4, 'Copy: Parent has 4 children after copy');
+            assertEquals(parent.children[2].key, 'second_copy', 'Copy: Copied node has _copy suffix');
+            assertEquals(parent.children[1].key, 'second', 'Copy: Original is before copy');
+            assertEquals(parent.children[3].key, 'third', 'Copy: Following node is after copy');
+        }
+
+        // Test Category 3: Array Item Copy
+        currentCategory = 'Array Item Copy';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                items: ["first", "second", "third"]
+            };
+            
+            const tree = buildTreeData(testJson);
+            const itemsArray = tree.children[0];
+            const secondItem = itemsArray.children[1]; // "second"
+            
+            // Simulate copy operation
+            const copiedItem = deepCopyNode(secondItem);
+            
+            const parent = itemsArray;
+            const index = parent.children.findIndex(c => c.id === secondItem.id);
+            parent.children.splice(index + 1, 0, copiedItem);
+            
+            // Renumber array indices
+            parent.children.forEach((child, idx) => {
+                child.key = idx.toString();
+            });
+            
+            assertEquals(parent.children.length, 4, 'Array Copy: Array has 4 items after copy');
+            assertEquals(parent.children[1].value, 'second', 'Array Copy: Original at index 1');
+            assertEquals(parent.children[2].value, 'second', 'Array Copy: Copy at index 2');
+            assertEquals(parent.children[2].key, '2', 'Array Copy: Copy has correct index');
+            assertEquals(parent.children[3].key, '3', 'Array Copy: Following item renumbered');
+        }
+
+        // Test Category 4: Deep Nested Copy
+        currentCategory = 'Deep Nested Copy';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                slice: {
+                    trigger: { type: "button" },
+                    command: { name: "AddItem" },
+                    events: [
+                        { type: "ItemAdded" },
+                        { type: "CartUpdated" }
+                    ]
+                }
+            };
+            
+            const tree = buildTreeData(testJson);
+            const sliceNode = tree.children[0];
+            
+            // Copy the entire slice
+            const copiedSlice = deepCopyNode(sliceNode);
+            
+            assertTrue(copiedSlice.children.length === 3, 'Nested: Copied slice has 3 children');
+            assertTrue(copiedSlice.id !== sliceNode.id, 'Nested: Different root ID');
+            
+            // Check nested structure
+            const copiedEvents = copiedSlice.children.find(c => c.key === 'events');
+            const originalEvents = sliceNode.children.find(c => c.key === 'events');
+            
+            assertTrue(copiedEvents.id !== originalEvents.id, 'Nested: Events array has different ID');
+            assertTrue(copiedEvents.children[0].id !== originalEvents.children[0].id, 'Nested: Event items have different IDs');
+            assertEquals(copiedEvents.children[0].children[0].value, 'ItemAdded', 'Nested: Deep values preserved');
+        }
+
+        // Test Category 5: Delete Node
+        currentCategory = 'Delete Node';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                first: "value1",
+                second: "value2",
+                third: "value3"
+            };
+            
+            const tree = buildTreeData(testJson);
+            assertEquals(tree.children.length, 3, 'Delete: Tree starts with 3 children');
+            
+            const secondNode = tree.children.find(c => c.key === 'second');
+            
+            // Remove the node
+            const removed = removeNodeFromParent(secondNode, tree);
+            
+            assertTrue(removed, 'Delete: Node was removed');
+            assertEquals(tree.children.length, 2, 'Delete: Tree now has 2 children');
+            assertFalse(tree.children.some(c => c.key === 'second'), 'Delete: Second node is gone');
+            assertTrue(tree.children.some(c => c.key === 'first'), 'Delete: First node remains');
+            assertTrue(tree.children.some(c => c.key === 'third'), 'Delete: Third node remains');
+        }
+
+        // Test Category 6: Delete Nested Node
+        currentCategory = 'Delete Nested Node';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                parent: {
+                    child1: "value1",
+                    child2: "value2"
+                }
+            };
+            
+            const tree = buildTreeData(testJson);
+            const parentNode = tree.children[0];
+            const child2 = parentNode.children.find(c => c.key === 'child2');
+            
+            assertEquals(parentNode.children.length, 2, 'Delete Nested: Parent starts with 2 children');
+            
+            // Remove child2
+            const removed = removeNodeFromParent(child2, tree);
+            
+            assertTrue(removed, 'Delete Nested: Node was removed');
+            assertEquals(parentNode.children.length, 1, 'Delete Nested: Parent now has 1 child');
+            assertEquals(parentNode.children[0].key, 'child1', 'Delete Nested: Correct child remains');
+        }
+
+        // Test Category 7: Copy Key Naming
+        currentCategory = 'Copy Key Naming';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            treeNodeIdCounter = 0;
+            
+            // Test object property naming
+            const obj1 = { key: 'command' };
+            const copiedObj = { ...obj1, key: `${obj1.key}_copy` };
+            assertEquals(copiedObj.key, 'command_copy', 'Naming: Object key gets _copy suffix');
+            
+            // Test array index naming
+            const arrItem = { key: '2' };
+            const isArrayIndex = !isNaN(arrItem.key);
+            assertTrue(isArrayIndex, 'Naming: Array index is numeric');
+            
+            // Test complex key
+            const complex = { key: 'myProperty' };
+            const copiedComplex = { ...complex, key: `${complex.key}_copy` };
+            assertEquals(copiedComplex.key, 'myProperty_copy', 'Naming: Complex key gets _copy suffix');
+        }
+
+        // Test Category 8: Find Parent Node
+        currentCategory = 'Find Parent Node';
+        console.log(`\nTest Category: ${currentCategory}`);
+        {
+            treeNodeIdCounter = 0;
+            const testJson = {
+                level1: {
+                    level2: {
+                        level3: "deep"
+                    }
+                }
+            };
+            
+            const tree = buildTreeData(testJson);
+            const level1 = tree.children[0];
+            const level2 = level1.children[0];
+            const level3 = level2.children[0];
+            
+            const parent1 = findParentNode(level1, tree);
+            assertEquals(parent1.id, tree.id, 'Find Parent: Level 1 parent is root');
+            
+            const parent2 = findParentNode(level2, tree);
+            assertEquals(parent2.id, level1.id, 'Find Parent: Level 2 parent is level 1');
+            
+            const parent3 = findParentNode(level3, tree);
+            assertEquals(parent3.id, level2.id, 'Find Parent: Level 3 parent is level 2');
+        }
+
+        // Display results
+        function displayResults() {
+            const resultsContainer = document.getElementById('testResults');
+            const summaryContainer = document.getElementById('summary');
+            
+            // Group tests by category
+            const categories = {};
+            testResults.forEach(test => {
+                if (!categories[test.category]) {
+                    categories[test.category] = [];
+                }
+                categories[test.category].push(test);
+            });
+            
+            // Display each category
+            let html = '';
+            Object.keys(categories).forEach(category => {
+                const tests = categories[category];
+                const passed = tests.filter(t => t.passed).length;
+                const total = tests.length;
+                
+                html += `<div class="test-category">`;
+                html += `<h2>${category} (${passed}/${total})</h2>`;
+                
+                tests.forEach(test => {
+                    const className = test.passed ? 'pass' : 'fail';
+                    const icon = test.passed ? '✅' : '❌';
+                    html += `<div class="test-item ${className}">`;
+                    html += `<span class="test-icon">${icon}</span>`;
+                    html += `<span class="test-name">${test.name}</span>`;
+                    html += `</div>`;
+                    
+                    if (!test.passed) {
+                        html += `<div class="test-details">Expected: <code>${JSON.stringify(test.expected)}</code>, Got: <code>${JSON.stringify(test.actual)}</code></div>`;
+                    }
+                });
+                
+                html += `</div>`;
+            });
+            
+            resultsContainer.innerHTML = html;
+            
+            // Display summary
+            const totalTests = testResults.length;
+            const passedTests = testResults.filter(t => t.passed).length;
+            const failedTests = totalTests - passedTests;
+            const successRate = ((passedTests / totalTests) * 100).toFixed(1);
+            
+            const hasFailed = failedTests > 0;
+            summaryContainer.className = hasFailed ? 'summary has-failures' : 'summary';
+            
+            summaryContainer.innerHTML = `
+                <h2>${hasFailed ? '❌ Some Tests Failed' : '✅ All Tests Passed!'}</h2>
+                <div class="stats">
+                    <div><strong>${passedTests}</strong> Passed</div>
+                    <div><strong>${failedTests}</strong> Failed</div>
+                    <div><strong>${successRate}%</strong> Success Rate</div>
+                </div>
+            `;
+            
+            console.log(`\n${'='.repeat(50)}`);
+            console.log(`Test Summary: ${passedTests}/${totalTests} passed (${successRate}%)`);
+            console.log(`${'='.repeat(50)}`);
+        }
+
+        displayResults();
+    </script>
+</body>
+</html>
