@@ -52,6 +52,7 @@ EventModelViewer/
 
 | Document | Purpose | Key Topics |
 |----------|---------|------------|
+| [Code Editor Selection](code-editor-selection-learnings.md) | **Editor implementation** | **CodeMirror vs ACE, CDN issues, module loading** |
 | [Feature Learnings](collapse-feature-learnings.md) | Technical implementation | Regex, algorithms, performance |
 | [Quick Reference](collapse-quick-reference.md) | API and patterns | Functions, detection patterns |
 | [Test Suite](../tests/collapse-functionality.test.html) | Automated tests | Run in browser |
@@ -117,10 +118,10 @@ EventModelViewer/
 ## 📝 Documentation Summary
 
 ### Total Documentation
-- **4 markdown files** (~23 KB)
+- **5 markdown files** (~33 KB)
 - **1 test suite** (23 KB HTML)
-- **Topics covered:** 15+
-- **Code examples:** 30+
+- **Topics covered:** 18+
+- **Code examples:** 35+
 
 ### Coverage
 
@@ -129,10 +130,11 @@ EventModelViewer/
 | User Guide | ✅ | README.md, Quick Reference |
 | API Reference | ✅ | Quick Reference |
 | Implementation | ✅ | Feature Learnings |
+| Editor Selection | ✅ | **Code Editor Selection** |
 | Testing | ✅ | Tests README, Test Suite |
 | Contributing | ✅ | README.md, Docs README |
 | Performance | ✅ | Feature Learnings |
-| Troubleshooting | ✅ | Quick Reference |
+| Troubleshooting | ✅ | Quick Reference, Editor Selection |
 
 ---
 

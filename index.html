@@ -275,10 +275,22 @@
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
             font-size: 13px;
             line-height: 1.8;
-            padding: 1rem;
             color: #2c3e50;
             overflow: auto;
             background: white;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        /* ACE Editor specific styles */
+        #codeEditor .ace_editor {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        #codeEditor .ace_gutter {
+            background: #f5f5f5 !important;
         }
 
         .code-line {
@@ -1038,7 +1050,9 @@
                         <button id="codeUndoBtn" title="Undo (Ctrl+Z)" disabled>↶</button>
                         <button id="codeRedoBtn" title="Redo (Ctrl+Y)" disabled>↷</button>
                     </div>
-                    <div id="codeEditor"></div>
+                    <div id="codeEditor">
+                        <div style="color: #999; padding: 1rem;">Loading code editor...</div>
+                    </div>
                 </div>
                 <div class="editor-view" id="treeView">
                     <div class="tree-toolbar">
@@ -1085,6 +1099,23 @@
         </div>
     </div>
 
+    <!-- ACE Editor - Simple, reliable alternative with CDN support -->
+    <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.32.2/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
+    
+    <script>
+        console.log('✓ ACE Editor loaded');
+        
+        // Make ACE available when ready
+        window.CodeMirror = {
+            isAce: true, // Flag to know we're using ACE
+            ace: window.ace
+        };
+        
+        // Dispatch custom event to signal editor is ready
+        window.dispatchEvent(new Event('codemirror-ready'));
+        console.log('✓ Editor ready (ACE)');
+    </script>
+
     <script>
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName');
@@ -1114,6 +1145,9 @@
         let collapsedLines = new Set();
         let jsonLines = [];
         let debounceTimer;
+        
+        // CodeMirror editor instance
+        let codeMirrorView = null;
 
         // History Manager for Undo/Redo
         const historyManager = {
@@ -1176,8 +1210,12 @@
                 // Deep clone to avoid reference issues
                 currentJson = JSON.parse(JSON.stringify(json));
                 
-                // Update all views
-                renderCodeEditor();
+                // Update ACE Editor if exists
+                if (codeMirrorView && codeMirrorView.setValue) {
+                    codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
+                }
+                
+                // Update tree view only
                 renderTreeView();
                 updateDiagram();
                 
@@ -1229,6 +1267,15 @@
                 if (tabName === 'code') {
                     codeView.classList.add('active');
                     treeView.classList.remove('active');
+                    
+                    // Refresh ACE Editor content if currentJson changed in Tree view
+                    if (codeMirrorView && currentJson) {
+                        const currentContent = codeMirrorView.getValue();
+                        const expectedContent = JSON.stringify(currentJson, null, 2);
+                        if (currentContent !== expectedContent) {
+                            codeMirrorView.setValue(expectedContent, -1);
+                        }
+                    }
                 } else {
                     treeView.classList.add('active');
                     codeView.classList.remove('active');
@@ -1388,7 +1435,105 @@
             return `${lineCount} lines`;
         }
 
+        // Initialize ACE Editor (simpler alternative to CodeMirror)
+        function initCodeMirror() {
+            // Wait for ACE to be available
+            if (!window.ace) {
+                console.log('Waiting for ACE editor to load...');
+                window.addEventListener('codemirror-ready', initCodeMirror, { once: true });
+                return;
+            }
+            
+            console.log('ACE editor available, initializing...');
+            
+            try {
+                // Clear loading message
+                codeEditor.innerHTML = '';
+                
+                // Initialize ACE editor
+                const editor = ace.edit(codeEditor, {
+                    mode: "ace/mode/json",
+                    theme: "ace/theme/chrome",
+                    fontSize: "14px",
+                    showPrintMargin: false,
+                    wrap: true,
+                    enableBasicAutocompletion: true,
+                    enableLiveAutocompletion: false
+                });
+                
+                // Set initial content
+                const initialContent = currentJson ? JSON.stringify(currentJson, null, 2) : '// No JSON loaded. Upload a file to start.';
+                editor.setValue(initialContent, -1); // -1 moves cursor to start
+                
+                // Enable code folding
+                editor.session.setFoldStyle('markbegin');
+                editor.setOption('foldStyle', 'markbegin');
+                
+                // Store editor instance globally
+                codeMirrorView = editor;
+                
+                // Add change listener with debouncing
+                editor.session.on('change', function() {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        updateJsonFromCodeMirror();
+                    }, 1000);
+                });
+                
+                console.log('✓ ACE Editor initialized successfully!');
+            } catch (error) {
+                console.error('Error initializing ACE Editor:', error);
+                codeEditor.innerHTML = '<div style="color: #c33; padding: 1rem;">Error loading code editor: ' + error.message + '</div>';
+            }
+        }
+        
+        // Update JSON from ACE Editor content
+        function updateJsonFromCodeMirror() {
+            if (!codeMirrorView) return;
+            
+            try {
+                // ACE uses getValue() instead of state.doc.toString()
+                const content = codeMirrorView.getValue();
+                const parsed = JSON.parse(content);
+                currentJson = parsed;
+                
+                // Update history
+                historyManager.pushState(currentJson);
+                
+                // Rebuild tree view
+                renderTreeView();
+                
+                // Update diagram
+                renderDiagram(content);
+                
+                // Clear any error messages
+                const errorMsg = document.querySelector('.json-error-message');
+                if (errorMsg) errorMsg.remove();
+            } catch (error) {
+                // Invalid JSON - show error inline (non-intrusive)
+                console.log('Invalid JSON while typing:', error.message);
+                
+                // Optionally show a subtle error indicator
+                let errorMsg = document.querySelector('.json-error-message');
+                if (!errorMsg) {
+                    errorMsg = document.createElement('div');
+                    errorMsg.className = 'json-error-message';
+                    errorMsg.style.cssText = 'position: absolute; bottom: 10px; right: 10px; background: #fee; color: #c33; padding: 0.5rem 1rem; border-radius: 4px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); z-index: 1000;';
+                    codeEditor.style.position = 'relative';
+                    codeEditor.appendChild(errorMsg);
+                }
+                errorMsg.textContent = '⚠️ JSON Syntax Error: ' + error.message;
+            }
+        }
+
         function renderCodeEditor() {
+            // This function is now deprecated for the Code tab (CodeMirror is used instead)
+            // It's only kept for backward compatibility if needed elsewhere
+            // Do not render to codeEditor div if CodeMirror is active
+            if (codeMirrorView) {
+                return; // CodeMirror handles the Code tab now
+            }
+            
             if (!currentJson) {
                 codeEditor.innerHTML = '<div style="color: #999; padding: 1rem;">No JSON loaded. Upload a file to start.</div>';
                 return;
@@ -1470,19 +1615,46 @@
 
         // Collapse/Expand All functionality
         function collapseAll() {
-            jsonLines.forEach((line, index) => {
-                if (line.isCollapsible) {
-                    collapsedLines.add(index);
+            // Check which tab is active
+            const codeTabActive = codeView.classList.contains('active');
+            
+            if (codeTabActive && codeMirrorView) {
+                // Use ACE folding API
+                const session = codeMirrorView.session;
+                const foldWidgets = session.foldWidgets;
+                if (foldWidgets) {
+                    for (let row = 0; row < session.getLength(); row++) {
+                        if (session.foldWidgets[row] != null) {
+                            session.foldAll(row, row, 0);
+                        }
+                    }
                 }
-            });
-            updateCollapseExpandButtonState();
-            renderCodeEditor();
+            } else {
+                // Use old custom editor for tree tab
+                jsonLines.forEach((line, index) => {
+                    if (line.isCollapsible) {
+                        collapsedLines.add(index);
+                    }
+                });
+                updateCollapseExpandButtonState();
+                renderCodeEditor();
+            }
         }
 
         function expandAll() {
-            collapsedLines.clear();
-            updateCollapseExpandButtonState();
-            renderCodeEditor();
+            // Check which tab is active
+            const codeTabActive = codeView.classList.contains('active');
+            
+            if (codeTabActive && codeMirrorView) {
+                // Use ACE folding API
+                const session = codeMirrorView.session;
+                session.unfold();
+            } else {
+                // Use old custom editor for tree tab
+                collapsedLines.clear();
+                updateCollapseExpandButtonState();
+                renderCodeEditor();
+            }
         }
 
         function updateCollapseExpandButtonState() {
@@ -2644,7 +2816,10 @@
         console.log('Initializing editor...');
         console.log('codeEditor element:', codeEditor);
         console.log('currentJson:', currentJson);
-        renderCodeEditor();
+        
+        // Initialize CodeMirror for Code tab
+        initCodeMirror();
+        
         console.log('Editor initialized');
 
         // File upload handler
@@ -2668,8 +2843,14 @@
                         historyManager.clear();
                         historyManager.pushState(currentJson);
                         
-                        renderCodeEditor();
-                        console.log('Code editor rendered');
+                        // Update ACE Editor content
+                        if (codeMirrorView && codeMirrorView.setValue) {
+                            codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
+                        }
+                        
+                        // Update Tree view (renderCodeEditor is now a no-op when editor is active)
+                        renderTreeView();
+                        console.log('Editors updated');
                         renderDiagram(jsonContent);
                         console.log('Diagram rendered');
                     } catch (error) {
