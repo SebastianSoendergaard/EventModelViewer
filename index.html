@@ -335,6 +335,26 @@
         #codeEditor .ace_gutter {
             background: #f5f5f5 !important;
         }
+        
+        /* Custom fold placeholder styling */
+        #codeEditor .ace_fold {
+            color: #999 !important;
+            font-style: italic !important;
+            background: transparent !important;
+            border: none !important;
+            cursor: pointer !important;
+            pointer-events: all !important;
+            display: inline !important;
+            padding: 0 4px !important;
+            margin: 0 !important;
+            position: relative !important;
+            z-index: 1 !important;
+        }
+        
+        #codeEditor .ace_fold::before,
+        #codeEditor .ace_fold::after {
+            display: none !important;
+        }
 
         .code-line {
             display: flex;
@@ -1409,23 +1429,10 @@
             // First, check if the start line itself has a property name
             // e.g., "trigger": { or "properties": [
             const propertyMatch = startText.match(/["']([^"']+)["']\s*:\s*[\{\[]/);
+            let propertyName = null;
+            
             if (propertyMatch) {
-                const propertyName = propertyMatch[1];
-                // If it's an array, might want to show count
-                if (startText.includes('[')) {
-                    let itemCount = 0;
-                    for (let i = startIndex + 1; i < endIndex; i++) {
-                        const line = lines[i].text.trim();
-                        // Count items (lines that start with { or are simple values after start of array)
-                        if (line === '{' || (line.startsWith('{') && !line.endsWith('{},'))) {
-                            itemCount++;
-                        }
-                    }
-                    if (itemCount > 0) {
-                        return `${propertyName} (${itemCount} ${itemCount === 1 ? 'item' : 'items'})`;
-                    }
-                }
-                return propertyName;
+                propertyName = propertyMatch[1];
             }
             
             // Look for common identifying properties in the next few lines
@@ -1435,6 +1442,7 @@
             let foundTitle = null;
             let foundType = null;
             let foundRole = null;
+            let foundError = null;
             
             for (let i = startIndex + 1; i < searchDepth; i++) {
                 const line = lines[i].text.trim();
@@ -1468,15 +1476,105 @@
                 if (roleMatch && !foundRole) {
                     foundRole = roleMatch[1];
                 }
+                
+                // Match "error": "value"
+                const errorMatch = line.match(/["']error["']\s*:\s*["']([^"']+)["']/i);
+                if (errorMatch && !foundError) {
+                    foundError = errorMatch[1];
+                }
             }
             
-            // Priority: name > title > role > type > id
-            let label = foundName || foundTitle || foundRole || foundType || foundId;
+            // Priority: name > title > role > type > error > id
+            let identifierValue = foundName || foundTitle || foundRole || foundType || foundError || foundId;
             
-            if (label) {
+            // Handle arrays with item counts
+            if (propertyName && startText.includes('[')) {
+                let itemCount = 0;
+                let itemNames = [];
+                
+                for (let i = startIndex + 1; i < endIndex; i++) {
+                    const line = lines[i].text.trim();
+                    // Count items (lines that start with { or are simple values)
+                    if (line === '{' || (line.startsWith('{') && !line.endsWith('{},'))) {
+                        itemCount++;
+                        
+                        // Try to get name of this item for arrays like "events"
+                        const itemEnd = findMatchingBracket(lines, i);
+                        if (itemEnd > i) {
+                            for (let j = i + 1; j < Math.min(itemEnd, i + 5); j++) {
+                                const itemLine = lines[j].text.trim();
+                                const itemNameMatch = itemLine.match(/["']name["']\s*:\s*["']([^"']+)["']/i);
+                                if (itemNameMatch) {
+                                    itemNames.push(itemNameMatch[1]);
+                                    break;
+                                }
+                            }
+                        }
+                    } else if (line.startsWith('"') || line.startsWith("'")) {
+                        // Simple string values in array
+                        itemCount++;
+                        const strMatch = line.match(/["']([^"']+)["']/);
+                        if (strMatch) {
+                            itemNames.push(strMatch[1]);
+                        }
+                    }
+                }
+                
+                if (itemCount > 0) {
+                    let label = `${propertyName} (${itemCount} ${itemCount === 1 ? 'item' : 'items'})`;
+                    // Add names if we found some and there aren't too many
+                    if (itemNames.length > 0 && itemNames.length <= 3) {
+                        label += ': ' + itemNames.join(', ');
+                    }
+                    
+                    // Truncate if too long
+                    if (label.length > 60) {
+                        label = label.substring(0, 57) + '...';
+                    }
+                    return label;
+                }
+            }
+            
+            // Combine property name with identifier value
+            if (propertyName && identifierValue) {
+                let label = `${propertyName}: ${identifierValue}`;
+                
                 // Truncate if too long
-                if (label.length > 40) {
-                    label = label.substring(0, 37) + '...';
+                if (label.length > 60) {
+                    label = label.substring(0, 57) + '...';
+                }
+                return label;
+            }
+            
+            // Just property name (for objects without clear identifiers)
+            if (propertyName) {
+                return propertyName;
+            }
+            
+            // Just identifier value (for top-level objects in arrays like slices)
+            if (identifierValue) {
+                // Try to determine context from surrounding structure
+                let context = 'object';
+                
+                // Check if we're in the slices array
+                if (startIndex > 10) {
+                    for (let i = startIndex - 1; i >= Math.max(0, startIndex - 10); i--) {
+                        const prevLine = lines[i].text.trim();
+                        if (prevLine.includes('"slices"') || prevLine.includes("'slices'")) {
+                            context = 'slice';
+                            break;
+                        }
+                    }
+                }
+                
+                let label = identifierValue;
+                if (context !== 'object') {
+                    label = `${context}: ${identifierValue}`;
+                }
+                
+                // Truncate if too long
+                if (label.length > 60) {
+                    label = label.substring(0, 57) + '...';
                 }
                 return label;
             }
@@ -1507,9 +1605,7 @@
                     theme: "ace/theme/chrome",
                     fontSize: "14px",
                     showPrintMargin: false,
-                    wrap: true,
-                    enableBasicAutocompletion: true,
-                    enableLiveAutocompletion: false
+                    wrap: true
                 });
                 
                 // Set initial content
@@ -1519,6 +1615,39 @@
                 // Enable code folding
                 editor.session.setFoldStyle('markbegin');
                 editor.setOption('foldStyle', 'markbegin');
+                
+                // Update fold placeholders after they're created
+                editor.session.on('changeFold', function() {
+                    console.log('Fold changed, updating placeholders...');
+                    const folds = editor.session.getAllFolds();
+                    console.log('Found', folds.length, 'folds');
+                    
+                    folds.forEach((fold, idx) => {
+                        try {
+                            const startRow = fold.start.row;
+                            const endRow = fold.end.row;
+                            
+                            // Get the folded lines
+                            const lines = [];
+                            for (let i = startRow; i <= endRow; i++) {
+                                const lineText = editor.session.getLine(i);
+                                lines.push({ text: lineText, isCollapsible: true });
+                            }
+                            
+                            // Generate custom label
+                            const label = getCollapsedLabel(lines, 0, lines.length - 1);
+                            const newPlaceholder = `...${label}`;
+                            
+                            console.log(`Fold ${idx}: Old placeholder="${fold.placeholder}", New="${newPlaceholder}"`);
+                            fold.placeholder = newPlaceholder;
+                        } catch (e) {
+                            console.error('Could not set fold label:', e);
+                        }
+                    });
+                    
+                    // Force re-render
+                    editor.renderer.updateFull();
+                });
                 
                 // Store editor instance globally
                 codeMirrorView = editor;
