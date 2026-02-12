@@ -54,6 +54,7 @@ EventModelViewer/
 |----------|---------|------------|
 | [Code Editor Selection](code-editor-selection-learnings.md) | **Editor implementation** | **CodeMirror vs ACE, CDN issues, module loading** |
 | [Resizer Implementation](resizer-implementation-learnings.md) | **Resizable panels** | **Drag resize, collapse panels, state persistence** |
+| [Persistence Implementation](persistence-implementation-learnings.md) | **LocalStorage & file ops** | **Auto-save, New/Save buttons, resizer persistence** |
 | [Feature Learnings](collapse-feature-learnings.md) | Technical implementation | Regex, algorithms, performance |
 | [Quick Reference](collapse-quick-reference.md) | API and patterns | Functions, detection patterns |
 | [Test Suite](../tests/collapse-functionality.test.html) | Automated tests | Run in browser |
@@ -119,10 +120,10 @@ EventModelViewer/
 ## 📝 Documentation Summary
 
 ### Total Documentation
-- **6 markdown files** (~46 KB)
+- **7 markdown files** (~60 KB)
 - **1 test suite** (23 KB HTML)
-- **Topics covered:** 20+
-- **Code examples:** 40+
+- **Topics covered:** 25+
+- **Code examples:** 50+
 
 ### Coverage
 
@@ -133,6 +134,7 @@ EventModelViewer/
 | Implementation | ✅ | Feature Learnings |
 | Editor Selection | ✅ | **Code Editor Selection** |
 | Resizer & Panels | ✅ | **Resizer Implementation** |
+| LocalStorage & Files | ✅ | **Persistence Implementation** |
 | Testing | ✅ | Tests README, Test Suite |
 | Contributing | ✅ | README.md, Docs README |
 | Performance | ✅ | Feature Learnings, Resizer Implementation |
@@ -226,6 +228,12 @@ start collapse-functionality.test.html
 
 ## 📅 Version History
 
+### 2026-02-12 - v2.1
+- ✨ Added localStorage persistence
+- 📄 New/Save/Open file operations
+- 💾 Auto-save on every edit
+- 📚 Added persistence documentation
+
 ### 2026-02-10 - v2.0
 - ✨ Enhanced collapse functionality
 - 📝 Added comprehensive documentation
@@ -236,8 +244,8 @@ See [Project README](../README.md#recent-updates) for detailed changelog.
 
 ---
 
-**Last Updated:** 2026-02-10  
-**Version:** 2.0  
+**Last Updated:** 2026-02-12  
+**Version:** 2.1  
 **Maintained By:** Development Team
 
 ---
