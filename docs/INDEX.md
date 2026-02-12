@@ -53,6 +53,7 @@ EventModelViewer/
 | Document | Purpose | Key Topics |
 |----------|---------|------------|
 | [Code Editor Selection](code-editor-selection-learnings.md) | **Editor implementation** | **CodeMirror vs ACE, CDN issues, module loading** |
+| [Resizer Implementation](resizer-implementation-learnings.md) | **Resizable panels** | **Drag resize, collapse panels, state persistence** |
 | [Feature Learnings](collapse-feature-learnings.md) | Technical implementation | Regex, algorithms, performance |
 | [Quick Reference](collapse-quick-reference.md) | API and patterns | Functions, detection patterns |
 | [Test Suite](../tests/collapse-functionality.test.html) | Automated tests | Run in browser |
@@ -118,10 +119,10 @@ EventModelViewer/
 ## 📝 Documentation Summary
 
 ### Total Documentation
-- **5 markdown files** (~33 KB)
+- **6 markdown files** (~46 KB)
 - **1 test suite** (23 KB HTML)
-- **Topics covered:** 18+
-- **Code examples:** 35+
+- **Topics covered:** 20+
+- **Code examples:** 40+
 
 ### Coverage
 
@@ -131,9 +132,10 @@ EventModelViewer/
 | API Reference | ✅ | Quick Reference |
 | Implementation | ✅ | Feature Learnings |
 | Editor Selection | ✅ | **Code Editor Selection** |
+| Resizer & Panels | ✅ | **Resizer Implementation** |
 | Testing | ✅ | Tests README, Test Suite |
 | Contributing | ✅ | README.md, Docs README |
-| Performance | ✅ | Feature Learnings |
+| Performance | ✅ | Feature Learnings, Resizer Implementation |
 | Troubleshooting | ✅ | Quick Reference, Editor Selection |
 
 ---
