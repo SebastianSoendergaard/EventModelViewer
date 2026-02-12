@@ -1616,13 +1616,106 @@
                 editor.session.setFoldStyle('markbegin');
                 editor.setOption('foldStyle', 'markbegin');
                 
+                // Track previous fold state for detecting expansions
+                let previousFolds = new Set();
+                let isProcessingFolds = false; // Prevent recursive processing
+                
                 // Update fold placeholders after they're created
                 editor.session.on('changeFold', function() {
                     console.log('Fold changed, updating placeholders...');
+                    
+                    // Prevent recursive fold processing
+                    if (isProcessingFolds) {
+                        console.log('Already processing folds, skipping...');
+                        return;
+                    }
+                    
                     const folds = editor.session.getAllFolds();
                     console.log('Found', folds.length, 'folds');
                     
-                    folds.forEach((fold, idx) => {
+                    // Build current fold set (row numbers that are folded)
+                    const currentFolds = new Set();
+                    folds.forEach(fold => currentFolds.add(fold.start.row));
+                    
+                    // Detect which folds were removed (expanded)
+                    const expandedRows = [];
+                    previousFolds.forEach(row => {
+                        if (!currentFolds.has(row)) {
+                            expandedRows.push(row);
+                        }
+                    });
+                    
+                    // For each expanded section, fold all its direct children
+                    if (expandedRows.length > 0) {
+                        isProcessingFolds = true; // Set flag before folding
+                        
+                        expandedRows.forEach(row => {
+                            console.log(`Row ${row} was expanded, folding children...`);
+                            
+                            // Find the matching bracket for this row
+                            const line = editor.session.getLine(row);
+                            const trimmed = line.trimStart();
+                            
+                            // Determine the closing bracket
+                            let openChar, closeChar;
+                            if (trimmed.includes('{')) {
+                                openChar = '{';
+                                closeChar = '}';
+                            } else if (trimmed.includes('[')) {
+                                openChar = '[';
+                                closeChar = ']';
+                            } else {
+                                return;
+                            }
+                            
+                            // Find end of this block
+                            let depth = 0;
+                            let endRow = row;
+                            for (let i = row; i < editor.session.getLength(); i++) {
+                                const lineText = editor.session.getLine(i);
+                                for (let char of lineText) {
+                                    if (char === openChar) depth++;
+                                    if (char === closeChar) depth--;
+                                    if (depth === 0 && i > row) {
+                                        endRow = i;
+                                        break;
+                                    }
+                                }
+                                if (depth === 0 && i > row) break;
+                            }
+                            
+                            // Now fold all foldable lines within this range (children)
+                            for (let i = row + 1; i < endRow; i++) {
+                                const childLine = editor.session.getLine(i);
+                                // Check if this line can be folded (has { or [)
+                                if (childLine.includes('{') || childLine.includes('[')) {
+                                    // Try to fold it
+                                    try {
+                                        const range = editor.session.getFoldWidgetRange(i);
+                                        if (range && !editor.session.getFoldAt(i)) {
+                                            editor.session.addFold('...', range);
+                                        }
+                                    } catch (e) {
+                                        // Ignore fold errors
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // Update previousFolds AFTER all child folding is done
+                        const allFoldsAfter = editor.session.getAllFolds();
+                        previousFolds = new Set();
+                        allFoldsAfter.forEach(fold => previousFolds.add(fold.start.row));
+                        
+                        isProcessingFolds = false; // Clear flag after folding
+                    } else {
+                        // No expansions, just update previous state
+                        previousFolds = currentFolds;
+                    }
+                    
+                    // Update placeholders for all current folds
+                    const allFolds = editor.session.getAllFolds();
+                    allFolds.forEach((fold, idx) => {
                         try {
                             const startRow = fold.start.row;
                             const endRow = fold.end.row;
@@ -1762,7 +1855,16 @@
                 toggle.addEventListener('click', (e) => {
                     const lineIndex = parseInt(e.target.getAttribute('data-line'));
                     if (collapsedLines.has(lineIndex)) {
+                        // Expanding: remove this line from collapsed, but add all child collapsible lines
                         collapsedLines.delete(lineIndex);
+                        
+                        // Find all collapsible children and collapse them
+                        const endIndex = findMatchingBracket(jsonLines, lineIndex);
+                        for (let i = lineIndex + 1; i < endIndex; i++) {
+                            if (jsonLines[i].isCollapsible) {
+                                collapsedLines.add(i);
+                            }
+                        }
                     } else {
                         collapsedLines.add(lineIndex);
                     }

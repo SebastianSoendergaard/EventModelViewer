@@ -55,6 +55,7 @@ EventModelViewer/
 | [Code Editor Selection](code-editor-selection-learnings.md) | **Editor implementation** | **CodeMirror vs ACE, CDN issues, module loading** |
 | [Resizer Implementation](resizer-implementation-learnings.md) | **Resizable panels** | **Drag resize, collapse panels, state persistence** |
 | [Persistence Implementation](persistence-implementation-learnings.md) | **LocalStorage & file ops** | **Auto-save, New/Save buttons, resizer persistence** |
+| [Hierarchical Collapse Behavior](hierarchical-collapse-behavior.md) | **One-level-at-a-time expand** | **ACE folding API, recursive prevention, state tracking** |
 | [Feature Learnings](collapse-feature-learnings.md) | Technical implementation | Regex, algorithms, performance |
 | [Quick Reference](collapse-quick-reference.md) | API and patterns | Functions, detection patterns |
 | [Test Suite](../tests/collapse-functionality.test.html) | Automated tests | Run in browser |
@@ -227,6 +228,11 @@ start collapse-functionality.test.html
 ---
 
 ## 📅 Version History
+
+### 2026-02-12 - v2.2
+- ✨ Hierarchical collapse/expand behavior in ACE editor
+- 🎯 One-level-at-a-time expansion control
+- 📚 Added hierarchical collapse documentation
 
 ### 2026-02-12 - v2.1
 - ✨ Added localStorage persistence
