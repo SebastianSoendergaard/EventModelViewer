@@ -1,6 +1,57 @@
 # Event Model Viewer
 
-A web-based application for visualizing event-driven architecture models defined in JSON format. Features an interactive JSON editor with collapsible objects, a drag-and-drop tree view, and a diagram viewer using Mermaid.js.
+A web-based application for visualizing event-driven architecture models using Event Medeling defined in JSON format. Features an interactive JSON editor with collapsible objects, a drag-and-drop tree view, and a diagram viewer using Mermaid.js.
+
+## Diagram JSON specification
+
+```
+title: the title of the work flow
+slices: list of slices on the diagram
+  slice: a single slice
+    name: name of the slice
+    border: color to mark a slice and its state (e.g. black=>todo, red=>in progress, green=>done)
+    trigger: something that triggers actions in the flow  
+      role: name of the role/person/system that initiates an action
+      type: type of the trigger e.g. ui or automation
+      buttons: list of buttons to show on ui trigger
+    command: a command
+      name: name of the command
+      properties: list of properties for the command
+        name: name of a command property
+        type: type of a command property
+      events: list of references to events (id of event if it exists else name) 
+    view: a view
+      name: name of the view
+      properties: list of properties for the view
+        name: name of a view property
+        type: type of a view property
+      events: list of references to events (id of event if it exists else name) 
+    events: list of events 
+      id: unique id of an event, can be used for reference on name clashes, if not defined fallback to name property
+      name: name of an event
+      external: true if the event is external
+      properties: list of properties for the event
+        name: name of an event property
+        type: type of an event property
+    tests: list of test cases for the slice
+      name: name of the test case
+      given: list of preconditional events
+        name: id or name of the event
+        properties: list of properties for the event
+          name: name of an event property
+          value: value of an event property
+      when:  
+        name: name of the command
+        properties: list of properties for the command
+          name: name of a command property
+          value: value of a command property
+      then: list of resulting events
+        name: id or name of the event
+        properties: list of properties for the event
+          name: name of an event property
+          value: value of an event property
+```
+
 
 ## Features
 
@@ -40,7 +91,7 @@ A web-based application for visualizing event-driven architecture models defined
 - **Error messages** - Helpful feedback for invalid JSON
 
 ### 🎯 Event Modeling Support
-Visualizes event-driven architecture patterns:
+Visualizes Event Modeling patterns:
 - Slices (bounded contexts)
 - Triggers (UI, automation)
 - Commands (write operations)
@@ -57,7 +108,7 @@ Visualizes event-driven architecture patterns:
    ```
 
 2. **Load an event model**
-   - Click "Choose JSON File"
+   - Click "Open"
    - Select `em.json` (example included)
    - Or paste JSON directly into the editor
 

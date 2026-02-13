@@ -499,7 +499,10 @@
 			"border": "#000000",
 			"trigger": {
 				"role": "Bot",
-				"type": "automation"
+				"type": "automation",
+				"events": [
+					"Inventory changed - external"
+				]
 			},
 			"command": {
 				"name": "Change inventory",
@@ -518,6 +521,21 @@
 				]
 			},
 			"events": [
+				{
+					"id": "Inventory changed - external",
+					"name": "Inventory changed",
+					"external": true,
+					"properties": [
+						{
+							"name": "ProductId",
+							"type": "Guid"
+						},
+						{
+							"name": "Inventory",
+							"type": "int"
+						}
+					]
+				},
 				{
 					"name": "Inventory changed",
 					"properties": [
