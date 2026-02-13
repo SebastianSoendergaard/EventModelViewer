@@ -1039,8 +1039,18 @@
             border: 1px solid #ba4a00;
         }
 
+        .event.external {
+            background: #f1c40f;
+            color: #333;
+            border: 1px solid #f39c12;
+        }
+
         .event .element-properties {
             color: rgba(255,255,255,0.9);
+        }
+
+        .event.external .element-properties {
+            color: rgba(0,0,0,0.8);
         }
 
         .events-container {
@@ -4226,7 +4236,8 @@
 
         function generateEvent(event, sliceIndex, eventIndex) {
             const eventId = `event-${sliceIndex}-${eventIndex}-${event.name.replace(/\s+/g, '-')}`;
-            let html = `<div class="element event" id="${eventId}" data-event-name="${escapeHtml(event.name)}">`;
+            const externalClass = event.external === true ? ' external' : '';
+            let html = `<div class="element event${externalClass}" id="${eventId}" data-event-name="${escapeHtml(event.name)}">`;
             html += `<div class="element-title">${escapeHtml(event.name)}</div>`;
             
             if (event.properties && event.properties.length > 0) {
