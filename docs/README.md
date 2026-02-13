@@ -130,6 +130,28 @@ Comprehensive guide for the history manager and undo/redo functionality.
 
 ---
 
+### [add-slice-button-learnings.md](add-slice-button-learnings.md)
+Complete guide for the Add Slice button with context menu feature.
+
+**Topics covered:**
+- Context menu design and positioning
+- Slice template creation (full vs event-only)
+- Multi-system update coordination
+- Integration with undo/redo and persistence
+- Menu visibility management (click outside, Escape key)
+- Shared menu for multiple triggers
+- Template design best practices
+- stopPropagation() usage
+
+**Best for:**
+- Understanding context menu implementation
+- Learning about template-based object creation
+- Reference for toolbar button patterns
+- Understanding multi-view synchronization
+- Learning about menu UX patterns
+
+---
+
 ### [code-editor-sync-learnings.md](code-editor-sync-learnings.md)
 Deep dive into code editor multi-view synchronization issue and solution.
 
@@ -211,4 +233,4 @@ All markdown files can be viewed:
 
 ---
 
-*Last updated: 2026-02-11*
+*Last updated: 2026-02-13*

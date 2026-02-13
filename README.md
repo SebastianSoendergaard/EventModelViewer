@@ -84,6 +84,16 @@ slices: list of slices on the diagram
 - **Tooltips** - All buttons have helpful hints
 - **Session history** - Clears on file upload
 
+### ➕ Add Slice Button (NEW)
+- **Quick slice creation** - Add new slices with one click
+- **Context menu** - Choose between Full slice or Event-only slice
+- **Full slice template** - Complete structure with trigger, command, view, events, and tests
+- **Event-only template** - Minimal slice with just events
+- **Auto-placement** - New slices added to end of slices array
+- **Smart defaults** - Placeholder values guide editing
+- **Undo/redo support** - New slices tracked in history
+- **Available in both views** - Works in code and tree view toolbars
+
 ### 📊 Diagram Viewer
 - **Real-time rendering** - See changes instantly
 - **Event Model visualization** - Purpose-built for event modeling
@@ -203,6 +213,14 @@ Works in all modern browsers:
 - ✅ Safari 17+
 
 ## Recent Updates
+
+### 2026-02-13: Add Slice Button
+- ✨ Quick slice creation with + button in both toolbars
+- ✨ Context menu with two template options
+- ✨ Full slice template (trigger, command, view, events, tests)
+- ✨ Event-only slice template for minimal structures
+- 📝 Added comprehensive documentation
+- 🔄 Full integration with undo/redo and persistence
 
 ### 2026-02-10: Enhanced Collapse Functionality
 - ✨ All objects and arrays now collapsible (not just standalone brackets)

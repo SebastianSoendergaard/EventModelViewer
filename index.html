@@ -709,6 +709,41 @@
             text-align: center;
         }
 
+        /* Add Slice Context Menu Styles */
+        .add-slice-context-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 10000;
+            min-width: 180px;
+            padding: 4px 0;
+            display: none;
+        }
+
+        .add-slice-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            transition: background 0.15s;
+            user-select: none;
+        }
+
+        .add-slice-menu-item:hover {
+            background: #f0f0f0;
+        }
+
+        .add-slice-menu-item:active {
+            background: #e0e0e0;
+        }
+
+        /* Add spacing before + button */
+        #codeAddSliceBtn, #treeAddSliceBtn {
+            margin-left: 8px;
+        }
+
         .resizer {
             width: 5px;
             cursor: col-resize;
@@ -1147,6 +1182,7 @@
                         <button class="code-expand-btn" id="codeExpandBtn" title="Expand all JSON objects">▶</button>
                         <button id="codeUndoBtn" title="Undo (Ctrl+Z)" disabled>↶</button>
                         <button id="codeRedoBtn" title="Redo (Ctrl+Y)" disabled>↷</button>
+                        <button id="codeAddSliceBtn" title="Add new slice">+</button>
                     </div>
                     <div id="codeEditor">
                         <div style="color: #999; padding: 1rem;">Loading code editor...</div>
@@ -1158,6 +1194,7 @@
                         <button id="treeExpandAllBtn" title="Expand all nodes">▶</button>
                         <button id="treeUndoBtn" title="Undo (Ctrl+Z)" disabled>↶</button>
                         <button id="treeRedoBtn" title="Redo (Ctrl+Y)" disabled>↷</button>
+                        <button id="treeAddSliceBtn" title="Add new slice">+</button>
                     </div>
                     <div id="treeEditor"></div>
                 </div>
@@ -1200,6 +1237,16 @@
         <div class="tree-context-menu-item" data-action="delete">
             <span class="tree-context-menu-icon">🗑️</span>
             <span>Delete</span>
+        </div>
+    </div>
+
+    <!-- Context Menu for Add Slice Button -->
+    <div class="add-slice-context-menu" id="addSliceContextMenu">
+        <div class="add-slice-menu-item" data-action="full-slice">
+            <span>Full slice</span>
+        </div>
+        <div class="add-slice-menu-item" data-action="event-slice">
+            <span>Event in empty slice</span>
         </div>
     </div>
 
@@ -3440,6 +3487,173 @@
         codeRedoBtn.addEventListener('click', () => historyManager.redo());
         treeUndoBtn.addEventListener('click', () => historyManager.undo());
         treeRedoBtn.addEventListener('click', () => historyManager.redo());
+
+        // Add Slice button handlers
+        const codeAddSliceBtn = document.getElementById('codeAddSliceBtn');
+        const treeAddSliceBtn = document.getElementById('treeAddSliceBtn');
+        const addSliceContextMenu = document.getElementById('addSliceContextMenu');
+
+        // Function to create a full slice template
+        function createFullSliceTemplate() {
+            return {
+                "name": "New Slice",
+                "border": "#000000",
+                "trigger": {
+                    "role": "User",
+                    "type": "input-ui",
+                    "buttons": ["Action"]
+                },
+                "command": {
+                    "name": "New Command",
+                    "properties": [
+                        {
+                            "name": "Property",
+                            "type": "string"
+                        }
+                    ],
+                    "events": ["New Event"]
+                },
+                "view": {
+                    "name": "New View",
+                    "properties": [
+                        {
+                            "name": "Property",
+                            "type": "string"
+                        }
+                    ],
+                    "events": ["New Event"]
+                },
+                "events": [
+                    {
+                        "name": "New Event",
+                        "properties": [
+                            {
+                                "name": "Property",
+                                "type": "string"
+                            }
+                        ]
+                    }
+                ],
+                "tests": [
+                    {
+                        "name": "New Test",
+                        "given": [],
+                        "when": {
+                            "name": "New Command"
+                        },
+                        "then": [
+                            {
+                                "name": "New Event"
+                            }
+                        ]
+                    }
+                ]
+            };
+        }
+
+        // Function to create an event-only slice template
+        function createEventOnlySliceTemplate() {
+            return {
+                "name": "New Slice",
+                "events": [
+                    {
+                        "name": "New Event",
+                        "properties": [
+                            {
+                                "name": "Property",
+                                "type": "string"
+                            }
+                        ]
+                    }
+                ]
+            };
+        }
+
+        // Function to add a slice to the model
+        function addSliceToModel(sliceTemplate) {
+            if (!currentJson || !currentJson.slices) {
+                alert('No event model loaded. Please load a JSON file first.');
+                return;
+            }
+
+            // Add the new slice to the end of the slices array
+            currentJson.slices.push(sliceTemplate);
+
+            // Update code editor
+            if (codeMirrorView && codeMirrorView.setValue) {
+                codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
+            }
+
+            // Update tree view
+            renderTreeView();
+
+            // Update diagram
+            renderDiagram(JSON.stringify(currentJson));
+
+            // Save to history
+            historyManager.pushState(currentJson);
+
+            // Save to localStorage
+            saveJsonToLocalStorage();
+        }
+
+        // Show add slice context menu
+        function showAddSliceMenu(buttonElement) {
+            const rect = buttonElement.getBoundingClientRect();
+            addSliceContextMenu.style.display = 'block';
+            addSliceContextMenu.style.left = rect.left + 'px';
+            addSliceContextMenu.style.top = (rect.bottom + 4) + 'px';
+        }
+
+        // Hide add slice context menu
+        function hideAddSliceMenu() {
+            addSliceContextMenu.style.display = 'none';
+        }
+
+        // Add slice button click handlers
+        codeAddSliceBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showAddSliceMenu(codeAddSliceBtn);
+        });
+
+        treeAddSliceBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showAddSliceMenu(treeAddSliceBtn);
+        });
+
+        // Context menu item click handlers
+        addSliceContextMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            const menuItem = e.target.closest('.add-slice-menu-item');
+            if (!menuItem) return;
+            
+            const action = menuItem.getAttribute('data-action');
+            
+            if (action === 'full-slice') {
+                addSliceToModel(createFullSliceTemplate());
+            } else if (action === 'event-slice') {
+                addSliceToModel(createEventOnlySliceTemplate());
+            }
+            
+            hideAddSliceMenu();
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.add-slice-context-menu') && 
+                !e.target.closest('#codeAddSliceBtn') && 
+                !e.target.closest('#treeAddSliceBtn')) {
+                hideAddSliceMenu();
+            }
+        });
+
+        // Close menu on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                hideAddSliceMenu();
+            }
+        });
 
         // Keyboard shortcuts for undo/redo
         document.addEventListener('keydown', (e) => {

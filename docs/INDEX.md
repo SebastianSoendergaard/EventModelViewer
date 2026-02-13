@@ -56,6 +56,11 @@ EventModelViewer/
 | [Resizer Implementation](resizer-implementation-learnings.md) | **Resizable panels** | **Drag resize, collapse panels, state persistence** |
 | [Persistence Implementation](persistence-implementation-learnings.md) | **LocalStorage & file ops** | **Auto-save, New/Save buttons, resizer persistence** |
 | [Hierarchical Collapse Behavior](hierarchical-collapse-behavior.md) | **One-level-at-a-time expand** | **ACE folding API, recursive prevention, state tracking** |
+| [Tree Context Menu](tree-context-menu-learnings.md) | **Right-click copy/delete** | **Context menu positioning, item operations** |
+| [Tree Inline Edit](tree-inline-edit-learnings.md) | **Double-click editing** | **Inline value editing, type conversion** |
+| [Tree Drag & Drop](tree-drag-drop-learnings.md) | **Drag to reorder** | **Visual feedback, drop zones, state updates** |
+| [History & Undo/Redo](history-undo-redo.md) | **Time-travel editing** | **State management, keyboard shortcuts** |
+| [Add Slice Button](add-slice-button-learnings.md) | **Slice creation UI** | **Context menus, templates, multi-system updates** |
 | [Feature Learnings](collapse-feature-learnings.md) | Technical implementation | Regex, algorithms, performance |
 | [Quick Reference](collapse-quick-reference.md) | API and patterns | Functions, detection patterns |
 | [Test Suite](../tests/collapse-functionality.test.html) | Automated tests | Run in browser |
@@ -136,6 +141,9 @@ EventModelViewer/
 | Editor Selection | ✅ | **Code Editor Selection** |
 | Resizer & Panels | ✅ | **Resizer Implementation** |
 | LocalStorage & Files | ✅ | **Persistence Implementation** |
+| Tree View Features | ✅ | **Tree Context Menu, Tree Inline Edit, Tree Drag & Drop** |
+| History & Undo/Redo | ✅ | **History Undo Redo** |
+| Add Slice Feature | ✅ | **Add Slice Button** |
 | Testing | ✅ | Tests README, Test Suite |
 | Contributing | ✅ | README.md, Docs README |
 | Performance | ✅ | Feature Learnings, Resizer Implementation |
@@ -228,6 +236,11 @@ start collapse-functionality.test.html
 ---
 
 ## 📅 Version History
+
+### 2026-02-13 - v2.3
+- ✨ Add Slice button with context menu
+- 🎯 Full slice and event-only slice templates
+- 📚 Added add-slice-button-learnings.md
 
 ### 2026-02-12 - v2.2
 - ✨ Hierarchical collapse/expand behavior in ACE editor
