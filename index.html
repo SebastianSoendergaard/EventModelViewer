@@ -908,6 +908,124 @@
             background-color: white;
         }
 
+        /* ===== SWIMLANE GRID LAYOUT ===== */
+        
+        .swimlane-grid {
+            display: inline-grid;
+            row-gap: 0;
+            column-gap: 40px;
+            position: relative;
+            min-width: 100%;
+            width: max-content;
+        }
+
+        .swimlane-grid.swimlanes-hidden .lane-header {
+            display: none;
+        }
+
+        .lane-header {
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            background: transparent;
+            min-width: 120px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 13px;
+            color: #495057;
+            text-align: center;
+        }
+
+        .lane-header.slice-header-cell {
+            grid-row: 1;
+            grid-column: 1;
+            background: transparent;
+            font-weight: 700;
+            color: #212529;
+        }
+
+        .grid-cell {
+            min-height: 80px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: 12px;
+            background: transparent;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Tests should align to top */
+        .grid-cell.test-cell {
+            justify-content: flex-start;
+            align-items: stretch;
+        }
+
+        .grid-cell .tests-container {
+            width: 100%;
+        }
+
+        /* Events in same cell should be side-by-side */
+        .grid-cell .events-group {
+            display: grid;
+            gap: 12px;
+            width: max-content;
+            justify-items: start;
+            align-items: start;
+            justify-content: start;
+        }
+
+        /* Extra padding for commands and views */
+        .element.command,
+        .element.view {
+            padding: 22px 26px;
+        }
+
+        .grid-cell.slice-header {
+            grid-row: 1;
+            font-weight: 700;
+            font-size: 14px;
+            color: #1e3c72;
+            min-height: 60px;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+        }
+
+        .grid-cell.slice-header.with-border {
+            border-radius: 8px 8px 0 0;
+            border: none;
+        }
+
+        /* Slice border overlay */
+        .slice-border {
+            pointer-events: none;
+            border: 3px solid;
+            border-radius: 8px;
+            box-sizing: border-box;
+            z-index: 2;
+            background: transparent;
+        }
+
+        /* Removed alternating row background colors */
+
+        /* Hide lane separators when swimlanes are hidden */
+        .swimlane-grid.swimlanes-hidden .grid-cell {
+            border-left: none;
+            border-right: none;
+        }
+
+        .swimlane-grid.swimlanes-hidden .grid-cell:not(.slice-header) {
+            border-top: none;
+        }
+
+        /* ===== END SWIMLANE GRID ===== */
+
         .diagram-title {
             font-size: 28px;
             font-weight: 800;
@@ -1172,6 +1290,10 @@
                 <input type="checkbox" id="showTypes" checked>
                 <label for="showTypes">Show types</label>
             </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="showSwimlanes" checked>
+                <label for="showSwimlanes">Show swimlanes</label>
+            </div>
         </div>
     </div>
 
@@ -1294,6 +1416,7 @@
         const showSlicesCheckbox = document.getElementById('showSlices');
         const showTestsCheckbox = document.getElementById('showTests');
         const showTypesCheckbox = document.getElementById('showTypes');
+        const showSwimlanesCheckbox = document.getElementById('showSwimlanes');
         const resizer = document.getElementById('resizer');
         const zoomInBtn = document.getElementById('zoomInBtn');
         const zoomOutBtn = document.getElementById('zoomOutBtn');
@@ -3697,14 +3820,17 @@
             toggleTypes(showTypesCheckbox.checked);
         });
 
+        showSwimlanesCheckbox.addEventListener('change', () => {
+            // Re-render the entire diagram when swimlanes toggle changes
+            if (currentJson) {
+                renderDiagram(JSON.stringify(currentJson, null, 2));
+            }
+        });
+
         function toggleSliceBorders(show) {
-            const slices = document.querySelectorAll('.slice.with-border');
-            slices.forEach(slice => {
-                if (show) {
-                    slice.classList.remove('hide-border');
-                } else {
-                    slice.classList.add('hide-border');
-                }
+            const borders = document.querySelectorAll('.slice-border');
+            borders.forEach(border => {
+                border.style.display = show ? 'block' : 'none';
             });
         }
 
@@ -3942,12 +4068,37 @@
             svg.appendChild(defs);
 
             // Draw all connections
-            document.querySelectorAll('.slice').forEach(slice => {
-                const sliceIndex = parseInt(slice.getAttribute('data-slice-index'));
-                const trigger = slice.querySelector('.element.trigger');
-                const command = slice.querySelector('.element.command');
-                const view = slice.querySelector('.element.view');
-                const events = slice.querySelectorAll('.element.event');
+            const sliceElements = document.querySelectorAll('.grid-cell[data-slice-index]');
+            const slicesByIndex = new Map();
+            
+            // Group cells by slice index
+            sliceElements.forEach(cell => {
+                const sliceIndex = parseInt(cell.getAttribute('data-slice-index'));
+                if (!slicesByIndex.has(sliceIndex)) {
+                    slicesByIndex.set(sliceIndex, []);
+                }
+                slicesByIndex.get(sliceIndex).push(cell);
+            });
+            
+            // Process each slice
+            slicesByIndex.forEach((cells, sliceIndex) => {
+                // Find elements within this slice's cells
+                let trigger = null;
+                let command = null;
+                let view = null;
+                const events = [];
+                
+                cells.forEach(cell => {
+                    const triggerEl = cell.querySelector('.element.trigger');
+                    const commandEl = cell.querySelector('.element.command');
+                    const viewEl = cell.querySelector('.element.view');
+                    const eventEls = cell.querySelectorAll('.element.event');
+                    
+                    if (triggerEl) trigger = triggerEl;
+                    if (commandEl) command = commandEl;
+                    if (viewEl) view = viewEl;
+                    eventEls.forEach(e => events.push(e));
+                });
 
                 // Trigger -> Command
                 if (trigger && command) {
@@ -4044,8 +4195,9 @@
             // Event -> View (across slices)
             const views = document.querySelectorAll('.element.view[data-view-events]');
             views.forEach(view => {
-                const viewSlice = view.closest('.slice');
-                const viewSliceIndex = parseInt(viewSlice.getAttribute('data-slice-index'));
+                const viewCell = view.closest('.grid-cell');
+                if (!viewCell) return;
+                const viewSliceIndex = parseInt(viewCell.getAttribute('data-slice-index'));
                 const eventNames = view.getAttribute('data-view-events');
                 if (!eventNames) return;
 
@@ -4085,12 +4237,22 @@
 
             // View -> Trigger (find triggers that reference view events)
             views.forEach(view => {
-                const viewSlice = view.closest('.slice');
-                const nextSlice = viewSlice?.nextElementSibling;
-                if (nextSlice) {
-                    const nextTrigger = nextSlice.querySelector('.element.trigger');
+                const viewCell = view.closest('.grid-cell');
+                const viewSliceIndex = parseInt(viewCell.getAttribute('data-slice-index'));
+                
+                // Find next slice
+                const nextSliceCells = Array.from(document.querySelectorAll('.grid-cell[data-slice-index]'))
+                    .filter(cell => parseInt(cell.getAttribute('data-slice-index')) === viewSliceIndex + 1);
+                
+                if (nextSliceCells.length > 0) {
+                    let nextTrigger = null;
+                    nextSliceCells.forEach(cell => {
+                        const trigger = cell.querySelector('.element.trigger');
+                        if (trigger) nextTrigger = trigger;
+                    });
+                    
                     if (nextTrigger) {
-                        drawArrow(svg, view, nextTrigger, diagramDiv, 'right', 'left');
+                        drawArrow(svg, view, nextTrigger, diagramDiv, 'top', 'left');
                     }
                 }
             });
@@ -4189,28 +4351,375 @@
             }
         });
 
+        // ===== SWIMLANE DISCOVERY ALGORITHM =====
+        
+        /**
+         * Discovers and organizes swimlanes from event model data
+         * @param {Object} data - Event model JSON data
+         * @param {boolean} showSwimlanes - If false, returns single-row structure
+         * @returns {Object} { triggerLanes: [], eventLanes: [] }
+         */
+        function discoverSwimlanes(data, showSwimlanes) {
+            if (!showSwimlanes) {
+                // When swimlanes are hidden, treat everything as one row
+                return {
+                    triggerLanes: [{ type: 'all', label: 'All Triggers' }],
+                    eventLanes: [{ type: 'all', label: 'All Events' }]
+                };
+            }
+
+            const triggerLanes = [];
+            const eventLanes = [];
+            const seenRoles = new Set();
+            const seenSystems = new Set();
+            
+            const automationRoles = [];
+            const otherRoles = [];
+            let hasNoRoleTrigger = false;
+
+            // First pass: collect trigger roles
+            if (data.slices && Array.isArray(data.slices)) {
+                data.slices.forEach(slice => {
+                    if (slice.trigger) {
+                        const role = slice.trigger.role;
+                        const type = slice.trigger.type;
+                        
+                        if (role && role.trim()) {
+                            if (!seenRoles.has(role)) {
+                                seenRoles.add(role);
+                                if (type === 'automation') {
+                                    automationRoles.push(role);
+                                } else {
+                                    otherRoles.push(role);
+                                }
+                            }
+                        } else {
+                            hasNoRoleTrigger = true;
+                        }
+                    }
+                });
+
+                // Build trigger lanes in order: automation -> others -> no-role
+                automationRoles.forEach(role => {
+                    triggerLanes.push({ type: 'role', role: role, label: role });
+                });
+                otherRoles.forEach(role => {
+                    triggerLanes.push({ type: 'role', role: role, label: role });
+                });
+                if (hasNoRoleTrigger) {
+                    triggerLanes.push({ type: 'no-role', label: '(no role)' });
+                }
+
+                // Second pass: collect event systems
+                let hasNoSystemEvent = false;
+                let hasExternalEvent = false;
+                const systemsList = [];
+
+                data.slices.forEach(slice => {
+                    if (slice.events && Array.isArray(slice.events)) {
+                        slice.events.forEach(event => {
+                            if (event.external) {
+                                hasExternalEvent = true;
+                            } else if (event.system && event.system.trim()) {
+                                if (!seenSystems.has(event.system)) {
+                                    seenSystems.add(event.system);
+                                    systemsList.push(event.system);
+                                }
+                            } else {
+                                hasNoSystemEvent = true;
+                            }
+                        });
+                    }
+                });
+
+                // Build event lanes in order: no-system -> systems -> external
+                if (hasNoSystemEvent) {
+                    eventLanes.push({ type: 'no-system', label: '' });
+                }
+                systemsList.forEach(system => {
+                    eventLanes.push({ type: 'system', system: system, label: system });
+                });
+                if (hasExternalEvent) {
+                    eventLanes.push({ type: 'external', label: 'External' });
+                }
+            }
+
+            // Fallback: if no lanes discovered, create defaults
+            if (triggerLanes.length === 0) {
+                triggerLanes.push({ type: 'no-role', label: '' });
+            }
+            if (eventLanes.length === 0) {
+                eventLanes.push({ type: 'no-system', label: '' });
+            }
+
+            return { triggerLanes, eventLanes };
+        }
+
+        /**
+         * Builds a grid map with row indices for each lane
+         * @param {Array} triggerLanes - Array of trigger lane objects
+         * @param {Array} eventLanes - Array of event lane objects
+         * @returns {Object} { triggerRowMap: Map, commandViewRow: number, eventRowMap: Map, testRow: number, totalRows: number }
+         */
+        function buildGridMap(triggerLanes, eventLanes) {
+            const triggerRowMap = new Map();
+            const eventRowMap = new Map();
+            
+            let currentRow = 2; // Row 1 is for slice headers, start lanes at row 2
+            
+            // Map trigger lanes to rows
+            triggerLanes.forEach((lane, index) => {
+                const key = getLaneKey(lane);
+                triggerRowMap.set(key, currentRow);
+                currentRow++;
+            });
+            
+            // Command/View row
+            const commandViewRow = currentRow;
+            currentRow++;
+            
+            // Map event lanes to rows
+            eventLanes.forEach((lane, index) => {
+                const key = getLaneKey(lane);
+                eventRowMap.set(key, currentRow);
+                currentRow++;
+            });
+            
+            // Test row
+            const testRow = currentRow;
+            currentRow++;
+            
+            return {
+                triggerRowMap,
+                commandViewRow,
+                eventRowMap,
+                testRow,
+                totalRows: currentRow
+            };
+        }
+
+        /**
+         * Gets a unique key for a lane object
+         */
+        function getLaneKey(lane) {
+            if (lane.type === 'role') return `role:${lane.role}`;
+            if (lane.type === 'system') return `system:${lane.system}`;
+            if (lane.type === 'external') return 'external';
+            if (lane.type === 'no-role') return 'no-role';
+            if (lane.type === 'no-system') return 'no-system';
+            if (lane.type === 'all') return 'all';
+            return 'unknown';
+        }
+
+        /**
+         * Determines which trigger lane a trigger belongs to
+         */
+        function getTriggerLaneKey(trigger, showSwimlanes) {
+            if (!showSwimlanes) return 'all';
+            if (!trigger) return 'no-role';
+            if (trigger.role && trigger.role.trim()) {
+                return `role:${trigger.role}`;
+            }
+            return 'no-role';
+        }
+
+        /**
+         * Determines which event lane an event belongs to
+         */
+        function getEventLaneKey(event, showSwimlanes) {
+            if (!showSwimlanes) return 'all';
+            if (!event) return 'no-system';
+            if (event.external) return 'external';
+            if (event.system && event.system.trim()) {
+                return `system:${event.system}`;
+            }
+            return 'no-system';
+        }
+
+        // ===== END SWIMLANE DISCOVERY =====
+
         function generateEventModelDiagram(data) {
             if (!data.slices || !Array.isArray(data.slices)) {
                 return '<div class="info-message">Invalid event model: slices array is required</div>';
             }
 
+            const showSwimlanes = showSwimlanesCheckbox ? showSwimlanesCheckbox.checked : true;
+            
+            // Discover swimlanes
+            const { triggerLanes, eventLanes } = discoverSwimlanes(data, showSwimlanes);
+            const gridMap = buildGridMap(triggerLanes, eventLanes);
+            
+            const numSlices = data.slices.length;
+            const swimlanesClass = showSwimlanes ? '' : 'swimlanes-hidden';
+            
             let html = '<div class="event-model-diagram">';
             
             if (data.title) {
                 html += `<div class="diagram-title">${escapeHtml(data.title)}</div>`;
             }
 
-            html += '<div class="timeline">';
-
-            data.slices.forEach((slice, index) => {
-                html += generateSlice(slice, index, data.slices);
+            // Build CSS Grid
+            const numCols = showSwimlanes ? numSlices + 1 : numSlices; // +1 for lane header column
+            const gridTemplateColumns = showSwimlanes 
+                ? `120px repeat(${numSlices}, minmax(240px, max-content))`
+                : `repeat(${numSlices}, minmax(240px, max-content))`;
+            
+            html += `<div class="swimlane-grid ${swimlanesClass}" style="grid-template-columns: ${gridTemplateColumns};">`;
+            
+            data.slices.forEach((slice, sliceIndex) => {
+                const colNum = showSwimlanes ? sliceIndex + 2 : sliceIndex + 1;
+                const hasBorder = slice.border ? 'with-border' : '';
+                const borderColor = slice.border || '';
+                const borderStyle = slice.border ? `border-color: ${slice.border};` : '';
+                html += `<div class="grid-cell slice-header ${hasBorder}" style="grid-column: ${colNum}; grid-row: 1; ${borderStyle}" data-slice-border-color="${borderColor}">`;
+                if (slice.name) {
+                    html += escapeHtml(slice.name);
+                }
+                html += `</div>`;
             });
+            
+            // Slice border overlays (span full column including tests)
+            data.slices.forEach((slice, sliceIndex) => {
+                if (!slice.border) return;
+                const colNum = showSwimlanes ? sliceIndex + 2 : sliceIndex + 1;
+                const rowEnd = gridMap.testRow + 1; // end is exclusive
+                html += `<div class="slice-border" style="grid-column: ${colNum}; grid-row: 1 / ${rowEnd}; border-color: ${slice.border};"></div>`;
+            });
+            
+            // Organize elements by lane
+            const cellContents = new Map(); // key: "colNum-rowNum", value: array of HTML strings
+            const cellMeta = new Map(); // key: "colNum-rowNum", value: { hasTests: boolean }
 
-            html += '</div></div>';
+            function ensureCellMeta(key) {
+                if (!cellMeta.has(key)) {
+                    cellMeta.set(key, { hasTests: false });
+                }
+                return cellMeta.get(key);
+            }
+            
+            data.slices.forEach((slice, sliceIndex) => {
+                const colNum = showSwimlanes ? sliceIndex + 2 : sliceIndex + 1;
+                
+                // Trigger
+                if (slice.trigger) {
+                    const laneKey = getTriggerLaneKey(slice.trigger, showSwimlanes);
+                    const rowNum = gridMap.triggerRowMap.get(laneKey);
+                    if (rowNum) {
+                        const cellKey = `${colNum}-${rowNum}`;
+                        if (!cellContents.has(cellKey)) cellContents.set(cellKey, []);
+                        cellContents.get(cellKey).push(generateTrigger(slice.trigger, sliceIndex));
+                    }
+                }
+                
+                // Command/View
+                const cmdViewRow = gridMap.commandViewRow;
+                const cellKey = `${colNum}-${cmdViewRow}`;
+                if (!cellContents.has(cellKey)) cellContents.set(cellKey, []);
+                
+                if (slice.command) {
+                    cellContents.get(cellKey).push(generateCommand(slice.command, sliceIndex));
+                } else if (slice.view) {
+                    cellContents.get(cellKey).push(generateView(slice.view, sliceIndex, slice.view.events || []));
+                }
+                
+                // Events - Group by lane but keep them together in event cells
+                if (slice.events && Array.isArray(slice.events)) {
+                    const totalEventsInSlice = slice.events.length;
+                    // Group events by their lane
+                    const eventsByLane = new Map();
+                    slice.events.forEach((event, eventIndex) => {
+                        const laneKey = getEventLaneKey(event, showSwimlanes);
+                        if (!eventsByLane.has(laneKey)) {
+                            eventsByLane.set(laneKey, []);
+                        }
+                        eventsByLane.get(laneKey).push({ event, eventIndex });
+                    });
+                    
+                    // Add grouped events to their respective lane cells
+                    eventsByLane.forEach((eventList, laneKey) => {
+                        const rowNum = gridMap.eventRowMap.get(laneKey);
+                        if (rowNum) {
+                            const eventCellKey = `${colNum}-${rowNum}`;
+                            if (!cellContents.has(eventCellKey)) cellContents.set(eventCellKey, []);
+                            
+                            // Wrap events in a horizontal group with fixed columns
+                            let eventsHtml = `<div class="events-group" style="grid-template-columns: repeat(${totalEventsInSlice}, minmax(240px, max-content));">`;
+                            eventList.forEach(({ event, eventIndex }) => {
+                                eventsHtml += generateEvent(event, sliceIndex, eventIndex, eventIndex + 1);
+                            });
+                            eventsHtml += '</div>';
+                            
+                            cellContents.get(eventCellKey).push(eventsHtml);
+                        }
+                    });
+                }
+                
+                // Tests
+                if (slice.tests && Array.isArray(slice.tests) && slice.tests.length > 0) {
+                    const testCellKey = `${colNum}-${gridMap.testRow}`;
+                    if (!cellContents.has(testCellKey)) cellContents.set(testCellKey, []);
+                    cellContents.get(testCellKey).push(generateTests(slice.tests));
+                    const meta = ensureCellMeta(testCellKey);
+                    meta.hasTests = true;
+                }
+            });
+            
+            // Render lane headers (rows)
+            if (showSwimlanes) {
+                let currentRow = 2;
+                
+                // Trigger lane headers
+                triggerLanes.forEach(lane => {
+                    html += `<div class="lane-header" style="grid-column: 1; grid-row: ${currentRow};">${escapeHtml(lane.label)}</div>`;
+                    currentRow++;
+                });
+                
+                // Command/View header
+                html += `<div class="lane-header" style="grid-column: 1; grid-row: ${currentRow};"></div>`;
+                currentRow++;
+                
+                // Event lane headers
+                eventLanes.forEach(lane => {
+                    html += `<div class="lane-header" style="grid-column: 1; grid-row: ${currentRow};">${escapeHtml(lane.label)}</div>`;
+                    currentRow++;
+                });
+                
+                // Test header
+                html += `<div class="lane-header" style="grid-column: 1; grid-row: ${currentRow};">Tests</div>`;
+            }
+            
+            // Render all grid cells with content
+            cellContents.forEach((contents, cellKey) => {
+                const [colNum, rowNum] = cellKey.split('-').map(Number);
+                const sliceIndex = colNum - (showSwimlanes ? 2 : 1);
+                const meta = cellMeta.get(cellKey);
+                const cellClass = meta && meta.hasTests ? 'grid-cell test-cell' : 'grid-cell';
+                
+                html += `<div class="${cellClass}" style="grid-column: ${colNum}; grid-row: ${rowNum};" data-slice-index="${sliceIndex}">`;
+                html += contents.join('');
+                html += `</div>`;
+            });
+            
+            // Render empty cells for proper grid structure
+            for (let row = 2; row <= gridMap.testRow; row++) {
+                for (let sliceIndex = 0; sliceIndex < numSlices; sliceIndex++) {
+                    const colNum = showSwimlanes ? sliceIndex + 2 : sliceIndex + 1;
+                    const cellKey = `${colNum}-${row}`;
+                    if (!cellContents.has(cellKey)) {
+                        html += `<div class="grid-cell" style="grid-column: ${colNum}; grid-row: ${row};" data-slice-index="${sliceIndex}"></div>`;
+                    }
+                }
+            }
+            
+            html += '</div>'; // Close swimlane-grid
+            html += '</div>'; // Close event-model-diagram
             return html;
         }
 
-        function generateSlice(slice, index, allSlices) {
+        // ===== LEGACY SLICE GENERATION (now replaced by grid) =====
+        // Keeping old functions for reference, but they're no longer used by main rendering
+        
+        function generateSliceOld(slice, index, allSlices) {
             const hasBorder = slice.border ? 'with-border' : '';
             const borderStyle = slice.border ? `border-color: ${slice.border};` : '';
             
@@ -4351,9 +4860,9 @@
             return html;
         }
 
-        function generateTrigger(trigger) {
+        function generateTrigger(trigger, sliceIndex) {
             const triggerEvents = trigger.events ? trigger.events.join(',') : '';
-            let html = `<div class="element trigger" data-trigger-events="${escapeHtml(triggerEvents)}">`;
+            let html = `<div class="element trigger" data-trigger-events="${escapeHtml(triggerEvents)}" data-slice-index="${sliceIndex}">`;
             
             if (trigger.role) {
                 html += `<div class="element-role">${escapeHtml(trigger.role)}</div>`;
@@ -4379,9 +4888,9 @@
             return html;
         }
 
-        function generateCommand(command) {
+        function generateCommand(command, sliceIndex) {
             const commandEvents = command.events ? command.events.join(',') : '';
-            let html = `<div class="element command" data-command-events="${escapeHtml(commandEvents)}">`;
+            let html = `<div class="element command" data-command-events="${escapeHtml(commandEvents)}" data-slice-index="${sliceIndex}">`;
             html += `<div class="element-title">${escapeHtml(command.name)}</div>`;
             
             if (command.properties && command.properties.length > 0) {
@@ -4396,11 +4905,12 @@
             return html;
         }
 
-        function generateEvent(event, sliceIndex, eventIndex) {
+        function generateEvent(event, sliceIndex, eventIndex, gridColumn) {
             const eventId = `event-${sliceIndex}-${eventIndex}-${event.name.replace(/\s+/g, '-')}`;
             const externalClass = event.external === true ? ' external' : '';
             const eventIdAttr = event.id ? ` data-event-id="${escapeHtml(event.id)}"` : '';
-            let html = `<div class="element event${externalClass}" id="${eventId}" data-event-name="${escapeHtml(event.name)}" data-slice-index="${sliceIndex}"${eventIdAttr}>`;
+            const gridColumnStyle = gridColumn ? ` style="grid-column: ${gridColumn};"` : '';
+            let html = `<div class="element event${externalClass}" id="${eventId}" data-event-name="${escapeHtml(event.name)}" data-slice-index="${sliceIndex}"${eventIdAttr}${gridColumnStyle}>`;
             html += `<div class="element-title">${escapeHtml(event.name)}</div>`;
             
             if (event.properties && event.properties.length > 0) {
@@ -4436,6 +4946,15 @@
                 html += '</div>';
             }
             
+            html += '</div>';
+            return html;
+        }
+
+        function generateTests(tests) {
+            let html = '<div class="tests-container">';
+            tests.forEach(test => {
+                html += generateTestCase(test);
+            });
             html += '</div>';
             return html;
         }

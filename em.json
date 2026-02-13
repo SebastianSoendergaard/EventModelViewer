@@ -302,6 +302,9 @@
 				"buttons": [
 					"Add",
 					"Remove"
+				],
+				"views": [
+					"Cart items"
 				]
 			},
 			"command": {
@@ -525,6 +528,7 @@
 					"id": "Inventory changed - external",
 					"name": "Inventory changed",
 					"external": true,
+					"system": "External system",
 					"properties": [
 						{
 							"name": "ProductId",

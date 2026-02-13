@@ -55,6 +55,7 @@ EventModelViewer/
 | [Code Editor Selection](code-editor-selection-learnings.md) | **Editor implementation** | **CodeMirror vs ACE, CDN issues, module loading** |
 | [Resizer Implementation](resizer-implementation-learnings.md) | **Resizable panels** | **Drag resize, collapse panels, state persistence** |
 | [Persistence Implementation](persistence-implementation-learnings.md) | **LocalStorage & file ops** | **Auto-save, New/Save buttons, resizer persistence** |
+| [Diagram Layout and Behavior](diagram-layout-and-behavior.md) | **Swimlane grid system** | **CSS Grid, swimlanes, discovery, arrows, styling** |
 | [Hierarchical Collapse Behavior](hierarchical-collapse-behavior.md) | **One-level-at-a-time expand** | **ACE folding API, recursive prevention, state tracking** |
 | [Tree Context Menu](tree-context-menu-learnings.md) | **Right-click copy/delete** | **Context menu positioning, item operations** |
 | [Tree Inline Edit](tree-inline-edit-learnings.md) | **Double-click editing** | **Inline value editing, type conversion** |
@@ -142,6 +143,7 @@ EventModelViewer/
 | Editor Selection | ✅ | **Code Editor Selection** |
 | Resizer & Panels | ✅ | **Resizer Implementation** |
 | LocalStorage & Files | ✅ | **Persistence Implementation** |
+| Diagram Layout | ✅ | **Diagram Layout and Behavior** |
 | Tree View Features | ✅ | **Tree Context Menu, Tree Inline Edit, Tree Drag & Drop** |
 | History & Undo/Redo | ✅ | **History Undo Redo** |
 | Add Slice Feature | ✅ | **Add Slice Button** |
@@ -239,6 +241,14 @@ start collapse-functionality.test.html
 
 ## 📅 Version History
 
+### 2026-02-13 - v2.5
+- ✨ Swimlane-based diagram layout with CSS Grid
+- 🎯 Horizontal swimlanes for roles and systems
+- 📐 Dynamic column sizing for side-by-side events
+- 🎨 Clean transparent design with overlay borders
+- 🔄 "Show swimlanes" toggle for flexible viewing
+- 📚 Added diagram-layout-and-behavior.md
+
 ### 2026-02-13 - v2.4
 - ✨ Smart arrow logic for event-driven diagrams
 - 🎯 Event matching by ID or name with precedence
@@ -273,7 +283,7 @@ See [Project README](../README.md#recent-updates) for detailed changelog.
 ---
 
 **Last Updated:** 2026-02-13  
-**Version:** 2.4  
+**Version:** 2.5  
 **Maintained By:** Development Team
 
 ---

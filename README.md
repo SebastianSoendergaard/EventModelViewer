@@ -40,7 +40,7 @@ slices: list of slices on the diagram
         properties: list of properties for the event
           name: name of an event property
           value: value of an event property
-      when:  
+      when: the action 
         name: name of the command
         properties: list of properties for the command
           name: name of a command property
