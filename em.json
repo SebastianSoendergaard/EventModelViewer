@@ -1,559 +1,902 @@
 {
-	"title": "Understanding Eventsourcing - Cart",
-	"slices": [
-		{
-			"id": "1",
-			"name": "Add item",
-			"border": "#4CBB17",
-			"trigger": {
-				"role": "User",
-				"type": "input-ui",
-				"buttons": [
-					"Add"
-				]
-			},
-			"command": {
-				"name": "Add item",
-				"properties": [
-					{
-						"name": "CartId",
-						"type": "Guid"
-					},
-					{
-						"name": "Description",
-						"type": "string"
-					},
-					{
-						"name": "Image",
-						"type": "string"
-					},
-					{
-						"name": "Price",
-						"type": "decimal"
-					},
-					{
-						"name": "TotalPrice",
-						"type": "decimal"
-					},
-					{
-						"name": "ItemId",
-						"type": "Guid"
-					},
-					{
-						"name": "ProductId",
-						"type": "Guid"
-					}
-				],
-				"events": [
-					"Cart created",
-					"Item added"
-				]
-			},
-			"events": [
-				{
-					"name": "Cart created",
-					"properties": [
-						{
-							"name": "CartId",
-							"type": "Guid"
-						}
-					]
-				},
-				{
-					"name": "Item added",
-					"properties": [
-						{
-							"name": "CartId",
-							"type": "Guid"
-						},
-						{
-							"name": "Description",
-							"type": "string"
-						},
-						{
-							"name": "Image",
-							"type": "string"
-						},
-						{
-							"name": "Price",
-							"type": "decimal"
-						},
-						{
-							"name": "TotalPrice",
-							"type": "decimal"
-						},
-						{
-							"name": "ItemId",
-							"type": "Guid"
-						},
-						{
-							"name": "ProductId",
-							"type": "Guid"
-						}
-					]
-				}
-			],
-			"tests": [
-				{
-					"name": "Creates cart and add initial item",
-					"when": {
-						"name": "Add item"
-					},
-					"then": [
-						{
-							"name": "Cart created"
-						},
-						{
-							"name": "Item added"
-						}
-					]
-				},
-				{
-					"name": "Adds item to existing cart",
-					"given": [
-						{
-							"name": "Cart created"
-						},
-						{
-							"name": "Item added"
-						}
-					],
-					"when": {
-						"name": "Add item"
-					},
-					"then": [
-						{
-							"name": "Item added"
-						}
-					]
-				},
-				{
-					"name": "Fails when too many items are added",
-					"given": [
-						{
-							"name": "Cart created"
-						},
-						{
-							"name": "Item added"
-						},
-						{
-							"name": "Item added"
-						},
-						{
-							"name": "Item added"
-						}
-					],
-					"when": {
-						"name": "Add item"
-					},
-					"then": [
-						{
-							"error": "Too many items"
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "2",
-			"name": "Cart items",
-			"border": "#FF0000",
-			"view": {
-				"name": "Cart items",
-				"properties": [
-					{
-						"name": "Description",
-						"type": "string"
-					},
-					{
-						"name": "Image",
-						"type": "string"
-					},
-					{
-						"name": "Price",
-						"type": "decimal"
-					},
-					{
-						"name": "TotalPrice",
-						"type": "decimal"
-					}
-				],
-				"events": [
-					"Item added"
-				]
-			},
-			"tests": [
-				{
-					"name": "Sums the prices",
-					"given": [
-						{
-							"name": "Item added",
-							"properties": [
-								{
-									"name": "Price",
-									"value": "5"
-								}
-							]
-						},
-						{
-							"name": "Item added",
-							"properties": [
-								{
-									"name": "Price",
-									"value": "7"
-								}
-							]
-						}
-					],
-					"then": [
-						{
-							"name": "Cart items",
-							"properties": [
-								{
-									"name": "Price",
-									"value": "12"
-								}
-							]
-						}
-					]
-				},
-				{
-					"name": "Fails when no cart yet",
-					"given": [
-					],
-					"then": [
-						{
-							"error": "Cart not found"
-						}
-					]
-				},
-				{
-					"name": "Subtracts from total when item removed",
-					"given": [
-						{
-							"name": "Item added",
-							"properties": [
-								{
-									"name": "Price",
-									"value": "5"
-								}
-							]
-						},
-						{
-							"name": "Item removed"
-						}
-					],
-					"then": [
-						{
-							"name": "Cart items",
-							"properties": [
-								{
-									"name": "Price",
-									"value": "0"
-								}
-							]
-						}
-					]
-				},
-				{
-					"name": "Cleares cart",
-					"given": [
-						{
-							"name": "Item added",
-							"properties": [
-								{
-									"name": "Price",
-									"value": "5"
-								}
-							],
-							"name": "Item added",
-							"properties": [
-								{
-									"name": "Price",
-									"value": "5"
-								}
-							]
-						},
-						{
-							"name": "Cart cleared"
-						}
-					],
-					"then": [
-						{
-							"name": "Cart items",
-							"properties": [
-								{
-									"name": "Price",
-									"value": "0"
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "3",
-			"name": "Remove item",
-			"border": "#000000",
-			"trigger": {
-				"role": "User",
-				"type": "input-ui",
-				"buttons": [
-					"Add",
-					"Remove"
-				],
-				"views": [
-					"Cart items"
-				]
-			},
-			"command": {
-				"name": "Remove item",
-				"properties": [
-					{
-						"name": "CartId",
-						"type": "Guid"
-					},
-					{
-						"name": "ItemId",
-						"type": "string"
-					}
-				],
-				"events": [
-					"Item removed"
-				]
-			},
-			"events": [
-				{
-					"name": "Item removed",
-					"properties": [
-						{
-							"name": "CartId",
-							"type": "Guid"
-						},
-						{
-							"name": "ItemId",
-							"type": "Guid"
-						}
-					]
-				}
-			],
-			"tests": [
-				{
-					"name": "Item is removed",
-					"given": [
-						{
-							"name": "Cart created"
-						},
-						{
-							"name": "Item added"
-						}
-					],
-					"when": {
-						"name": "Remove item"
-					},
-					"then": [
-						{
-							"name": "Item removed"
-						}
-					]
-				},
-				{
-					"name": "Fails when item not in cart",
-					"given": [
-						{
-							"name": "Cart created"
-						},
-						{
-							"name": "Item added"
-						},
-						{
-							"name": "Item removed"
-						}
-					],
-					"when": {
-						"name": "Remove item"
-					},
-					"then": [
-						{
-							"error": "Item already removed"
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "2",
-			"name": "Cart items",
-			"view": {
-				"name": "Cart items",
-				"properties": [
-					{
-						"name": "Description",
-						"type": "string"
-					},
-					{
-						"name": "Image",
-						"type": "string"
-					},
-					{
-						"name": "Price",
-						"type": "decimal"
-					},
-					{
-						"name": "TotalPrice",
-						"type": "decimal"
-					}
-				],
-				"events": [
-					"Item removed"
-				]
-			}
-		},
-		{
-			"id": "4",
-			"name": "Clear cart",
-			"border": "#000000",
-			"trigger": {
-				"role": "User",
-				"type": "input-ui",
-				"buttons": [
-					"Add",
-					"Remove",
-					"Clear"
-				]
-			},
-			"command": {
-				"name": "Clear cart",
-				"properties": [
-					{
-						"name": "CartId",
-						"type": "Guid"
-					}
-				],
-				"events": [
-					"Cart cleared"
-				]
-			},
-			"events": [
-				{
-					"name": "Cart cleared",
-					"properties": [
-						{
-							"name": "CartId",
-							"type": "Guid"
-						}
-					]
-				}
-			],
-			"tests": [
-				{
-					"name": "Item is removed",
-					"given": [
-						{
-							"name": "Cart created"
-						},
-						{
-							"name": "Item added"
-						}
-					],
-					"when": {
-						"name": "Clear cart"
-					},
-					"then": [
-						{
-							"name": "Cart cleared"
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "2",
-			"name": "Cart items",
-			"view": {
-				"name": "Cart items",
-				"properties": [
-					{
-						"name": "Description",
-						"type": "string"
-					},
-					{
-						"name": "Image",
-						"type": "string"
-					},
-					{
-						"name": "Price",
-						"type": "decimal"
-					},
-					{
-						"name": "TotalPrice",
-						"type": "decimal"
-					}
-				],
-				"events": [
-					"Cart cleared"
-				]
-			}
-		},
-		{
-			"id": "5",
-			"name": "Inventory changed",
-			"border": "#000000",
-			"trigger": {
-				"role": "Bot",
-				"type": "automation",
-				"events": [
-					"Inventory changed - external"
-				]
-			},
-			"command": {
-				"name": "Change inventory",
-				"properties": [
-					{
-						"name": "ProductId",
-						"type": "Guid"
-					},
-					{
-						"name": "Inventory",
-						"type": "int"
-					}
-				],
-				"events": [
-					"Inventory changed"
-				]
-			},
-			"events": [
-				{
-					"id": "Inventory changed - external",
-					"name": "Inventory changed",
-					"external": true,
-					"system": "External system",
-					"properties": [
-						{
-							"name": "ProductId",
-							"type": "Guid"
-						},
-						{
-							"name": "Inventory",
-							"type": "int"
-						}
-					]
-				},
-				{
-					"name": "Inventory changed",
-					"properties": [
-						{
-							"name": "ProductId",
-							"type": "Guid"
-						},
-						{
-							"name": "Inventory",
-							"type": "int"
-						}
-					]
-				}
-			]
-		}	
-	]
+  "title": "Understanding Eventsourcing - Cart",
+  "slices": [
+    {
+      "id": "1",
+      "name": "Add item",
+      "border": "#4CBB17",
+      "trigger": {
+        "role": "User",
+        "type": "input-ui",
+        "buttons": [
+          "Add"
+        ]
+      },
+      "command": {
+        "name": "Add item",
+        "properties": [
+          {
+            "name": "CartId",
+            "type": "Guid"
+          },
+          {
+            "name": "Description",
+            "type": "string"
+          },
+          {
+            "name": "Image",
+            "type": "string"
+          },
+          {
+            "name": "Price",
+            "type": "decimal"
+          },
+          {
+            "name": "TotalPrice",
+            "type": "decimal"
+          },
+          {
+            "name": "ItemId",
+            "type": "Guid"
+          },
+          {
+            "name": "ProductId",
+            "type": "Guid"
+          }
+        ],
+        "events": [
+          "Cart created",
+          "Item added"
+        ]
+      },
+      "events": [
+        {
+          "name": "Cart created",
+          "system": "Cart",
+          "properties": [
+            {
+              "name": "CartId",
+              "type": "Guid"
+            }
+          ]
+        },
+        {
+          "name": "Item added",
+          "system": "Cart",
+          "properties": [
+            {
+              "name": "CartId",
+              "type": "Guid"
+            },
+            {
+              "name": "Description",
+              "type": "string"
+            },
+            {
+              "name": "Image",
+              "type": "string"
+            },
+            {
+              "name": "Price",
+              "type": "decimal"
+            },
+            {
+              "name": "TotalPrice",
+              "type": "decimal"
+            },
+            {
+              "name": "ItemId",
+              "type": "Guid"
+            },
+            {
+              "name": "ProductId",
+              "type": "Guid"
+            }
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "name": "Creates cart and add initial item",
+          "when": {
+            "name": "Add item"
+          },
+          "then": [
+            {
+              "name": "Cart created"
+            },
+            {
+              "name": "Item added"
+            }
+          ]
+        },
+        {
+          "name": "Adds item to existing cart",
+          "given": [
+            {
+              "name": "Cart created"
+            },
+            {
+              "name": "Item added"
+            }
+          ],
+          "when": {
+            "name": "Add item"
+          },
+          "then": [
+            {
+              "name": "Item added"
+            }
+          ]
+        },
+        {
+          "name": "Fails when too many items are added",
+          "given": [
+            {
+              "name": "Cart created"
+            },
+            {
+              "name": "Item added"
+            },
+            {
+              "name": "Item added"
+            },
+            {
+              "name": "Item added"
+            }
+          ],
+          "when": {
+            "name": "Add item"
+          },
+          "then": [
+            {
+              "error": "Too many items"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Cart items",
+      "border": "#FF0000",
+      "view": {
+        "name": "Cart items",
+        "properties": [
+          {
+            "name": "Description",
+            "type": "string"
+          },
+          {
+            "name": "Image",
+            "type": "string"
+          },
+          {
+            "name": "Price",
+            "type": "decimal"
+          },
+          {
+            "name": "TotalPrice",
+            "type": "decimal"
+          }
+        ],
+        "events": [
+          "Item added"
+        ]
+      },
+      "tests": [
+        {
+          "name": "Sums the prices",
+          "given": [
+            {
+              "name": "Item added",
+              "properties": [
+                {
+                  "name": "Price",
+                  "value": "5"
+                }
+              ]
+            },
+            {
+              "name": "Item added",
+              "properties": [
+                {
+                  "name": "Price",
+                  "value": "7"
+                }
+              ]
+            }
+          ],
+          "then": [
+            {
+              "name": "Cart items",
+              "properties": [
+                {
+                  "name": "Price",
+                  "value": "12"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Fails when no cart yet",
+          "given": [],
+          "then": [
+            {
+              "error": "Cart not found"
+            }
+          ]
+        },
+        {
+          "name": "Subtracts from total when item removed",
+          "given": [
+            {
+              "name": "Item added",
+              "properties": [
+                {
+                  "name": "Price",
+                  "value": "5"
+                }
+              ]
+            },
+            {
+              "name": "Item removed"
+            }
+          ],
+          "then": [
+            {
+              "name": "Cart items",
+              "properties": [
+                {
+                  "name": "Price",
+                  "value": "0"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Cleares cart",
+          "given": [
+            {
+              "name": "Item added",
+              "properties": [
+                {
+                  "name": "Price",
+                  "value": "5"
+                }
+              ]
+            },
+            {
+              "name": "Cart cleared"
+            }
+          ],
+          "then": [
+            {
+              "name": "Cart items",
+              "properties": [
+                {
+                  "name": "Price",
+                  "value": "0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "name": "Remove item",
+      "border": "#000000",
+      "trigger": {
+        "role": "User",
+        "type": "input-ui",
+        "buttons": [
+          "Add",
+          "Remove"
+        ],
+        "views": [
+          "Cart items"
+        ]
+      },
+      "command": {
+        "name": "Remove item",
+        "properties": [
+          {
+            "name": "CartId",
+            "type": "Guid"
+          },
+          {
+            "name": "ItemId",
+            "type": "string"
+          }
+        ],
+        "events": [
+          "Item removed"
+        ]
+      },
+      "events": [
+        {
+          "name": "Item removed",
+          "system": "Cart",
+          "properties": [
+            {
+              "name": "CartId",
+              "type": "Guid"
+            },
+            {
+              "name": "ItemId",
+              "type": "Guid"
+            }
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "name": "Item is removed",
+          "given": [
+            {
+              "name": "Cart created"
+            },
+            {
+              "name": "Item added"
+            }
+          ],
+          "when": {
+            "name": "Remove item"
+          },
+          "then": [
+            {
+              "name": "Item removed"
+            }
+          ]
+        },
+        {
+          "name": "Fails when item not in cart",
+          "given": [
+            {
+              "name": "Cart created"
+            },
+            {
+              "name": "Item added"
+            },
+            {
+              "name": "Item removed"
+            }
+          ],
+          "when": {
+            "name": "Remove item"
+          },
+          "then": [
+            {
+              "error": "Item already removed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Cart items",
+      "view": {
+        "name": "Cart items",
+        "properties": [
+          {
+            "name": "Description",
+            "type": "string"
+          },
+          {
+            "name": "Image",
+            "type": "string"
+          },
+          {
+            "name": "Price",
+            "type": "decimal"
+          },
+          {
+            "name": "TotalPrice",
+            "type": "decimal"
+          }
+        ],
+        "events": [
+          "Item removed",
+          "Item archived"
+        ]
+      }
+    },
+    {
+      "id": "4",
+      "name": "Clear cart",
+      "border": "#000000",
+      "trigger": {
+        "role": "User",
+        "type": "input-ui",
+        "buttons": [
+          "Add",
+          "Remove",
+          "Clear"
+        ],
+        "views": [
+          "Cart items"
+        ]
+      },
+      "command": {
+        "name": "Clear cart",
+        "properties": [
+          {
+            "name": "CartId",
+            "type": "Guid"
+          }
+        ],
+        "events": [
+          "Cart cleared"
+        ]
+      },
+      "events": [
+        {
+          "name": "Cart cleared",
+          "system": "Cart",
+          "properties": [
+            {
+              "name": "CartId",
+              "type": "Guid"
+            }
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "name": "Item is removed",
+          "given": [
+            {
+              "name": "Cart created"
+            },
+            {
+              "name": "Item added"
+            }
+          ],
+          "when": {
+            "name": "Clear cart"
+          },
+          "then": [
+            {
+              "name": "Cart cleared"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Cart items",
+      "trigger": {
+        "role": "User",
+        "type": "input-ui",
+        "buttons": [
+          "Add"
+        ],
+        "views": [
+          "Cart items"
+        ]
+      },
+      "view": {
+        "name": "Cart items",
+        "properties": [
+          {
+            "name": "Description",
+            "type": "string"
+          },
+          {
+            "name": "Image",
+            "type": "string"
+          },
+          {
+            "name": "Price",
+            "type": "decimal"
+          },
+          {
+            "name": "TotalPrice",
+            "type": "decimal"
+          }
+        ],
+        "events": [
+          "Cart cleared"
+        ]
+      }
+    },
+    {
+      "id": "5",
+      "name": "Inventory changed",
+      "border": "#000000",
+      "trigger": {
+        "role": "Bot",
+        "type": "automation",
+        "events": [
+          "Inventory changed - external"
+        ]
+      },
+      "command": {
+        "name": "Change inventory",
+        "properties": [
+          {
+            "name": "ProductId",
+            "type": "Guid"
+          },
+          {
+            "name": "Inventory",
+            "type": "int"
+          }
+        ],
+        "events": [
+          "Inventory changed"
+        ]
+      },
+      "events": [
+        {
+          "id": "Inventory changed - external",
+          "name": "Inventory changed",
+          "external": true,
+          "system": "Warehouse",
+          "properties": [
+            {
+              "name": "ProductId",
+              "type": "Guid"
+            },
+            {
+              "name": "Inventory",
+              "type": "int"
+            }
+          ]
+        },
+        {
+          "name": "Inventory changed",
+          "system": "Inventory",
+          "properties": [
+            {
+              "name": "ProductId",
+              "type": "Guid"
+            },
+            {
+              "name": "Inventory",
+              "type": "int"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Inventories",
+      "border": "#000000",
+      "trigger": {
+        "role": "User",
+        "type": "input-ui",
+        "buttons": [
+          "Add",
+          "Clear",
+          "Order"
+        ],
+        "views": [
+          "Inventories"
+        ]
+      },
+      "view": {
+        "name": "Inventories",
+        "properties": [
+          {
+            "name": "ProductId",
+            "type": "Guid"
+          },
+          {
+            "name": "Inventory",
+            "type": "int"
+          }
+        ],
+        "events": [
+          "Inventory changed"
+        ]
+      }
+    },
+    {
+      "name": "Price changed",
+      "border": "#000000",
+      "trigger": {
+        "role": "Bot",
+        "type": "automation",
+        "events": [
+          "Price changed - external"
+        ]
+      },
+      "command": {
+        "name": "Change price",
+        "properties": [
+          {
+            "name": "ProductId",
+            "type": "Guid"
+          },
+          {
+            "name": "OldPrice",
+            "type": "decimal"
+          },
+          {
+            "name": "NewPrice",
+            "type": "decimal"
+          }
+        ],
+        "events": [
+          "Price changed"
+        ]
+      },
+      "events": [
+        {
+          "id": "Price changed - external",
+          "name": "Price changed",
+          "external": true,
+          "system": "Pricing engine",
+          "properties": [
+            {
+              "name": "ProductId",
+              "type": "Guid"
+            },
+            {
+              "name": "OldPrice",
+              "type": "decimal"
+            },
+            {
+              "name": "NewPrice",
+              "type": "decimal"
+            }
+          ]
+        },
+        {
+          "name": "Price changed",
+          "system": "Pricing",
+          "properties": [
+            {
+              "name": "ProductId",
+              "type": "Guid"
+            },
+            {
+              "name": "OldPrice",
+              "type": "decimal"
+            },
+            {
+              "name": "NewPrice",
+              "type": "decimal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Carts with products",
+      "border": "#000000",
+      "view": {
+        "name": "Carts with products",
+        "properties": [
+          {
+            "name": "ProductId",
+            "type": "Guid"
+          },
+          {
+            "name": "OldPrice",
+            "type": "decimal"
+          },
+          {
+            "name": "NewPrice",
+            "type": "decimal"
+          }
+        ],
+        "events": [
+          "Cart created",
+          "Item added",
+          "Item removed",
+          "Cart cleared",
+          "Item archived"
+        ]
+      }
+    },
+    {
+      "name": "Archive item",
+      "border": "#000000",
+      "trigger": {
+        "role": "Bot",
+        "type": "automation",
+        "views": [
+          "Carts with products",
+          "Changed prices"
+        ]
+      },
+      "view": {
+        "name": "Changed prices",
+        "properties": [
+          {
+            "name": "ProductId",
+            "type": "Guid"
+          },
+          {
+            "name": "OldPrice",
+            "type": "decimal"
+          },
+          {
+            "name": "NewPrice",
+            "type": "decimal"
+          }
+        ],
+        "events": [
+          "Price changed"
+        ]
+      },
+      "command": {
+        "name": "Archive item",
+        "properties": [
+          {
+            "name": "CartId",
+            "type": "Guid"
+          },
+          {
+            "name": "ProductId",
+            "type": "Guid"
+          }
+        ],
+        "events": [
+          "Item archived"
+        ]
+      },
+      "events": [
+        {
+          "name": "Item archived",
+          "system": "Cart",
+          "properties": [
+            {
+              "name": "CartId",
+              "type": "Guid"
+            },
+            {
+              "name": "ItemId",
+              "type": "Guid"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Submit cart",
+      "border": "#000000",
+      "trigger": {
+        "role": "User",
+        "type": "input-ui",
+        "buttons": [
+          "Add",
+          "Remove",
+          "Clear"
+        ]
+      },
+      "command": {
+        "name": "Submit cart",
+        "properties": [
+          {
+            "name": "CartId",
+            "type": "Guid"
+          },
+          {
+            "name": "OrderedProducts",
+            "type": "[{ ProductId, Price }]"
+          }
+        ],
+        "events": [
+          "Cart submitted"
+        ]
+      },
+      "events": [
+        {
+          "name": "Cart submitted",
+          "system": "Cart",
+          "properties": [
+            {
+              "name": "CartId",
+              "type": "Guid"
+            },
+            {
+              "name": "OrderedProducts",
+              "type": "[{ ProductId, Price }]"
+            },
+            {
+              "name": "TotalPrice",
+              "type": "decimal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Publish cart",
+      "border": "#000000",
+      "trigger": {
+        "role": "Bot",
+        "type": "automation",
+        "views": [
+          "Submitted cart data"
+        ]
+      },
+      "view": {
+        "name": "Submitted cart data",
+        "properties": [
+          {
+            "name": "CartId",
+            "type": "Guid"
+          },
+          {
+            "name": "OrderedProducts",
+            "type": "[{ ProductId, Price }]"
+          },
+          {
+            "name": "TotalPrice",
+            "type": "decimal"
+          }
+        ],
+        "events": [
+          "Cart submitted",
+          "Cart published - external"
+        ]
+      },
+      "command": {
+        "name": "Publish cart",
+        "properties": [
+          {
+            "name": "CartId",
+            "type": "Guid"
+          },
+          {
+            "name": "OrderedProducts",
+            "type": "[{ ProductId, Price }]"
+          },
+          {
+            "name": "TotalPrice",
+            "type": "decimal"
+          }
+        ],
+        "events": [
+          "Cart published - external",
+          "Cart published",
+          "Cart publication failed"
+        ]
+      },
+      "events": [
+        {
+          "id": "Cart published - external",
+          "name": "Cart published",
+          "system": "External",
+          "external": true,
+          "properties": [
+            {
+              "name": "CartId",
+              "type": "Guid"
+            }
+          ]
+        },
+        {
+          "name": "Cart published",
+          "system": "Cart",
+          "properties": [
+            {
+              "name": "CartId",
+              "type": "Guid"
+            }
+          ]
+        },
+        {
+          "name": "Cart publication failed",
+          "system": "Cart",
+          "properties": [
+            {
+              "name": "CartId",
+              "type": "Guid"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

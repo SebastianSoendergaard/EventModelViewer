@@ -1,0 +1,14 @@
+- styling of triggers should depend on the type
+- swimlanes for external events does not work as expected. they are all put in a category called "External"
+- elements should be centered in the slice
+- more space between trigger -> command/view, and between command/view -> event(s) 
+- views should only point to trigger if included in triggers views section
+- arrow from view to trigger should be curved like all other arrows
+- slice and swimlane names should be 
+- item count in collapsed json arrays should only show imidiate child count
+- collapsed json does not need to show property name
+- sync between code and tree view seem unstable
+- diagram rendering does not always work when changing filters
+- filter state should be stored between browser reload
+- handle both view and command in same slice
+- command does not point to event by id
