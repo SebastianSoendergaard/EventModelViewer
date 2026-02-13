@@ -45,50 +45,54 @@
 					}
 				],
 				"events": [
-					{
-						"name": "Cart created",
-						"properties": [
-							{
-								"name": "CartId",
-								"type": "Guid"
-							}
-						]
-					},
-					{
-						"name": "Item added",
-						"properties": [
-							{
-								"name": "CartId",
-								"type": "Guid"
-							},
-							{
-								"name": "Description",
-								"type": "string"
-							},
-							{
-								"name": "Image",
-								"type": "string"
-							},
-							{
-								"name": "Price",
-								"type": "decimal"
-							},
-							{
-								"name": "TotalPrice",
-								"type": "decimal"
-							},
-							{
-								"name": "ItemId",
-								"type": "Guid"
-							},
-							{
-								"name": "ProductId",
-								"type": "Guid"
-							}
-						]
-					}
+					"Cart created",
+					"Item added"
 				]
 			},
+			"events": [
+				{
+					"name": "Cart created",
+					"properties": [
+						{
+							"name": "CartId",
+							"type": "Guid"
+						}
+					]
+				},
+				{
+					"name": "Item added",
+					"properties": [
+						{
+							"name": "CartId",
+							"type": "Guid"
+						},
+						{
+							"name": "Description",
+							"type": "string"
+						},
+						{
+							"name": "Image",
+							"type": "string"
+						},
+						{
+							"name": "Price",
+							"type": "decimal"
+						},
+						{
+							"name": "TotalPrice",
+							"type": "decimal"
+						},
+						{
+							"name": "ItemId",
+							"type": "Guid"
+						},
+						{
+							"name": "ProductId",
+							"type": "Guid"
+						}
+					]
+				}
+			],
 			"tests": [
 				{
 					"name": "Creates cart and add initial item",
@@ -313,21 +317,24 @@
 					}
 				],
 				"events": [
-					{
-						"name": "Item removed",
-						"properties": [
-							{
-								"name": "CartId",
-								"type": "Guid"
-							},
-							{
-								"name": "ItemId",
-								"type": "Guid"
-							}
-						]
-					}
+					"Item removed"
 				]
 			},
+			"events": [
+				{
+					"name": "Item removed",
+					"properties": [
+						{
+							"name": "CartId",
+							"type": "Guid"
+						},
+						{
+							"name": "ItemId",
+							"type": "Guid"
+						}
+					]
+				}
+			],
 			"tests": [
 				{
 					"name": "Item is removed",
@@ -422,17 +429,20 @@
 					}
 				],
 				"events": [
-					{
-						"name": "Cart cleared",
-						"properties": [
-							{
-								"name": "CartId",
-								"type": "Guid"
-							}
-						]
-					}
+					"Cart cleared"
 				]
 			},
+			"events": [
+				{
+					"name": "Cart cleared",
+					"properties": [
+						{
+							"name": "CartId",
+							"type": "Guid"
+						}
+					]
+				}
+			],
 			"tests": [
 				{
 					"name": "Item is removed",
@@ -504,21 +514,24 @@
 					}
 				],
 				"events": [
-					{
-						"name": "Inventory changed",
-						"properties": [
-							{
-								"name": "ProductId",
-								"type": "Guid"
-							},
-							{
-								"name": "Inventory",
-								"type": "int"
-							}
-						]
-					}
+					"Inventory changed"
 				]
-			}
+			},
+			"events": [
+				{
+					"name": "Inventory changed",
+					"properties": [
+						{
+							"name": "ProductId",
+							"type": "Guid"
+						},
+						{
+							"name": "Inventory",
+							"type": "int"
+						}
+					]
+				}
+			]
 		}	
 	]
 }

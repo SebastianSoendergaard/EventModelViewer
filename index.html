@@ -3846,9 +3846,10 @@
                 
                 html += generateCommand(slice.command);
                 
-                if (slice.command.events && slice.command.events.length > 0) {
+                // Events are now at slice level
+                if (slice.events && slice.events.length > 0) {
                     html += '<div class="events-container">';
-                    slice.command.events.forEach((event, eventIndex) => {
+                    slice.events.forEach((event, eventIndex) => {
                         html += generateEvent(event, index, eventIndex);
                     });
                     html += '</div>';
@@ -3874,10 +3875,11 @@
                 
                 html += generateCommand(slice.automation.command);
                 
-                if (slice.automation.command.events && slice.automation.command.events.length > 0) {
+                // Events are now at slice level for automation too
+                if (slice.events && slice.events.length > 0) {
                     html += '<div class="events-container">';
-                    slice.automation.command.events.forEach(event => {
-                        html += generateEvent(event);
+                    slice.events.forEach((event, eventIndex) => {
+                        html += generateEvent(event, index, eventIndex);
                     });
                     html += '</div>';
                 }
