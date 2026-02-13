@@ -3845,6 +3845,45 @@
             }
         }
 
+        // Helper function: Find event elements by ID or name
+        function findEventElements(eventIdentifier) {
+            // First try to find by ID
+            let elements = Array.from(document.querySelectorAll('.element.event[data-event-id]'))
+                .filter(el => el.getAttribute('data-event-id') === eventIdentifier);
+            
+            // If not found by ID, try by name
+            if (elements.length === 0) {
+                elements = Array.from(document.querySelectorAll('.element.event[data-event-name]'))
+                    .filter(el => el.getAttribute('data-event-name') === eventIdentifier);
+            }
+            
+            // Return elements with their slice indices
+            return elements.map(el => ({
+                element: el,
+                sliceIndex: parseInt(el.getAttribute('data-slice-index'))
+            }));
+        }
+
+        // Helper function: Select nearest preceding event
+        function selectNearestPrecedingEvent(eventMatches, referenceSliceIndex) {
+            const preceding = eventMatches.filter(m => m.sliceIndex < referenceSliceIndex);
+            if (preceding.length === 0) return null;
+            // Return the last one (highest slice index before reference)
+            return preceding.reduce((max, current) => 
+                current.sliceIndex > max.sliceIndex ? current : max
+            );
+        }
+
+        // Helper function: Select nearest subsequent event
+        function selectNearestSubsequentEvent(eventMatches, referenceSliceIndex) {
+            const subsequent = eventMatches.filter(m => m.sliceIndex > referenceSliceIndex);
+            if (subsequent.length === 0) return null;
+            // Return the first one (lowest slice index after reference)
+            return subsequent.reduce((min, current) => 
+                current.sliceIndex < min.sliceIndex ? current : min
+            );
+        }
+
         function drawAllArrows() {
             // Remove existing SVG if any
             const existingSvg = document.getElementById('arrow-svg');
@@ -3884,10 +3923,27 @@
 
             marker.appendChild(polygon);
             defs.appendChild(marker);
+            
+            // Create dashed arrow marker
+            const markerDashed = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            markerDashed.setAttribute('id', 'arrowhead-dashed');
+            markerDashed.setAttribute('markerWidth', '10');
+            markerDashed.setAttribute('markerHeight', '10');
+            markerDashed.setAttribute('refX', '9');
+            markerDashed.setAttribute('refY', '3');
+            markerDashed.setAttribute('orient', 'auto');
+
+            const polygonDashed = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygonDashed.setAttribute('points', '0 0, 10 3, 0 6');
+            polygonDashed.setAttribute('fill', 'black');
+
+            markerDashed.appendChild(polygonDashed);
+            defs.appendChild(markerDashed);
             svg.appendChild(defs);
 
             // Draw all connections
             document.querySelectorAll('.slice').forEach(slice => {
+                const sliceIndex = parseInt(slice.getAttribute('data-slice-index'));
                 const trigger = slice.querySelector('.element.trigger');
                 const command = slice.querySelector('.element.command');
                 const view = slice.querySelector('.element.view');
@@ -3898,33 +3954,132 @@
                     drawArrow(svg, trigger, command, diagramDiv, 'bottom', 'top');
                 }
 
-                // Command -> Events
-                if (command && events.length > 0) {
-                    events.forEach(event => {
-                        drawArrow(svg, command, event, diagramDiv, 'bottom', 'top');
-                    });
+                // Command -> Events (only events listed in command.events array)
+                if (command) {
+                    const commandEventsAttr = command.getAttribute('data-command-events');
+                    if (commandEventsAttr && commandEventsAttr.trim()) {
+                        // Command has explicit event list
+                        const commandEventNames = commandEventsAttr.split(',').filter(n => n.trim());
+                        commandEventNames.forEach(eventName => {
+                            // Find matching events in this slice BY NAME ONLY
+                            const matchingEvents = Array.from(events).filter(event => {
+                                const eventNameAttr = event.getAttribute('data-event-name');
+                                return eventNameAttr === eventName;
+                            });
+                            
+                            // If multiple events with same name, prefer ones WITHOUT id (internal events)
+                            let eventsToConnect = matchingEvents;
+                            if (matchingEvents.length > 1) {
+                                const eventsWithoutId = matchingEvents.filter(e => !e.getAttribute('data-event-id'));
+                                if (eventsWithoutId.length > 0) {
+                                    eventsToConnect = eventsWithoutId;
+                                }
+                            }
+                            
+                            // Draw arrows to selected events
+                            eventsToConnect.forEach(event => {
+                                drawArrow(svg, command, event, diagramDiv, 'bottom', 'top');
+                            });
+                        });
+                    } else if (events.length > 0) {
+                        // Backward compatibility: no explicit list, connect to all events
+                        events.forEach(event => {
+                            drawArrow(svg, command, event, diagramDiv, 'bottom', 'top');
+                        });
+                    }
                 }
 
                 // Trigger -> View
                 if (trigger && view && !command) {
                     drawArrow(svg, trigger, view, diagramDiv, 'bottom', 'top');
                 }
+
+                // Event -> Trigger (automation triggers)
+                if (trigger) {
+                    const triggerEventsAttr = trigger.getAttribute('data-trigger-events');
+                    if (triggerEventsAttr && triggerEventsAttr.trim()) {
+                        const triggerEventNames = triggerEventsAttr.split(',').filter(n => n.trim());
+                        triggerEventNames.forEach(eventIdentifier => {
+                            const eventMatches = findEventElements(eventIdentifier);
+                            if (eventMatches.length === 0) {
+                                console.warn(`Trigger references event "${eventIdentifier}" but no matching event found`);
+                                return;
+                            }
+
+                            let selectedMatch = null;
+                            let isDashed = false;
+
+                            // First, check for events in the SAME slice
+                            const sameSliceEvents = eventMatches.filter(m => m.sliceIndex === sliceIndex);
+                            if (sameSliceEvents.length > 0) {
+                                // Use first same-slice event (should typically be only one)
+                                selectedMatch = sameSliceEvents[0];
+                            } else {
+                                // Try to find nearest preceding event
+                                selectedMatch = selectNearestPrecedingEvent(eventMatches, sliceIndex);
+
+                                // If no preceding, use nearest subsequent with dashed arrow
+                                if (!selectedMatch) {
+                                    selectedMatch = selectNearestSubsequentEvent(eventMatches, sliceIndex);
+                                    isDashed = true;
+                                }
+                            }
+
+                            if (selectedMatch) {
+                                // Determine arrow direction based on same-slice vs cross-slice
+                                const isSameSlice = selectedMatch.sliceIndex === sliceIndex;
+                                if (isSameSlice) {
+                                    // Same slice: event above, trigger below
+                                    drawArrow(svg, selectedMatch.element, trigger, diagramDiv, 'top', 'bottom', isDashed);
+                                } else {
+                                    // Different slice: horizontal connection
+                                    drawArrow(svg, selectedMatch.element, trigger, diagramDiv, 'right', 'left', isDashed);
+                                }
+                            }
+                        });
+                    }
+                }
             });
 
             // Event -> View (across slices)
             const views = document.querySelectorAll('.element.view[data-view-events]');
             views.forEach(view => {
+                const viewSlice = view.closest('.slice');
+                const viewSliceIndex = parseInt(viewSlice.getAttribute('data-slice-index'));
                 const eventNames = view.getAttribute('data-view-events');
                 if (!eventNames) return;
 
                 const eventNameList = eventNames.split(',').filter(n => n.trim());
                 
-                eventNameList.forEach(eventName => {
-                    const events = document.querySelectorAll(`.element.event[data-event-name="${eventName}"]`);
-                    
-                    events.forEach(event => {
-                        drawArrow(svg, event, view, diagramDiv, 'top', 'bottom');
-                    });
+                eventNameList.forEach(eventIdentifier => {
+                    const eventMatches = findEventElements(eventIdentifier);
+                    if (eventMatches.length === 0) {
+                        console.warn(`View references event "${eventIdentifier}" but no matching event found`);
+                        return;
+                    }
+
+                    let selectedMatch = null;
+                    let isDashed = false;
+
+                    // First, check for events in the SAME slice (rare but possible)
+                    const sameSliceEvents = eventMatches.filter(m => m.sliceIndex === viewSliceIndex);
+                    if (sameSliceEvents.length > 0) {
+                        // Use first same-slice event
+                        selectedMatch = sameSliceEvents[0];
+                    } else {
+                        // Try to find nearest preceding event
+                        selectedMatch = selectNearestPrecedingEvent(eventMatches, viewSliceIndex);
+
+                        // If no preceding, use nearest subsequent with dashed arrow
+                        if (!selectedMatch) {
+                            selectedMatch = selectNearestSubsequentEvent(eventMatches, viewSliceIndex);
+                            isDashed = true;
+                        }
+                    }
+
+                    if (selectedMatch) {
+                        drawArrow(svg, selectedMatch.element, view, diagramDiv, 'top', 'bottom', isDashed);
+                    }
                 });
             });
 
@@ -3941,7 +4096,7 @@
             });
         }
 
-        function drawArrow(svg, fromElement, toElement, container, fromSide = 'bottom', toSide = 'top') {
+        function drawArrow(svg, fromElement, toElement, container, fromSide = 'bottom', toSide = 'top', isDashed = false) {
             const fromRect = fromElement.getBoundingClientRect();
             const toRect = toElement.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
@@ -4017,7 +4172,12 @@
             path.setAttribute('stroke', 'black');
             path.setAttribute('stroke-width', '2');
             path.setAttribute('fill', 'none');
-            path.setAttribute('marker-end', 'url(#arrowhead)');
+            if (isDashed) {
+                path.setAttribute('stroke-dasharray', '5,5');
+                path.setAttribute('marker-end', 'url(#arrowhead-dashed)');
+            } else {
+                path.setAttribute('marker-end', 'url(#arrowhead)');
+            }
 
             svg.appendChild(path);
         }
@@ -4192,7 +4352,8 @@
         }
 
         function generateTrigger(trigger) {
-            let html = '<div class="element trigger">';
+            const triggerEvents = trigger.events ? trigger.events.join(',') : '';
+            let html = `<div class="element trigger" data-trigger-events="${escapeHtml(triggerEvents)}">`;
             
             if (trigger.role) {
                 html += `<div class="element-role">${escapeHtml(trigger.role)}</div>`;
@@ -4219,7 +4380,8 @@
         }
 
         function generateCommand(command) {
-            let html = '<div class="element command">';
+            const commandEvents = command.events ? command.events.join(',') : '';
+            let html = `<div class="element command" data-command-events="${escapeHtml(commandEvents)}">`;
             html += `<div class="element-title">${escapeHtml(command.name)}</div>`;
             
             if (command.properties && command.properties.length > 0) {
@@ -4237,7 +4399,8 @@
         function generateEvent(event, sliceIndex, eventIndex) {
             const eventId = `event-${sliceIndex}-${eventIndex}-${event.name.replace(/\s+/g, '-')}`;
             const externalClass = event.external === true ? ' external' : '';
-            let html = `<div class="element event${externalClass}" id="${eventId}" data-event-name="${escapeHtml(event.name)}">`;
+            const eventIdAttr = event.id ? ` data-event-id="${escapeHtml(event.id)}"` : '';
+            let html = `<div class="element event${externalClass}" id="${eventId}" data-event-name="${escapeHtml(event.name)}" data-slice-index="${sliceIndex}"${eventIdAttr}>`;
             html += `<div class="element-title">${escapeHtml(event.name)}</div>`;
             
             if (event.properties && event.properties.length > 0) {

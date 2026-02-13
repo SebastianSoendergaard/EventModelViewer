@@ -61,6 +61,7 @@ EventModelViewer/
 | [Tree Drag & Drop](tree-drag-drop-learnings.md) | **Drag to reorder** | **Visual feedback, drop zones, state updates** |
 | [History & Undo/Redo](history-undo-redo.md) | **Time-travel editing** | **State management, keyboard shortcuts** |
 | [Add Slice Button](add-slice-button-learnings.md) | **Slice creation UI** | **Context menus, templates, multi-system updates** |
+| [Arrow Logic Implementation](arrow-logic-implementation-learnings.md) | **Smart event-driven arrows** | **Event matching, precedence, dashed arrows, automation triggers** |
 | [Feature Learnings](collapse-feature-learnings.md) | Technical implementation | Regex, algorithms, performance |
 | [Quick Reference](collapse-quick-reference.md) | API and patterns | Functions, detection patterns |
 | [Test Suite](../tests/collapse-functionality.test.html) | Automated tests | Run in browser |
@@ -126,10 +127,10 @@ EventModelViewer/
 ## 📝 Documentation Summary
 
 ### Total Documentation
-- **7 markdown files** (~60 KB)
+- **8 markdown files** (~83 KB)
 - **1 test suite** (23 KB HTML)
-- **Topics covered:** 25+
-- **Code examples:** 50+
+- **Topics covered:** 30+
+- **Code examples:** 65+
 
 ### Coverage
 
@@ -144,6 +145,7 @@ EventModelViewer/
 | Tree View Features | ✅ | **Tree Context Menu, Tree Inline Edit, Tree Drag & Drop** |
 | History & Undo/Redo | ✅ | **History Undo Redo** |
 | Add Slice Feature | ✅ | **Add Slice Button** |
+| Arrow Logic | ✅ | **Arrow Logic Implementation** |
 | Testing | ✅ | Tests README, Test Suite |
 | Contributing | ✅ | README.md, Docs README |
 | Performance | ✅ | Feature Learnings, Resizer Implementation |
@@ -237,6 +239,13 @@ start collapse-functionality.test.html
 
 ## 📅 Version History
 
+### 2026-02-13 - v2.4
+- ✨ Smart arrow logic for event-driven diagrams
+- 🎯 Event matching by ID or name with precedence
+- 📊 Dashed arrows for forward event references
+- 🤖 Automation trigger arrow support
+- 📚 Added arrow-logic-implementation-learnings.md
+
 ### 2026-02-13 - v2.3
 - ✨ Add Slice button with context menu
 - 🎯 Full slice and event-only slice templates
@@ -263,8 +272,8 @@ See [Project README](../README.md#recent-updates) for detailed changelog.
 
 ---
 
-**Last Updated:** 2026-02-12  
-**Version:** 2.1  
+**Last Updated:** 2026-02-13  
+**Version:** 2.4  
 **Maintained By:** Development Team
 
 ---
