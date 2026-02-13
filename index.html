@@ -811,6 +811,39 @@
             letter-spacing: 0.5px;
         }
 
+        .export-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+        }
+
+        .export-btn:hover {
+            background: linear-gradient(135deg, #229954, #1e8449);
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .export-btn:active {
+            transform: translateY(0);
+        }
+
+        .controls-divider {
+            height: 1px;
+            background: rgba(0,0,0,0.1);
+            margin: 5px 0;
+        }
+
         .error-message {
             color: #c0392b;
             padding: 1.5rem;
@@ -1151,6 +1184,9 @@
                 <div class="zoom-level" id="zoomLevel">100%</div>
                 <button class="zoom-btn" id="zoomOutBtn" title="Zoom Out">−</button>
                 <button class="zoom-btn" id="zoomResetBtn" title="Reset Zoom">⊙</button>
+                <div class="controls-divider"></div>
+                <button class="export-btn" id="exportPngBtn" title="Export as PNG">PNG</button>
+                <button class="export-btn" id="exportSvgBtn" title="Export as SVG">SVG</button>
             </div>
         </div>
     </div>
@@ -3115,6 +3151,125 @@
         zoomInBtn.addEventListener('click', zoomIn);
         zoomOutBtn.addEventListener('click', zoomOut);
         zoomResetBtn.addEventListener('click', resetZoom);
+
+        // Export functions
+        async function exportToPNG() {
+            try {
+                const diagramDiv = document.querySelector('.event-model-diagram');
+                if (!diagramDiv) {
+                    alert('No diagram to export. Please load a JSON file first.');
+                    return;
+                }
+
+                // Import html2canvas dynamically
+                if (!window.html2canvas) {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                    document.head.appendChild(script);
+                    await new Promise((resolve, reject) => {
+                        script.onload = resolve;
+                        script.onerror = reject;
+                    });
+                }
+
+                // Capture the diagram as canvas
+                const canvas = await html2canvas(diagramDiv, {
+                    backgroundColor: '#ffffff',
+                    scale: 2, // Higher quality
+                    logging: false
+                });
+
+                // Convert to blob and download
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'event-model-diagram.png';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                });
+            } catch (error) {
+                console.error('Export to PNG failed:', error);
+                alert('Failed to export PNG: ' + error.message);
+            }
+        }
+
+        function exportToSVG() {
+            try {
+                const diagramDiv = document.querySelector('.event-model-diagram');
+                if (!diagramDiv) {
+                    alert('No diagram to export. Please load a JSON file first.');
+                    return;
+                }
+
+                // Clone the diagram div
+                const clone = diagramDiv.cloneNode(true);
+                
+                // Get computed styles
+                const styles = window.getComputedStyle(diagramDiv);
+                const width = diagramDiv.offsetWidth;
+                const height = diagramDiv.offsetHeight;
+
+                // Create SVG wrapper
+                const svgNS = 'http://www.w3.org/2000/svg';
+                const svg = document.createElementNS(svgNS, 'svg');
+                svg.setAttribute('xmlns', svgNS);
+                svg.setAttribute('width', width);
+                svg.setAttribute('height', height);
+                svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+                // Create foreignObject to embed HTML
+                const foreignObject = document.createElementNS(svgNS, 'foreignObject');
+                foreignObject.setAttribute('width', '100%');
+                foreignObject.setAttribute('height', '100%');
+
+                // Add styles inline
+                const styleElement = document.createElement('style');
+                const allStyles = Array.from(document.styleSheets)
+                    .map(sheet => {
+                        try {
+                            return Array.from(sheet.cssRules)
+                                .map(rule => rule.cssText)
+                                .join('\n');
+                        } catch (e) {
+                            return '';
+                        }
+                    })
+                    .join('\n');
+                styleElement.textContent = allStyles;
+                clone.insertBefore(styleElement, clone.firstChild);
+
+                foreignObject.appendChild(clone);
+                svg.appendChild(foreignObject);
+
+                // Serialize SVG
+                const serializer = new XMLSerializer();
+                const svgString = serializer.serializeToString(svg);
+                const blob = new Blob([svgString], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+
+                // Download
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'event-model-diagram.svg';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Export to SVG failed:', error);
+                alert('Failed to export SVG: ' + error.message);
+            }
+        }
+
+        // Export button handlers
+        const exportPngBtn = document.getElementById('exportPngBtn');
+        const exportSvgBtn = document.getElementById('exportSvgBtn');
+        
+        exportPngBtn.addEventListener('click', exportToPNG);
+        exportSvgBtn.addEventListener('click', exportToSVG);
 
         // Ctrl + scroll to zoom
         diagramContainer.addEventListener('wheel', (e) => {
