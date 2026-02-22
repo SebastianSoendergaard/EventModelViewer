@@ -1,7 +1,1 @@
-        .diagram-panel {
-            width: 75%;
-            display: flex;
-            flex-direction: column;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            position: relative;
-        }
+        /* diagram-panel styles are in resizer.css */

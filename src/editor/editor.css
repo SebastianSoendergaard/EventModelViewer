@@ -1,93 +1,53 @@
-        .editor-panel {
-            width: 25%;
+        .editor-container {
+            flex: 1;
+            overflow: auto;
             display: flex;
             flex-direction: column;
-            border-right: 1px solid rgba(0,0,0,0.08);
-            background: white;
-            position: relative;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
         }
 
-        .editor-panel.collapsed {
-            width: 40px !important;
-        }
-
-        .editor-panel.collapsed .editor-container {
-            display: none;
-        }
-
-        .editor-panel.collapsed .panel-header span {
-            display: none;
-        }
-
-        .editor-panel.collapsed .panel-header {
-            padding: 0.5rem 0.5rem;
-            justify-content: center;
-        }
-
-        .diagram-panel.collapsed {
-            width: 40px !important;
-        }
-
-        .diagram-panel.collapsed .diagram-container {
-            display: none;
-        }
-
-        .diagram-panel.collapsed .zoom-controls {
-            display: none;
-        }
-
-        .diagram-panel.collapsed .panel-header span {
-            display: none;
-        }
-
-        .diagram-panel.collapsed .panel-header {
-            padding: 0.5rem 0.5rem;
-            justify-content: center;
-        }
-
-        .panel-header {
-            padding: 0.5rem 0.5rem;
-            background: linear-gradient(135deg, #34495e, #2c3e50);
-            color: white;
-            font-weight: 700;
-            font-size: 1.0rem;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
+        .editor-tabs {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 0.75rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
+            padding: 0;
+            margin: 0;
         }
 
-        .diagram-panel .panel-header {
-            justify-content: flex-start;
-        }
-
-        .panel-collapse-btn {
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.25);
-            color: white;
-            font-size: 1rem;
+        .editor-tab {
+            padding: 0.75rem 1.5rem;
+            background: #e0e0e0;
+            border: none;
             cursor: pointer;
-            width: 25px;
-            height: 26px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
+            font-weight: 600;
+            color: #555;
             transition: all 0.2s;
-            flex-shrink: 0;
-            line-height: 1;
+            border-right: 1px solid #ccc;
         }
 
-        .panel-collapse-btn:hover {
-            background: rgba(255,255,255,0.25);
-            transform: scale(1.1);
+        .editor-tab:hover {
+            background: #d0d0d0;
         }
 
-        .editor-container {
+        .editor-tab.active {
+            background: white;
+            color: #2c3e50;
+            border-bottom: 2px solid white;
+            margin-bottom: -2px;
+        }
+
+        .editor-view {
+            display: none;
+            flex: 1;
+            overflow: auto;
+            background: white;
+        }
+
+        .editor-view.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+
             flex: 1;
             overflow: auto;
             display: flex;

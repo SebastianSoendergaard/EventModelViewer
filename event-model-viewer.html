@@ -209,6 +209,14 @@
             justify-content: center;
         }
 
+        .diagram-panel {
+            width: 75%;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            position: relative;
+        }
+
         .diagram-panel.collapsed {
             width: 40px !important;
         }
@@ -272,6 +280,55 @@
         }
 
         .editor-container {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
+            padding: 0;
+            margin: 0;
+        }
+
+        .editor-tab {
+            padding: 0.75rem 1.5rem;
+            background: #e0e0e0;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: #555;
+            transition: all 0.2s;
+            border-right: 1px solid #ccc;
+        }
+
+        .editor-tab:hover {
+            background: #d0d0d0;
+        }
+
+        .editor-tab.active {
+            background: white;
+            color: #2c3e50;
+            border-bottom: 2px solid white;
+            margin-bottom: -2px;
+        }
+
+        .editor-view {
+            display: none;
+            flex: 1;
+            overflow: auto;
+            background: white;
+        }
+
+        .editor-view.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+
             flex: 1;
             overflow: auto;
             display: flex;
@@ -751,13 +808,7 @@
             margin-left: 8px;
         }
 
-        .diagram-panel {
-            width: 75%;
-            display: flex;
-            flex-direction: column;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            position: relative;
-        }
+        /* diagram-panel styles are in resizer.css */
 
         .diagram-container {
             flex: 1;
@@ -1290,7 +1341,7 @@
                 <span>Editor</span>
                 <button class="panel-collapse-btn" id="panelCollapseBtn" title="Collapse/Expand">◀</button>
             </div>
-            <div class="editor-container">
+                <div class="editor-container">
                 <div class="editor-tabs">
                     <button class="editor-tab active" data-tab="code">Code</button>
                     <button class="editor-tab" data-tab="tree">Tree</button>
@@ -1325,7 +1376,7 @@
                 <button class="panel-collapse-btn" id="viewerCollapseBtn" title="Collapse/Expand">▶</button>
                 <span>Viewer</span>
             </div>
-            <div class="diagram-container" id="diagramContainer">
+                <div class="diagram-container" id="diagramContainer">
                 <div class="diagram-wrapper" id="diagramWrapper">
                     <div id="diagram">
                         <div class="info-message">
