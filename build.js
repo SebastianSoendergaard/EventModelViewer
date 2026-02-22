@@ -28,6 +28,9 @@ const editorCss  = readFile('src/editor/editor.css');
 const editorJs   = readFile('src/editor/editor.js');
 
 // Viewer sub-modules
+const diagramHtml = readFile('src/viewer/diagram/diagram.html');
+const diagramCss  = readFile('src/viewer/diagram/diagram.css');
+const diagramJs   = readFile('src/viewer/diagram/diagram.js');
 const zoomExportHtml = readFile('src/viewer/zoom-export/zoom-export.html');
 const zoomExportCss  = readFile('src/viewer/zoom-export/zoom-export.css');
 const zoomExportJs   = readFile('src/viewer/zoom-export/zoom-export.js');
@@ -54,9 +57,12 @@ const combinedEditorCss = editorCss.trimEnd() + '\n\n' + codeViewCss.trimEnd() +
 const combinedEditorJs  = codeViewJs.trimEnd() + '\n\n' + treeViewJs.trimEnd() + '\n\n' + editorJs.trimEnd();
 
 // Level 1c: assemble viewer sub-modules into viewer
+// IMPORTANT: diagramJs MUST come before zoomExportJs because zoom-export.js
+// calls diagramContainer.addEventListener() directly at execution time
+viewerHtml = viewerHtml.replace('            <!-- DIAGRAM_HTML -->', diagramHtml.trimEnd());
 viewerHtml = viewerHtml.replace('            <!-- ZOOM_EXPORT_HTML -->', zoomExportHtml.trimEnd());
-const combinedViewerCss = viewerCss.trimEnd() + '\n\n' + zoomExportCss.trimEnd();
-const combinedViewerJs  = zoomExportJs.trimEnd() + '\n\n' + viewerJs.trimEnd();
+const combinedViewerCss = viewerCss.trimEnd() + '\n\n' + diagramCss.trimEnd() + '\n\n' + zoomExportCss.trimEnd();
+const combinedViewerJs  = diagramJs.trimEnd() + '\n\n' + zoomExportJs.trimEnd() + '\n\n' + viewerJs.trimEnd();
 
 // Level 2: assemble editor + viewer into resizer
 resizerHtml = resizerHtml.replace('        <!-- EDITOR_HTML -->', editorHtml.trimEnd());

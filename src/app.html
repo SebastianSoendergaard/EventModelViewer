@@ -130,9 +130,6 @@
     </script>
 
     <script>
-        const diagramElement = document.getElementById('diagram');
-        const diagramContainer = document.getElementById('diagramContainer');
-        const diagramWrapper = document.getElementById('diagramWrapper');
         const editorPanel = document.getElementById('editorPanel');
         const diagramPanel = document.getElementById('diagramPanel');
         const panelCollapseBtn = document.getElementById('panelCollapseBtn');
@@ -148,48 +145,6 @@
                 saveJsonToLocalStorage();
             }
         }
-
-
-        // Mouse drag to pan
-        diagramContainer.addEventListener('mousedown', (e) => {
-            // Ignore if clicking on zoom controls or if resizing
-            if (e.target.closest('.zoom-controls') || isResizing) return;
-            
-            isDragging = true;
-            diagramContainer.classList.add('dragging');
-            dragStartX = e.pageX - diagramContainer.offsetLeft;
-            dragStartY = e.pageY - diagramContainer.offsetTop;
-            scrollLeft = diagramContainer.scrollLeft;
-            scrollTop = diagramContainer.scrollTop;
-            e.preventDefault();
-        });
-
-        diagramContainer.addEventListener('mouseleave', () => {
-            if (isDragging) {
-                isDragging = false;
-                diagramContainer.classList.remove('dragging');
-            }
-        });
-
-        diagramContainer.addEventListener('mouseup', () => {
-            isDragging = false;
-            diagramContainer.classList.remove('dragging');
-        });
-
-        diagramContainer.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            e.preventDefault();
-            const x = e.pageX - diagramContainer.offsetLeft;
-            const y = e.pageY - diagramContainer.offsetTop;
-            const walkX = (x - dragStartX) * 1.5; // Scroll speed multiplier
-            const walkY = (y - dragStartY) * 1.5;
-            diagramContainer.scrollLeft = scrollLeft - walkX;
-            diagramContainer.scrollTop = scrollTop - walkY;
-        });
-
-        // Initialize JSON Editor
-        // (Custom editor initialized above)
-
 
         // TOOLBAR_JS
 
