@@ -158,18 +158,6 @@
             }
         }, { passive: false });
 
-        // Viewer panel collapse/expand handler
-        viewerCollapseBtn.addEventListener('click', () => {
-            // If trying to collapse viewer while editor is collapsed, expand editor first
-            if (!panelState.viewer.collapsed && panelState.editor.collapsed) {
-                panelState.editor.collapsed = false;
-            }
-            
-            panelState.viewer.collapsed = !panelState.viewer.collapsed;
-            updatePanelLayout();
-            saveLayoutState();
-        });
-
         function toggleSliceBorders(show) {
             const borders = document.querySelectorAll('.slice-border');
             borders.forEach(border => {

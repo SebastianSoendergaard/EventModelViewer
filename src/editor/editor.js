@@ -137,18 +137,6 @@
             });
         });
 
-        // Editor panel collapse/expand handler
-        panelCollapseBtn.addEventListener('click', () => {
-            // If trying to collapse editor while viewer is collapsed, expand viewer first
-            if (!panelState.editor.collapsed && panelState.viewer.collapsed) {
-                panelState.viewer.collapsed = false;
-            }
-            
-            panelState.editor.collapsed = !panelState.editor.collapsed;
-            updatePanelLayout();
-            saveLayoutState();
-        });
-
 
         // Undo/Redo button handlers
         const codeUndoBtn = document.getElementById('codeUndoBtn');

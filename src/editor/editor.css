@@ -16,10 +16,6 @@
             display: none;
         }
 
-        .editor-panel.collapsed .resizer {
-            display: none;
-        }
-
         .editor-panel.collapsed .panel-header span {
             display: none;
         }
@@ -48,22 +44,6 @@
         .diagram-panel.collapsed .panel-header {
             padding: 0.5rem 0.5rem;
             justify-content: center;
-        }
-
-        /* Smooth transitions for panel collapse/expand */
-        .editor-panel,
-        .diagram-panel {
-            transition: width 0.3s ease-in-out;
-        }
-        
-        /* Disable transitions during resizing for immediate response */
-        .editor-panel.resizing,
-        .diagram-panel.resizing {
-            transition: none;
-        }
-
-        .resizer {
-            transition: opacity 0.2s ease-in-out;
         }
 
         .panel-header {
@@ -156,23 +136,4 @@
             flex-direction: column;
         }
 
-        .resizer {
-            width: 5px;
-            cursor: col-resize;
-            background: transparent;
-            position: absolute;
-            right: 0;
-            top: 0;
-            bottom: 0;
-            z-index: 10;
-            transition: background 0.2s;
-        }
-
-        .resizer:hover {
-            background: rgba(52, 152, 219, 0.5);
-        }
-
-        .resizer.resizing {
-            background: #3498db;
-        }
 

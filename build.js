@@ -21,23 +21,29 @@ const viewerHtml = readFile('src/viewer/viewer.html');
 const viewerCss = readFile('src/viewer/viewer.css');
 const viewerJs = readFile('src/viewer/viewer.js');
 
+let resizerHtml = readFile('src/resizer/resizer.html');
+const resizerCss = readFile('src/resizer/resizer.css');
+const resizerJs = readFile('src/resizer/resizer.js');
+
 let appTemplate = readFile('src/app.html');
 
 // Level 1: assemble editor sub-modules into editor
 editorHtml = editorHtml.replace('                <!-- CODE_VIEW_HTML -->', codeViewHtml.trimEnd());
 editorHtml = editorHtml.replace('                <!-- TREE_VIEW_HTML -->', treeViewHtml.trimEnd());
-
 const combinedEditorCss = editorCss.trimEnd() + '\n\n' + codeViewCss.trimEnd() + '\n\n' + treeViewCss.trimEnd();
 const combinedEditorJs = codeViewJs.trimEnd() + '\n\n' + treeViewJs.trimEnd() + '\n\n' + editorJs.trimEnd();
 
-// Level 2: assemble all modules into app
+// Level 2: assemble editor + viewer into resizer
+resizerHtml = resizerHtml.replace('        <!-- EDITOR_HTML -->', editorHtml.trimEnd());
+resizerHtml = resizerHtml.replace('        <!-- VIEWER_HTML -->', viewerHtml.trimEnd());
+const combinedResizerCss = resizerCss.trimEnd() + '\n\n' + combinedEditorCss + '\n\n' + viewerCss.trimEnd();
+const combinedResizerJs = combinedEditorJs + '\n\n' + viewerJs.trimEnd() + '\n\n' + resizerJs.trimEnd();
+
+// Level 3: assemble resizer into app
 let result = appTemplate;
-result = result.replace('        <!-- EDITOR_HTML -->', editorHtml.trimEnd());
-result = result.replace('        /* EDITOR_CSS */', combinedEditorCss);
-result = result.replace('        // EDITOR_JS', combinedEditorJs);
-result = result.replace('        <!-- VIEWER_HTML -->', viewerHtml.trimEnd());
-result = result.replace('        /* VIEWER_CSS */', viewerCss.trimEnd());
-result = result.replace('        // VIEWER_JS', viewerJs.trimEnd());
+result = result.replace('        <!-- RESIZER_HTML -->', resizerHtml.trimEnd());
+result = result.replace('        /* RESIZER_CSS */', combinedResizerCss);
+result = result.replace('        // RESIZER_JS', combinedResizerJs);
 
 fs.writeFileSync(path.join(__dirname, 'event-model-viewer.html'), result, { encoding: 'utf8' });
 console.log('Build successful: event-model-viewer.html');

@@ -1,0 +1,29 @@
+        /* Smooth transitions for panel collapse/expand */
+        .editor-panel,
+        .diagram-panel {
+            transition: width 0.3s ease-in-out;
+        }
+        
+        /* Disable transitions during resizing for immediate response */
+        .editor-panel.resizing,
+        .diagram-panel.resizing {
+            transition: none;
+        }
+
+        .resizer {
+            width: 2px;
+            cursor: col-resize;
+            background: transparent;
+            align-self: stretch;
+            flex-shrink: 0;
+            z-index: 10;
+            transition: background 0.2s;
+        }
+
+        .resizer:hover {
+            background: rgba(52, 152, 219, 0.5);
+        }
+
+        .resizer.resizing {
+            background: #3498db;
+        }
