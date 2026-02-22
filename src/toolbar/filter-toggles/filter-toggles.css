@@ -1,0 +1,33 @@
+        .checkbox-group {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            margin-left: auto;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .checkbox-item:hover {
+            background: rgba(52, 152, 219, 0.08);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+            accent-color: #3498db;
+        }
+
+        .checkbox-item label {
+            cursor: pointer;
+            font-size: 14px;
+            color: #2c3e50;
+            font-weight: 500;
+        }

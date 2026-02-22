@@ -1,0 +1,37 @@
+        .file-input-wrapper {
+            position: relative;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-label {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 0.5rem 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+            display: inline-block;
+        }
+
+        .file-label:hover {
+            background: linear-gradient(135deg, #2980b9, #21618c);
+            box-shadow: 0 6px 16px rgba(52, 152, 219, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .file-label:active {
+            transform: translateY(0);
+        }
+
+        .file-name {
+            color: #2c3e50;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            background: rgba(52, 152, 219, 0.08);
+            border-radius: 6px;
+        }

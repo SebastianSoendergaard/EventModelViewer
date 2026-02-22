@@ -63,88 +63,7 @@
             background: #2ecc71;
         }
 
-        .upload-section {
-            padding: 0.5rem 0.5rem;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(0,0,0,0.08);
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        }
-
-        .file-input-wrapper {
-            position: relative;
-        }
-
-        input[type="file"] {
-            display: none;
-        }
-
-        .file-label {
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            color: white;
-            padding: 0.5rem 0.5rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
-            display: inline-block;
-        }
-
-        .file-label:hover {
-            background: linear-gradient(135deg, #2980b9, #21618c);
-            box-shadow: 0 6px 16px rgba(52, 152, 219, 0.4);
-            transform: translateY(-1px);
-        }
-
-        .file-label:active {
-            transform: translateY(0);
-        }
-
-        .file-name {
-            color: #2c3e50;
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            background: rgba(52, 152, 219, 0.08);
-            border-radius: 6px;
-        }
-
-        .checkbox-group {
-            display: flex;
-            gap: 1.5rem;
-            align-items: center;
-            margin-left: auto;
-        }
-
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 0.75rem;
-            border-radius: 6px;
-            transition: background 0.2s;
-        }
-
-        .checkbox-item:hover {
-            background: rgba(52, 152, 219, 0.08);
-        }
-
-        .checkbox-item input[type="checkbox"] {
-            cursor: pointer;
-            width: 18px;
-            height: 18px;
-            accent-color: #3498db;
-        }
-
-        .checkbox-item label {
-            cursor: pointer;
-            font-size: 14px;
-            color: #2c3e50;
-            font-weight: 500;
-        }
+        /* TOOLBAR_CSS */
 
         .main-container {
             flex: 1;
@@ -165,33 +84,7 @@
         <h1>Event Model Viewer</h1>
     </header>
 
-    <div class="upload-section">
-        <button class="file-label" id="newBtn" title="Create new event model">📄 New</button>
-        <div class="file-input-wrapper">
-            <input type="file" id="fileInput" accept=".json">
-            <label for="fileInput" class="file-label">📁 Open</label>
-        </div>
-        <button class="file-label" id="saveBtn" title="Save to file">💾 Save</button>
-        <span class="file-name" id="fileName">No file selected</span>
-        <div class="checkbox-group">
-            <div class="checkbox-item">
-                <input type="checkbox" id="showSlices" checked>
-                <label for="showSlices">Show slices</label>
-            </div>
-            <div class="checkbox-item">
-                <input type="checkbox" id="showTests" checked>
-                <label for="showTests">Show tests</label>
-            </div>
-            <div class="checkbox-item">
-                <input type="checkbox" id="showTypes" checked>
-                <label for="showTypes">Show types</label>
-            </div>
-            <div class="checkbox-item">
-                <input type="checkbox" id="showSwimlanes" checked>
-                <label for="showSwimlanes">Show swimlanes</label>
-            </div>
-        </div>
-    </div>
+    <!-- TOOLBAR_HTML -->
 
     <div class="main-container">
         <!-- RESIZER_HTML -->
@@ -237,8 +130,6 @@
     </script>
 
     <script>
-        const fileInput = document.getElementById('fileInput');
-        const fileName = document.getElementById('fileName');
         const diagramElement = document.getElementById('diagram');
         const diagramContainer = document.getElementById('diagramContainer');
         const diagramWrapper = document.getElementById('diagramWrapper');
@@ -246,14 +137,6 @@
         const diagramPanel = document.getElementById('diagramPanel');
         const panelCollapseBtn = document.getElementById('panelCollapseBtn');
         const viewerCollapseBtn = document.getElementById('viewerCollapseBtn');
-        const showSlicesCheckbox = document.getElementById('showSlices');
-        const showTestsCheckbox = document.getElementById('showTests');
-        const showTypesCheckbox = document.getElementById('showTypes');
-        const showSwimlanesCheckbox = document.getElementById('showSwimlanes');
-        const zoomInBtn = document.getElementById('zoomInBtn');
-        const zoomOutBtn = document.getElementById('zoomOutBtn');
-        const zoomResetBtn = document.getElementById('zoomResetBtn');
-        const zoomLevelDisplay = document.getElementById('zoomLevel');
 
         // Current JSON data
         let currentJson = null;
@@ -264,151 +147,6 @@
                 // Auto-save to localStorage
                 saveJsonToLocalStorage();
             }
-        }
-
-        // LocalStorage functions for JSON persistence
-        function saveJsonToLocalStorage() {
-            try {
-                const jsonString = JSON.stringify(currentJson);
-                localStorage.setItem('eventModelJson', jsonString);
-                if (currentFileName) {
-                    localStorage.setItem('eventModelFileName', currentFileName);
-                }
-                console.log('JSON auto-saved to localStorage');
-            } catch (error) {
-                if (error.name === 'QuotaExceededError') {
-                    console.warn('localStorage quota exceeded, could not save JSON');
-                } else {
-                    console.warn('Failed to save JSON to localStorage:', error);
-                }
-            }
-        }
-
-        function loadJsonFromLocalStorage() {
-            try {
-                const saved = localStorage.getItem('eventModelJson');
-                if (saved) {
-                    const json = JSON.parse(saved);
-                    currentJson = json;
-                    
-                    // Restore filename if available
-                    const savedFileName = localStorage.getItem('eventModelFileName');
-                    if (savedFileName) {
-                        currentFileName = savedFileName;
-                        fileName.textContent = savedFileName;
-                    } else {
-                        fileName.textContent = 'Restored from previous session';
-                    }
-                    
-                    // Initialize history
-                    historyManager.clear();
-                    historyManager.pushState(currentJson);
-                    
-                    // Update editor
-                    if (codeMirrorView && codeMirrorView.setValue) {
-                        codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
-                    }
-                    
-                    // Update tree view
-                    renderTreeView();
-                    
-                    // Render diagram
-                    renderDiagram(JSON.stringify(currentJson));
-                    
-                    console.log('JSON loaded from localStorage');
-                    return true;
-                }
-            } catch (error) {
-                console.warn('Failed to load JSON from localStorage:', error);
-                // Clear corrupted data
-                localStorage.removeItem('eventModelJson');
-                localStorage.removeItem('eventModelFileName');
-            }
-            return false;
-        }
-
-        function clearLocalStorage() {
-            try {
-                localStorage.removeItem('eventModelJson');
-                localStorage.removeItem('eventModelFileName');
-                console.log('localStorage cleared');
-            } catch (error) {
-                console.warn('Failed to clear localStorage:', error);
-            }
-        }
-
-        // New document function
-        function createNew() {
-            // Clear current data
-            currentJson = null;
-            currentFileName = null;
-            
-            // Clear localStorage
-            clearLocalStorage();
-            
-            // Clear file input
-            fileInput.value = '';
-            fileName.textContent = 'No file selected';
-            
-            // Clear history
-            historyManager.clear();
-            
-            // Clear editors
-            if (codeMirrorView && codeMirrorView.setValue) {
-                codeMirrorView.setValue('', -1);
-            }
-            
-            // Clear tree view
-            renderTreeView();
-            
-            // Clear diagram
-            const diagramEl = document.getElementById('diagram');
-            diagramEl.innerHTML = '<div class="placeholder">Create or load an event model to visualize</div>';
-            
-            console.log('New document created');
-        }
-
-        // Save to file function
-        function saveToFile() {
-            if (!currentJson) {
-                alert('No content to save');
-                return;
-            }
-            
-            // Determine filename
-            let filename = 'event-model.json';
-            
-            if (currentFileName) {
-                // Use original filename if available
-                filename = currentFileName;
-            } else if (currentJson.title) {
-                // Derive from title field
-                filename = sanitizeFilename(currentJson.title) + '.json';
-            }
-            
-            // Create blob and download
-            const jsonString = JSON.stringify(currentJson, null, 2);
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            console.log('File saved as:', filename);
-        }
-
-        // Sanitize filename helper
-        function sanitizeFilename(title) {
-            return title
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '')
-                .substring(0, 50) || 'event-model';
         }
 
 
@@ -453,6 +191,9 @@
         // (Custom editor initialized above)
 
 
+        // TOOLBAR_JS
+
+
         // RESIZER_JS
 
 
@@ -474,70 +215,6 @@
         
         // Load saved JSON from localStorage
         loadJsonFromLocalStorage();
-
-        // File upload handler
-        fileInput.addEventListener('change', (event) => {
-            console.log('File input changed');
-            const file = event.target.files[0];
-            console.log('File:', file);
-            if (file) {
-                currentFileName = file.name;
-                fileName.textContent = file.name;
-                
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const jsonContent = e.target.result;
-                        console.log('File loaded, length:', jsonContent.length);
-                        currentJson = JSON.parse(jsonContent);
-                        console.log('JSON parsed successfully, keys:', Object.keys(currentJson));
-                        collapsedLines.clear();
-                        
-                        // Clear history and push initial state
-                        historyManager.clear();
-                        historyManager.pushState(currentJson);
-                        
-                        // Update ACE Editor content
-                        if (codeMirrorView && codeMirrorView.setValue) {
-                            codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
-                        }
-                        
-                        // Update Tree view (renderCodeEditor is now a no-op when editor is active)
-                        renderTreeView();
-                        console.log('Editors updated');
-                        renderDiagram(jsonContent);
-                        console.log('Diagram rendered');
-                        
-                        // Save to localStorage
-                        saveJsonToLocalStorage();
-                    } catch (error) {
-                        console.error('Error loading file:', error);
-                        showError('Invalid JSON file: ' + error.message);
-                    }
-                };
-                reader.onerror = (e) => {
-                    console.error('FileReader error:', e);
-                    showError('Error reading file');
-                };
-                reader.readAsText(file);
-            }
-        });
-
-        // New button handler
-        const newBtn = document.getElementById('newBtn');
-        newBtn.addEventListener('click', () => {
-            if (currentJson) {
-                const confirmed = confirm('Create a new document? Any unsaved changes will be lost.');
-                if (!confirmed) return;
-            }
-            createNew();
-        });
-
-        // Save button handler
-        const saveBtn = document.getElementById('saveBtn');
-        saveBtn.addEventListener('click', () => {
-            saveToFile();
-        });
 
     </script>
 </body>

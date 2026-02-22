@@ -165,7 +165,7 @@
         }
 
         .resizer {
-            width: 5px;
+            width: 2px;
             cursor: col-resize;
             background: transparent;
             align-self: stretch;
@@ -781,91 +781,6 @@
             min-height: 100%;
         }
 
-        .zoom-controls {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            z-index: 100;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(0,0,0,0.08);
-            border-radius: 12px;
-            padding: 10px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.18);
-        }
-
-        .zoom-btn {
-            width: 30px;
-            height: 30px;
-            border: none;
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            color: white;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
-        }
-
-        .zoom-btn:hover {
-            background: linear-gradient(135deg, #2980b9, #21618c);
-            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
-            transform: translateY(-2px);
-        }
-
-        .zoom-btn:active {
-            transform: translateY(0);
-        }
-
-        .zoom-level {
-            font-size: 12px;
-            color: #2c3e50;
-            text-align: center;
-            padding: 6px 0;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
-
-        .export-btn {
-            width: 30px;
-            height: 30px;
-            border: none;
-            background: linear-gradient(135deg, #27ae60, #229954);
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
-        }
-
-        .export-btn:hover {
-            background: linear-gradient(135deg, #229954, #1e8449);
-            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
-            transform: translateY(-2px);
-        }
-
-        .export-btn:active {
-            transform: translateY(0);
-        }
-
-        .controls-divider {
-            height: 1px;
-            background: rgba(0,0,0,0.1);
-            margin: 5px 0;
-        }
-
         .error-message {
             color: #c0392b;
             padding: 1.5rem;
@@ -1244,6 +1159,91 @@
         .element-property .property-type.hidden {
             display: none;
         }
+
+        .zoom-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 12px;
+            padding: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+        }
+
+        .zoom-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+        }
+
+        .zoom-btn:hover {
+            background: linear-gradient(135deg, #2980b9, #21618c);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .zoom-btn:active {
+            transform: translateY(0);
+        }
+
+        .zoom-level {
+            font-size: 12px;
+            color: #2c3e50;
+            text-align: center;
+            padding: 6px 0;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .export-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+        }
+
+        .export-btn:hover {
+            background: linear-gradient(135deg, #229954, #1e8449);
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .export-btn:active {
+            transform: translateY(0);
+        }
+
+        .controls-divider {
+            height: 1px;
+            background: rgba(0,0,0,0.1);
+            margin: 5px 0;
+        }
     </style>
 </head>
 <body>
@@ -1386,8 +1386,6 @@
     </script>
 
     <script>
-        const fileInput = document.getElementById('fileInput');
-        const fileName = document.getElementById('fileName');
         const diagramElement = document.getElementById('diagram');
         const diagramContainer = document.getElementById('diagramContainer');
         const diagramWrapper = document.getElementById('diagramWrapper');
@@ -1395,14 +1393,6 @@
         const diagramPanel = document.getElementById('diagramPanel');
         const panelCollapseBtn = document.getElementById('panelCollapseBtn');
         const viewerCollapseBtn = document.getElementById('viewerCollapseBtn');
-        const showSlicesCheckbox = document.getElementById('showSlices');
-        const showTestsCheckbox = document.getElementById('showTests');
-        const showTypesCheckbox = document.getElementById('showTypes');
-        const showSwimlanesCheckbox = document.getElementById('showSwimlanes');
-        const zoomInBtn = document.getElementById('zoomInBtn');
-        const zoomOutBtn = document.getElementById('zoomOutBtn');
-        const zoomResetBtn = document.getElementById('zoomResetBtn');
-        const zoomLevelDisplay = document.getElementById('zoomLevel');
 
         // Current JSON data
         let currentJson = null;
@@ -1414,6 +1404,53 @@
                 saveJsonToLocalStorage();
             }
         }
+
+
+        // Mouse drag to pan
+        diagramContainer.addEventListener('mousedown', (e) => {
+            // Ignore if clicking on zoom controls or if resizing
+            if (e.target.closest('.zoom-controls') || isResizing) return;
+            
+            isDragging = true;
+            diagramContainer.classList.add('dragging');
+            dragStartX = e.pageX - diagramContainer.offsetLeft;
+            dragStartY = e.pageY - diagramContainer.offsetTop;
+            scrollLeft = diagramContainer.scrollLeft;
+            scrollTop = diagramContainer.scrollTop;
+            e.preventDefault();
+        });
+
+        diagramContainer.addEventListener('mouseleave', () => {
+            if (isDragging) {
+                isDragging = false;
+                diagramContainer.classList.remove('dragging');
+            }
+        });
+
+        diagramContainer.addEventListener('mouseup', () => {
+            isDragging = false;
+            diagramContainer.classList.remove('dragging');
+        });
+
+        diagramContainer.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const x = e.pageX - diagramContainer.offsetLeft;
+            const y = e.pageY - diagramContainer.offsetTop;
+            const walkX = (x - dragStartX) * 1.5; // Scroll speed multiplier
+            const walkY = (y - dragStartY) * 1.5;
+            diagramContainer.scrollLeft = scrollLeft - walkX;
+            diagramContainer.scrollTop = scrollTop - walkY;
+        });
+
+        // Initialize JSON Editor
+        // (Custom editor initialized above)
+
+
+        // Toolbar shell — sub-module JS handles all behaviour
+
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
 
         // LocalStorage functions for JSON persistence
         function saveJsonToLocalStorage() {
@@ -1560,46 +1597,93 @@
                 .substring(0, 50) || 'event-model';
         }
 
-
-        // Mouse drag to pan
-        diagramContainer.addEventListener('mousedown', (e) => {
-            // Ignore if clicking on zoom controls or if resizing
-            if (e.target.closest('.zoom-controls') || isResizing) return;
-            
-            isDragging = true;
-            diagramContainer.classList.add('dragging');
-            dragStartX = e.pageX - diagramContainer.offsetLeft;
-            dragStartY = e.pageY - diagramContainer.offsetTop;
-            scrollLeft = diagramContainer.scrollLeft;
-            scrollTop = diagramContainer.scrollTop;
-            e.preventDefault();
-        });
-
-        diagramContainer.addEventListener('mouseleave', () => {
-            if (isDragging) {
-                isDragging = false;
-                diagramContainer.classList.remove('dragging');
+        // File upload handler
+        fileInput.addEventListener('change', (event) => {
+            console.log('File input changed');
+            const file = event.target.files[0];
+            console.log('File:', file);
+            if (file) {
+                currentFileName = file.name;
+                fileName.textContent = file.name;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const jsonContent = e.target.result;
+                        console.log('File loaded, length:', jsonContent.length);
+                        currentJson = JSON.parse(jsonContent);
+                        console.log('JSON parsed successfully, keys:', Object.keys(currentJson));
+                        collapsedLines.clear();
+                        
+                        // Clear history and push initial state
+                        historyManager.clear();
+                        historyManager.pushState(currentJson);
+                        
+                        // Update ACE Editor content
+                        if (codeMirrorView && codeMirrorView.setValue) {
+                            codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
+                        }
+                        
+                        // Update Tree view (renderCodeEditor is now a no-op when editor is active)
+                        renderTreeView();
+                        console.log('Editors updated');
+                        renderDiagram(jsonContent);
+                        console.log('Diagram rendered');
+                        
+                        // Save to localStorage
+                        saveJsonToLocalStorage();
+                    } catch (error) {
+                        console.error('Error loading file:', error);
+                        showError('Invalid JSON file: ' + error.message);
+                    }
+                };
+                reader.onerror = (e) => {
+                    console.error('FileReader error:', e);
+                    showError('Error reading file');
+                };
+                reader.readAsText(file);
             }
         });
 
-        diagramContainer.addEventListener('mouseup', () => {
-            isDragging = false;
-            diagramContainer.classList.remove('dragging');
+        // New button handler
+        const newBtn = document.getElementById('newBtn');
+        newBtn.addEventListener('click', () => {
+            if (currentJson) {
+                const confirmed = confirm('Create a new document? Any unsaved changes will be lost.');
+                if (!confirmed) return;
+            }
+            createNew();
         });
 
-        diagramContainer.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            e.preventDefault();
-            const x = e.pageX - diagramContainer.offsetLeft;
-            const y = e.pageY - diagramContainer.offsetTop;
-            const walkX = (x - dragStartX) * 1.5; // Scroll speed multiplier
-            const walkY = (y - dragStartY) * 1.5;
-            diagramContainer.scrollLeft = scrollLeft - walkX;
-            diagramContainer.scrollTop = scrollTop - walkY;
+        // Save button handler
+        const saveBtn = document.getElementById('saveBtn');
+        saveBtn.addEventListener('click', () => {
+            saveToFile();
         });
 
-        // Initialize JSON Editor
-        // (Custom editor initialized above)
+        const showSlicesCheckbox = document.getElementById('showSlices');
+        const showTestsCheckbox = document.getElementById('showTests');
+        const showTypesCheckbox = document.getElementById('showTypes');
+        const showSwimlanesCheckbox = document.getElementById('showSwimlanes');
+
+        showSlicesCheckbox.addEventListener('change', () => {
+            toggleSliceBorders(showSlicesCheckbox.checked);
+        });
+
+        showTestsCheckbox.addEventListener('change', () => {
+            toggleTests(showTestsCheckbox.checked);
+        });
+
+        showTypesCheckbox.addEventListener('change', () => {
+            toggleTypes(showTypesCheckbox.checked);
+        });
+
+        showSwimlanesCheckbox.addEventListener('change', () => {
+            // Re-render the entire diagram when swimlanes toggle changes
+            if (currentJson) {
+                renderDiagram(JSON.stringify(currentJson, null, 2));
+            }
+        });
 
 
 ﻿        const codeEditor = document.getElementById('codeEditor');
@@ -3450,26 +3534,6 @@
             }
         });
 
-        // Checkbox handlers
-        showSlicesCheckbox.addEventListener('change', () => {
-            toggleSliceBorders(showSlicesCheckbox.checked);
-        });
-
-        showTestsCheckbox.addEventListener('change', () => {
-            toggleTests(showTestsCheckbox.checked);
-        });
-
-        showTypesCheckbox.addEventListener('change', () => {
-            toggleTypes(showTypesCheckbox.checked);
-        });
-
-        showSwimlanesCheckbox.addEventListener('change', () => {
-            // Re-render the entire diagram when swimlanes toggle changes
-            if (currentJson) {
-                renderDiagram(JSON.stringify(currentJson, null, 2));
-            }
-        });
-
         // Zoom and pan state
         let currentZoom = 1;
         let isDragging = false;
@@ -3498,6 +3562,11 @@
         }
 
         // Zoom button handlers
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const zoomResetBtn = document.getElementById('zoomResetBtn');
+        const zoomLevelDisplay = document.getElementById('zoomLevel');
+
         zoomInBtn.addEventListener('click', zoomIn);
         zoomOutBtn.addEventListener('click', zoomOut);
         zoomResetBtn.addEventListener('click', resetZoom);
@@ -4898,70 +4967,6 @@
         
         // Load saved JSON from localStorage
         loadJsonFromLocalStorage();
-
-        // File upload handler
-        fileInput.addEventListener('change', (event) => {
-            console.log('File input changed');
-            const file = event.target.files[0];
-            console.log('File:', file);
-            if (file) {
-                currentFileName = file.name;
-                fileName.textContent = file.name;
-                
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const jsonContent = e.target.result;
-                        console.log('File loaded, length:', jsonContent.length);
-                        currentJson = JSON.parse(jsonContent);
-                        console.log('JSON parsed successfully, keys:', Object.keys(currentJson));
-                        collapsedLines.clear();
-                        
-                        // Clear history and push initial state
-                        historyManager.clear();
-                        historyManager.pushState(currentJson);
-                        
-                        // Update ACE Editor content
-                        if (codeMirrorView && codeMirrorView.setValue) {
-                            codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
-                        }
-                        
-                        // Update Tree view (renderCodeEditor is now a no-op when editor is active)
-                        renderTreeView();
-                        console.log('Editors updated');
-                        renderDiagram(jsonContent);
-                        console.log('Diagram rendered');
-                        
-                        // Save to localStorage
-                        saveJsonToLocalStorage();
-                    } catch (error) {
-                        console.error('Error loading file:', error);
-                        showError('Invalid JSON file: ' + error.message);
-                    }
-                };
-                reader.onerror = (e) => {
-                    console.error('FileReader error:', e);
-                    showError('Error reading file');
-                };
-                reader.readAsText(file);
-            }
-        });
-
-        // New button handler
-        const newBtn = document.getElementById('newBtn');
-        newBtn.addEventListener('click', () => {
-            if (currentJson) {
-                const confirmed = confirm('Create a new document? Any unsaved changes will be lost.');
-                if (!confirmed) return;
-            }
-            createNew();
-        });
-
-        // Save button handler
-        const saveBtn = document.getElementById('saveBtn');
-        saveBtn.addEventListener('click', () => {
-            saveToFile();
-        });
 
     </script>
 </body>

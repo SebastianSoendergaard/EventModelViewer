@@ -334,23 +334,3 @@
                 historyManager.redo();
             }
         });
-
-        // Checkbox handlers
-        showSlicesCheckbox.addEventListener('change', () => {
-            toggleSliceBorders(showSlicesCheckbox.checked);
-        });
-
-        showTestsCheckbox.addEventListener('change', () => {
-            toggleTests(showTestsCheckbox.checked);
-        });
-
-        showTypesCheckbox.addEventListener('change', () => {
-            toggleTypes(showTypesCheckbox.checked);
-        });
-
-        showSwimlanesCheckbox.addEventListener('change', () => {
-            // Re-render the entire diagram when swimlanes toggle changes
-            if (currentJson) {
-                renderDiagram(JSON.stringify(currentJson, null, 2));
-            }
-        });

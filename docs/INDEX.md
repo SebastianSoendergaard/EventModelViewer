@@ -52,6 +52,7 @@ EventModelViewer/
 
 | Document | Purpose | Key Topics |
 |----------|---------|------------|
+| [Modular Architecture](modular-architecture-learnings.md) | **Build system & modules** | **Module hierarchy, build script, TDZ, cross-module refs** |
 | [Code Editor Selection](code-editor-selection-learnings.md) | **Editor implementation** | **CodeMirror vs ACE, CDN issues, module loading** |
 | [Resizer Implementation](resizer-implementation-learnings.md) | **Resizable panels** | **Drag resize, collapse panels, state persistence** |
 | [Persistence Implementation](persistence-implementation-learnings.md) | **LocalStorage & file ops** | **Auto-save, New/Save buttons, resizer persistence** |
@@ -135,6 +136,7 @@ EventModelViewer/
 
 ### Coverage
 
+| Modular Architecture | ✅ | **Modular Architecture** |
 | Topic | Covered | Files |
 |-------|---------|-------|
 | User Guide | ✅ | README.md, Quick Reference |
