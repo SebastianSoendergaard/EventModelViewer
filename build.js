@@ -5,6 +5,9 @@ function readFile(filePath) {
     return fs.readFileSync(path.join(__dirname, filePath), 'utf8');
 }
 
+// Event bus (must be first JS in the bundle)
+const eventBusJs = readFile('src/event-bus/event-bus.js');
+
 // Toolbar sub-modules
 const fileButtonsHtml = readFile('src/toolbar/file-buttons/file-buttons.html');
 const fileButtonsCss  = readFile('src/toolbar/file-buttons/file-buttons.css');
@@ -76,7 +79,7 @@ result = result.replace('    <!-- TOOLBAR_HTML -->', toolbarHtml.trimEnd());
 result = result.replace('        <!-- RESIZER_HTML -->', resizerHtml.trimEnd());
 result = result.replace('        /* TOOLBAR_CSS */', combinedToolbarCss);
 result = result.replace('        /* RESIZER_CSS */', combinedResizerCss);
-result = result.replace('        // TOOLBAR_JS', combinedToolbarJs);
+result = result.replace('        // TOOLBAR_JS', eventBusJs.trimEnd() + '\n\n' + combinedToolbarJs);
 result = result.replace('        // RESIZER_JS', combinedResizerJs);
 
 fs.writeFileSync(path.join(__dirname, 'event-model-viewer.html'), result, { encoding: 'utf8' });

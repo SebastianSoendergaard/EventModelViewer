@@ -8,6 +8,32 @@
         // CodeMirror editor instance
         let codeMirrorView = null;
 
+        // Local JSON state
+        let _codeViewJson = null;
+
+        // Subscribe to events
+        EventBus.on(Events.FILE_LOADED, ({ json }) => {
+            _codeViewJson = json;
+            collapsedLines.clear();
+            if (codeMirrorView && codeMirrorView.setValue) {
+                codeMirrorView.setValue(json ? JSON.stringify(json, null, 2) : '', -1);
+            }
+        });
+
+        EventBus.on(Events.JSON_CHANGED, ({ json, source }) => {
+            if (source === 'code') return; // Don't update from our own edits
+            _codeViewJson = json;
+            if (codeMirrorView && codeMirrorView.setValue) {
+                codeMirrorView.setValue(JSON.stringify(json, null, 2), -1);
+            }
+        });
+
+        EventBus.on(Events.EDITOR_RESIZED, () => {
+            if (codeMirrorView && codeMirrorView.resize) {
+                codeMirrorView.resize();
+            }
+        });
+
         function parseJsonToLines(json) {
             const lines = [];
             const text = JSON.stringify(json, null, 2);
@@ -262,7 +288,7 @@
                 });
                 
                 // Set initial content
-                const initialContent = currentJson ? JSON.stringify(currentJson, null, 2) : '// No JSON loaded. Upload a file to start.';
+                const initialContent = _codeViewJson ? JSON.stringify(_codeViewJson, null, 2) : '// No JSON loaded. Upload a file to start.';
                 editor.setValue(initialContent, -1); // -1 moves cursor to start
                 
                 // Enable code folding
@@ -421,16 +447,9 @@
                 // ACE uses getValue() instead of state.doc.toString()
                 const content = codeMirrorView.getValue();
                 const parsed = JSON.parse(content);
-                currentJson = parsed;
+                _codeViewJson = parsed;
                 
-                // Update history
-                historyManager.pushState(currentJson);
-                
-                // Rebuild tree view
-                renderTreeView();
-                
-                // Update diagram
-                renderDiagram(content);
+                EventBus.emit(Events.JSON_CHANGED, { json: parsed, source: 'code' });
                 
                 // Clear any error messages
                 const errorMsg = document.querySelector('.json-error-message');
@@ -460,12 +479,12 @@
                 return; // CodeMirror handles the Code tab now
             }
             
-            if (!currentJson) {
+            if (!_codeViewJson) {
                 codeEditor.innerHTML = '<div style="color: #999; padding: 1rem;">No JSON loaded. Upload a file to start.</div>';
                 return;
             }
 
-            jsonLines = parseJsonToLines(currentJson);
+            jsonLines = parseJsonToLines(_codeViewJson);
             const html = [];
             let skipUntil = -1;
 
@@ -648,24 +667,10 @@
                     const parsed = JSON.parse(jsonText);
                     console.log('updateJsonFromEditor: JSON parsed successfully');
                     
-                    currentJson = parsed;
+                    _codeViewJson = parsed;
                     
-                    // Rebuild tree view
-                    console.log('updateJsonFromEditor: Rebuilding tree view...');
-                    if (currentJson) {
-                        treeData = buildTreeData(currentJson);
-                        renderTreeView();
-                        console.log('updateJsonFromEditor: Tree view rebuilt');
-                    }
-                    
-                    // Update diagram
-                    console.log('updateJsonFromEditor: Updating diagram...');
-                    updateDiagram();
-                    console.log('updateJsonFromEditor: Diagram updated');
-                    
-                    // Push to history after successful parse
-                    historyManager.pushState(currentJson);
-                    console.log('updateJsonFromEditor: State pushed to history');
+                    // Emit JSON changed event
+                    EventBus.emit(Events.JSON_CHANGED, { json: parsed, source: 'code' });
                 } catch (error) {
                     // Invalid JSON, don't update
                     console.log('updateJsonFromEditor: Invalid JSON, not updating -', error.message);

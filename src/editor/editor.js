@@ -2,6 +2,24 @@
         const codeView = document.getElementById('codeView');
         const treeView = document.getElementById('treeView');
 
+        // Local JSON state for editor module
+        let _editorJson = null;
+
+        // Subscribe to FILE_LOADED: clear history and push initial state
+        EventBus.on(Events.FILE_LOADED, ({ json }) => {
+            _editorJson = json;
+            historyManager.clear();
+            if (json) historyManager.pushState(json);
+        });
+
+        // Subscribe to JSON_CHANGED: push to history (unless it came from history restore)
+        EventBus.on(Events.JSON_CHANGED, ({ json, source }) => {
+            _editorJson = json;
+            if (source !== 'history') {
+                historyManager.pushState(json);
+            }
+        });
+
         // History Manager for Undo/Redo
         const historyManager = {
             states: [],
@@ -61,16 +79,11 @@
                 this.isRestoring = true;
                 
                 // Deep clone to avoid reference issues
-                currentJson = JSON.parse(JSON.stringify(json));
+                const restoredJson = JSON.parse(JSON.stringify(json));
+                _editorJson = restoredJson;
                 
-                // Update ACE Editor if exists
-                if (codeMirrorView && codeMirrorView.setValue) {
-                    codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
-                }
-                
-                // Update tree view only
-                renderTreeView();
-                updateDiagram();
+                // Notify all modules via event bus
+                EventBus.emit(Events.JSON_CHANGED, { json: restoredJson, source: 'history' });
                 
                 this.isRestoring = false;
             },
@@ -122,9 +135,9 @@
                     treeView.classList.remove('active');
                     
                     // Refresh ACE Editor content if currentJson changed in Tree view
-                    if (codeMirrorView && currentJson) {
+                    if (codeMirrorView && _editorJson) {
                         const currentContent = codeMirrorView.getValue();
-                        const expectedContent = JSON.stringify(currentJson, null, 2);
+                        const expectedContent = JSON.stringify(_editorJson, null, 2);
                         if (currentContent !== expectedContent) {
                             codeMirrorView.setValue(expectedContent, -1);
                         }
@@ -232,30 +245,15 @@
 
         // Function to add a slice to the model
         function addSliceToModel(sliceTemplate) {
-            if (!currentJson || !currentJson.slices) {
+            if (!_editorJson || !_editorJson.slices) {
                 alert('No event model loaded. Please load a JSON file first.');
                 return;
             }
 
             // Add the new slice to the end of the slices array
-            currentJson.slices.push(sliceTemplate);
+            _editorJson.slices.push(sliceTemplate);
 
-            // Update code editor
-            if (codeMirrorView && codeMirrorView.setValue) {
-                codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
-            }
-
-            // Update tree view
-            renderTreeView();
-
-            // Update diagram
-            renderDiagram(JSON.stringify(currentJson));
-
-            // Save to history
-            historyManager.pushState(currentJson);
-
-            // Save to localStorage
-            saveJsonToLocalStorage();
+            EventBus.emit(Events.JSON_CHANGED, { json: _editorJson, source: 'addslice' });
         }
 
         // Show add slice context menu

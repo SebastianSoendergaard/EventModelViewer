@@ -90,9 +90,8 @@
             viewerCollapseBtn.textContent = viewerCollapsed ? '◀' : '▶';
             
             // Resize ACE editor if it exists
-            if (codeMirrorView && codeMirrorView.resize) {
-                setTimeout(() => codeMirrorView.resize(), 100);
-            }
+            EventBus.emit(Events.EDITOR_RESIZED);
+            setTimeout(() => EventBus.emit(Events.EDITOR_RESIZED), 100);
         }
 
         // Resizer functionality
@@ -156,10 +155,8 @@
                 // Save the new widths to localStorage
                 saveLayoutState();
                 
-                // Resize ACE editor if it exists
-                if (codeMirrorView && codeMirrorView.resize) {
-                    codeMirrorView.resize();
-                }
+                // Resize ACE editor
+                EventBus.emit(Events.EDITOR_RESIZED);
             }
         });
 

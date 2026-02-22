@@ -1,13 +1,34 @@
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName');
 
+        // Local state (no longer shared globals)
+        let _currentJson = null;
+        let _currentFileName = null;
+
+        // Subscribe to JSON_CHANGED to keep local state and auto-save
+        EventBus.on(Events.JSON_CHANGED, ({ json }) => {
+            _currentJson = json;
+            _saveJsonToLocalStorage(json, _currentFileName);
+        });
+
+        // Subscribe to FILE_LOADED to keep local filename state in sync
+        EventBus.on(Events.FILE_LOADED, ({ json, fileName: name }) => {
+            _currentJson = json;
+            _currentFileName = name;
+        });
+
         // LocalStorage functions for JSON persistence
         function saveJsonToLocalStorage() {
+            _saveJsonToLocalStorage(_currentJson, _currentFileName);
+        }
+
+        function _saveJsonToLocalStorage(json, name) {
+            if (!json) return;
             try {
-                const jsonString = JSON.stringify(currentJson);
+                const jsonString = JSON.stringify(json);
                 localStorage.setItem('eventModelJson', jsonString);
-                if (currentFileName) {
-                    localStorage.setItem('eventModelFileName', currentFileName);
+                if (name) {
+                    localStorage.setItem('eventModelFileName', name);
                 }
                 console.log('JSON auto-saved to localStorage');
             } catch (error) {
@@ -24,31 +45,13 @@
                 const saved = localStorage.getItem('eventModelJson');
                 if (saved) {
                     const json = JSON.parse(saved);
-                    currentJson = json;
                     
                     // Restore filename if available
                     const savedFileName = localStorage.getItem('eventModelFileName');
-                    if (savedFileName) {
-                        currentFileName = savedFileName;
-                        fileName.textContent = savedFileName;
-                    } else {
-                        fileName.textContent = 'Restored from previous session';
-                    }
-                    
-                    // Initialize history
-                    historyManager.clear();
-                    historyManager.pushState(currentJson);
-                    
-                    // Update editor
-                    if (codeMirrorView && codeMirrorView.setValue) {
-                        codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
-                    }
-                    
-                    // Update tree view
-                    renderTreeView();
-                    
-                    // Render diagram
-                    renderDiagram(JSON.stringify(currentJson));
+                    const displayName = savedFileName || 'Restored from previous session';
+                    fileName.textContent = displayName;
+
+                    EventBus.emit(Events.FILE_LOADED, { json, fileName: savedFileName || null });
                     
                     console.log('JSON loaded from localStorage');
                     return true;
@@ -74,10 +77,6 @@
 
         // New document function
         function createNew() {
-            // Clear current data
-            currentJson = null;
-            currentFileName = null;
-            
             // Clear localStorage
             clearLocalStorage();
             
@@ -85,56 +84,41 @@
             fileInput.value = '';
             fileName.textContent = 'No file selected';
             
-            // Clear history
-            historyManager.clear();
-            
-            // Clear editors
-            if (codeMirrorView && codeMirrorView.setValue) {
-                codeMirrorView.setValue('', -1);
-            }
-            
-            // Clear tree view
-            renderTreeView();
-            
-            // Clear diagram
-            const diagramEl = document.getElementById('diagram');
-            diagramEl.innerHTML = '<div class="placeholder">Create or load an event model to visualize</div>';
+            EventBus.emit(Events.FILE_LOADED, { json: null, fileName: null });
             
             console.log('New document created');
         }
 
         // Save to file function
         function saveToFile() {
-            if (!currentJson) {
+            if (!_currentJson) {
                 alert('No content to save');
                 return;
             }
             
             // Determine filename
-            let filename = 'event-model.json';
+            let fname = 'event-model.json';
             
-            if (currentFileName) {
-                // Use original filename if available
-                filename = currentFileName;
-            } else if (currentJson.title) {
-                // Derive from title field
-                filename = sanitizeFilename(currentJson.title) + '.json';
+            if (_currentFileName) {
+                fname = _currentFileName;
+            } else if (_currentJson.title) {
+                fname = sanitizeFilename(_currentJson.title) + '.json';
             }
             
             // Create blob and download
-            const jsonString = JSON.stringify(currentJson, null, 2);
+            const jsonString = JSON.stringify(_currentJson, null, 2);
             const blob = new Blob([jsonString], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             
             const a = document.createElement('a');
             a.href = url;
-            a.download = filename;
+            a.download = fname;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
-            console.log('File saved as:', filename);
+            console.log('File saved as:', fname);
         }
 
         // Sanitize filename helper
@@ -152,7 +136,7 @@
             const file = event.target.files[0];
             console.log('File:', file);
             if (file) {
-                currentFileName = file.name;
+                _currentFileName = file.name;
                 fileName.textContent = file.name;
                 
                 const reader = new FileReader();
@@ -160,35 +144,23 @@
                     try {
                         const jsonContent = e.target.result;
                         console.log('File loaded, length:', jsonContent.length);
-                        currentJson = JSON.parse(jsonContent);
-                        console.log('JSON parsed successfully, keys:', Object.keys(currentJson));
-                        collapsedLines.clear();
+                        const json = JSON.parse(jsonContent);
+                        console.log('JSON parsed successfully, keys:', Object.keys(json));
                         
-                        // Clear history and push initial state
-                        historyManager.clear();
-                        historyManager.pushState(currentJson);
+                        EventBus.emit(Events.FILE_LOADED, { json, fileName: file.name });
                         
-                        // Update ACE Editor content
-                        if (codeMirrorView && codeMirrorView.setValue) {
-                            codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
-                        }
-                        
-                        // Update Tree view (renderCodeEditor is now a no-op when editor is active)
-                        renderTreeView();
-                        console.log('Editors updated');
-                        renderDiagram(jsonContent);
-                        console.log('Diagram rendered');
-                        
-                        // Save to localStorage
-                        saveJsonToLocalStorage();
+                        console.log('File loaded via EventBus');
                     } catch (error) {
                         console.error('Error loading file:', error);
-                        showError('Invalid JSON file: ' + error.message);
+                        EventBus.emit(Events.FILE_LOADED, { json: null, fileName: null });
+                        document.getElementById('diagram').innerHTML =
+                            `<div class="error-message">Invalid JSON file: ${error.message}</div>`;
                     }
                 };
                 reader.onerror = (e) => {
                     console.error('FileReader error:', e);
-                    showError('Error reading file');
+                    document.getElementById('diagram').innerHTML =
+                        '<div class="error-message">Error reading file</div>';
                 };
                 reader.readAsText(file);
             }
@@ -197,7 +169,7 @@
         // New button handler
         const newBtn = document.getElementById('newBtn');
         newBtn.addEventListener('click', () => {
-            if (currentJson) {
+            if (_currentJson) {
                 const confirmed = confirm('Create a new document? Any unsaved changes will be lost.');
                 if (!confirmed) return;
             }

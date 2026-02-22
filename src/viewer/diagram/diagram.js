@@ -2,6 +2,39 @@
         const diagramContainer = document.getElementById('diagramContainer');
         const diagramWrapper = document.getElementById('diagramWrapper');
 
+        // Local state — updated via EventBus
+        let _diagramJson = null;
+        const _filters = { slices: true, tests: true, types: true, swimlanes: true };
+
+        // Subscribe to events
+        EventBus.on(Events.FILE_LOADED, ({ json }) => {
+            _diagramJson = json;
+            if (json) {
+                renderDiagram(JSON.stringify(json));
+            } else {
+                diagramElement.innerHTML = '<div class="placeholder">Create or load an event model to visualize</div>';
+            }
+        });
+
+        EventBus.on(Events.JSON_CHANGED, ({ json }) => {
+            _diagramJson = json;
+            renderDiagram(JSON.stringify(json));
+        });
+
+        EventBus.on(Events.FILTER_TOGGLED, ({ type, checked }) => {
+            _filters[type] = checked;
+            if (type === 'swimlanes') {
+                // Swimlanes require full re-render
+                if (_diagramJson) renderDiagram(JSON.stringify(_diagramJson));
+            } else if (type === 'slices') {
+                toggleSliceBorders(checked);
+            } else if (type === 'tests') {
+                toggleTests(checked);
+            } else if (type === 'types') {
+                toggleTypes(checked);
+            }
+        });
+
         // Mouse drag to pan
         diagramContainer.addEventListener('mousedown', (e) => {
             // Ignore if clicking on zoom controls or if resizing
@@ -90,10 +123,10 @@
                 diagramElement.innerHTML = html;
                 drawAllArrows();
                 
-                // Apply current checkbox states
-                toggleSliceBorders(showSlicesCheckbox.checked);
-                toggleTests(showTestsCheckbox.checked);
-                toggleTypes(showTypesCheckbox.checked);
+                // Apply current filter states
+                toggleSliceBorders(_filters.slices);
+                toggleTests(_filters.tests);
+                toggleTypes(_filters.types);
             } catch (error) {
                 showError('Error rendering diagram: ' + error.message);
             }
@@ -671,7 +704,7 @@
                 return '<div class="info-message">Invalid event model: slices array is required</div>';
             }
 
-            const showSwimlanes = showSwimlanesCheckbox ? showSwimlanesCheckbox.checked : true;
+            const showSwimlanes = _filters.swimlanes;
             
             // Discover swimlanes
             const { triggerLanes, eventLanes } = discoverSwimlanes(data, showSwimlanes);

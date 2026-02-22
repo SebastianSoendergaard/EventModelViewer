@@ -1,0 +1,169 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "Event Model Viewer" [level=1] [ref=e7]
+  - generic [ref=e8]:
+    - button "📄 New" [ref=e9] [cursor=pointer]
+    - generic [ref=e11] [cursor=pointer]: 📁 Open
+    - button "💾 Save" [ref=e12] [cursor=pointer]
+    - generic [ref=e13]: simple-event-model.json
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - checkbox "Show slices" [checked] [ref=e16] [cursor=pointer]
+        - generic [ref=e17] [cursor=pointer]: Show slices
+      - generic [ref=e18]:
+        - checkbox "Show tests" [checked] [ref=e19] [cursor=pointer]
+        - generic [ref=e20] [cursor=pointer]: Show tests
+      - generic [ref=e21]:
+        - checkbox "Show types" [checked] [ref=e22] [cursor=pointer]
+        - generic [ref=e23] [cursor=pointer]: Show types
+      - generic [ref=e24]:
+        - checkbox "Show swimlanes" [checked] [ref=e25] [cursor=pointer]
+        - generic [ref=e26] [cursor=pointer]: Show swimlanes
+  - generic [ref=e27]:
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]: Editor
+        - button "◀" [ref=e31] [cursor=pointer]
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - button "Code" [ref=e34] [cursor=pointer]
+          - button "Tree" [ref=e35] [cursor=pointer]
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - button "▼" [ref=e38] [cursor=pointer]
+            - button "▶" [ref=e39] [cursor=pointer]
+            - button "↶" [disabled] [ref=e40]
+            - button "↷" [disabled] [ref=e41]
+            - button "+" [ref=e42] [cursor=pointer]
+          - generic [ref=e43]:
+            - textbox [ref=e44]
+            - generic [ref=e46]:
+              - generic [ref=e47]:
+                - text: "1"
+                - button [expanded] [ref=e48] [cursor=pointer]
+              - generic [ref=e49]: "2"
+              - generic [ref=e50]:
+                - text: "3"
+                - button [expanded] [ref=e51] [cursor=pointer]
+              - generic [ref=e52]:
+                - text: "4"
+                - button [expanded] [ref=e53] [cursor=pointer]
+              - generic [ref=e54]: "5"
+              - generic [ref=e55]: "6"
+              - generic [ref=e56]:
+                - text: "7"
+                - button [expanded] [ref=e57] [cursor=pointer]
+              - generic [ref=e58]: "8"
+              - generic [ref=e59]: "9"
+              - generic [ref=e60]:
+                - text: "10"
+                - button [expanded] [ref=e61] [cursor=pointer]
+              - generic [ref=e62]: "11"
+              - generic [ref=e63]: "12"
+              - generic [ref=e64]: "13"
+              - generic [ref=e65]:
+                - text: "14"
+                - button [expanded] [ref=e66] [cursor=pointer]
+              - generic [ref=e67]: "15"
+              - generic [ref=e68]:
+                - text: "16"
+                - button [expanded] [ref=e69] [cursor=pointer]
+              - generic [ref=e70]:
+                - text: "17"
+                - button [expanded] [ref=e71] [cursor=pointer]
+              - generic [ref=e72]: "18"
+              - generic [ref=e73]: "19"
+              - generic [ref=e74]: "20"
+            - generic [ref=e76]:
+              - generic:
+                - generic:
+                  - generic: "{"
+                - generic:
+                  - generic: "\"title\": \"Simple Event Model\","
+                - generic:
+                  - generic: "\"slices\": ["
+                - generic:
+                  - generic: "{"
+                - generic:
+                  - generic: "\"id\": \"1\","
+                - generic:
+                  - generic: "\"name\": \"Create Order\","
+                - generic:
+                  - generic: "\"trigger\": {"
+                - generic:
+                  - generic: "\"role\": \"User\","
+                - generic:
+                  - generic: "\"type\": \"input-ui\","
+                - generic:
+                  - generic: "\"buttons\": ["
+                - generic:
+                  - generic: "\"Create\""
+                - generic:
+                  - generic: "]"
+                - generic:
+                  - generic: "},"
+                - generic:
+                  - generic: "\"command\": {"
+                - generic:
+                  - generic: "\"name\": \"Create Order\","
+                - generic:
+                  - generic: "\"properties\": ["
+                - generic:
+                  - generic: "{"
+                - generic:
+                  - generic: "\"name\": \"OrderId\","
+                - generic:
+                  - generic: "\"type\": \"Guid\""
+                - generic:
+                  - generic: "},"
+        - text: ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮
+    - generic [ref=e80]:
+      - generic [ref=e81]:
+        - button "▶" [ref=e82] [cursor=pointer]
+        - generic [ref=e83]: Viewer
+      - generic [ref=e87]:
+        - generic [ref=e88]: Simple Event Model
+        - generic [ref=e89]:
+          - generic [ref=e90]: Create Order
+          - generic [ref=e91]: View Order
+          - generic [ref=e92]: User
+          - generic [ref=e95]: Tests
+          - generic [ref=e97]:
+            - generic [ref=e98]: User
+            - generic [ref=e99]: "Trigger: input-ui"
+            - generic [ref=e100]: "Buttons: Create"
+          - generic [ref=e102]:
+            - generic [ref=e103]: Create Order
+            - generic [ref=e104]:
+              - generic [ref=e105]: "OrderId: Guid"
+              - generic [ref=e106]: "CustomerId: Guid"
+          - generic [ref=e109]:
+            - generic [ref=e110]:
+              - generic [ref=e111]: "Given:"
+              - generic [ref=e112]: undefined
+            - generic [ref=e113]:
+              - generic [ref=e114]: "When:"
+              - generic [ref=e115]: undefined
+            - generic [ref=e116]:
+              - generic [ref=e117]: "Then:"
+              - generic [ref=e118]: undefined
+          - generic [ref=e120]:
+            - generic [ref=e121]: User
+            - generic [ref=e122]: "Trigger: list-ui"
+          - generic [ref=e124]:
+            - generic [ref=e125]: Order Details
+            - generic [ref=e126]:
+              - generic [ref=e127]: "OrderId: Guid"
+              - generic [ref=e128]: "Status: string"
+        - img
+      - generic [ref=e132]:
+        - button "+" [ref=e133] [cursor=pointer]
+        - generic [ref=e134]: 100%
+        - button "−" [ref=e135] [cursor=pointer]
+        - button "⊙" [ref=e136] [cursor=pointer]
+        - button "PNG" [ref=e138] [cursor=pointer]
+        - button "SVG" [ref=e139] [cursor=pointer]
+```

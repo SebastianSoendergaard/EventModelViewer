@@ -7,6 +7,21 @@
         let draggedNode = null;
         let dropTarget = null;
 
+        // Local JSON state
+        let _treeViewJson = null;
+
+        // Subscribe to events
+        EventBus.on(Events.FILE_LOADED, ({ json }) => {
+            _treeViewJson = json;
+            renderTreeView();
+        });
+
+        EventBus.on(Events.JSON_CHANGED, ({ json, source }) => {
+            if (source === 'tree') return; // Don't update from our own edits
+            _treeViewJson = json;
+            renderTreeView();
+        });
+
         // Context Menu State
         const treeContextMenu = document.getElementById('treeContextMenu');
         let contextMenuTargetNode = null;
@@ -164,7 +179,7 @@
 
         // Render the entire tree view
         function renderTreeView() {
-            if (!currentJson) {
+            if (!_treeViewJson) {
                 treeEditor.innerHTML = '<div style="color: #999; padding: 1rem;">No JSON loaded</div>';
                 return;
             }
@@ -172,7 +187,7 @@
             try {
                 // Reset counter and build tree
                 treeNodeIdCounter = 0;
-                treeData = buildTreeData(currentJson);
+                treeData = buildTreeData(_treeViewJson);
                 
                 // Render children of root directly (skip the root node itself)
                 let html = '<div class="tree-container">';
@@ -367,11 +382,7 @@
                 // Update JSON and re-render
                 rebuildJsonFromTree();
                 renderTreeView();
-                renderCodeEditor();
-                updateDiagram();
-                
-                // Push to history after successful drop
-                historyManager.pushState(currentJson);
+                EventBus.emit(Events.JSON_CHANGED, { json: _treeViewJson, source: 'tree' });
             } catch (error) {
                 console.error('Error during drop operation:', error);
                 renderTreeView();
@@ -513,7 +524,7 @@
                 }
             }
             
-            currentJson = nodeToJson(treeData);
+            _treeViewJson = nodeToJson(treeData);
         }
 
         // Context Menu Functions
@@ -635,11 +646,7 @@
             // Rebuild JSON and re-render
             rebuildJsonFromTree();
             renderTreeView();
-            renderCodeEditor();
-            updateDiagram();
-            
-            // Push to history after copy
-            historyManager.pushState(currentJson);
+            EventBus.emit(Events.JSON_CHANGED, { json: _treeViewJson, source: 'tree' });
             hideContextMenu();
         }
 
@@ -659,11 +666,7 @@
             // Rebuild JSON and re-render
             rebuildJsonFromTree();
             renderTreeView();
-            renderCodeEditor();
-            updateDiagram();
-            
-            // Push to history after delete
-            historyManager.pushState(currentJson);
+            EventBus.emit(Events.JSON_CHANGED, { json: _treeViewJson, source: 'tree' });
             hideContextMenu();
         }
 
@@ -777,11 +780,7 @@
                 // Rebuild JSON and re-render
                 rebuildJsonFromTree();
                 renderTreeView();
-                renderCodeEditor();
-                updateDiagram();
-                
-                // Push to history after inline edit
-                historyManager.pushState(currentJson);
+                EventBus.emit(Events.JSON_CHANGED, { json: _treeViewJson, source: 'tree' });
             };
             
             const cancelEdit = () => {

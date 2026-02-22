@@ -136,14 +136,12 @@
         const viewerCollapseBtn = document.getElementById('viewerCollapseBtn');
 
         // Current JSON data
-        let currentJson = null;
-        let currentFileName = null; // Track loaded filename for save functionality
+        // NOTE: currentJson is no longer a global. Each module maintains its own copy.
+        // JSON is passed via EventBus events (Events.FILE_LOADED, Events.JSON_CHANGED).
+
         function updateDiagram() {
-            if (currentJson) {
-                renderDiagram(JSON.stringify(currentJson));
-                // Auto-save to localStorage
-                saveJsonToLocalStorage();
-            }
+            // updateDiagram() is kept for backward-compat; prefer EventBus.emit(Events.JSON_CHANGED)
+            // No-op: diagram.js now subscribes to FILE_LOADED and JSON_CHANGED events
         }
 
         // TOOLBAR_JS
@@ -154,8 +152,6 @@
 
         // Initialize editor
         console.log('Initializing editor...');
-        console.log('codeEditor element:', codeEditor);
-        console.log('currentJson:', currentJson);
         
         // Load saved layout state from localStorage
         loadLayoutState();

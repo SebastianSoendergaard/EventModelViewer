@@ -4,20 +4,17 @@
         const showSwimlanesCheckbox = document.getElementById('showSwimlanes');
 
         showSlicesCheckbox.addEventListener('change', () => {
-            toggleSliceBorders(showSlicesCheckbox.checked);
+            EventBus.emit(Events.FILTER_TOGGLED, { type: 'slices', checked: showSlicesCheckbox.checked });
         });
 
         showTestsCheckbox.addEventListener('change', () => {
-            toggleTests(showTestsCheckbox.checked);
+            EventBus.emit(Events.FILTER_TOGGLED, { type: 'tests', checked: showTestsCheckbox.checked });
         });
 
         showTypesCheckbox.addEventListener('change', () => {
-            toggleTypes(showTypesCheckbox.checked);
+            EventBus.emit(Events.FILTER_TOGGLED, { type: 'types', checked: showTypesCheckbox.checked });
         });
 
         showSwimlanesCheckbox.addEventListener('change', () => {
-            // Re-render the entire diagram when swimlanes toggle changes
-            if (currentJson) {
-                renderDiagram(JSON.stringify(currentJson, null, 2));
-            }
+            EventBus.emit(Events.FILTER_TOGGLED, { type: 'swimlanes', checked: showSwimlanesCheckbox.checked });
         });

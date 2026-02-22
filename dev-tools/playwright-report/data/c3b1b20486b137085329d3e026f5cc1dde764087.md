@@ -1,0 +1,63 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "Event Model Viewer" [level=1] [ref=e7]
+  - generic [ref=e8]:
+    - button "📄 New" [ref=e9] [cursor=pointer]
+    - generic [ref=e11] [cursor=pointer]: 📁 Open
+    - button "💾 Save" [ref=e12] [cursor=pointer]
+    - generic [ref=e13]: No file selected
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - checkbox "Show slices" [checked] [ref=e16] [cursor=pointer]
+        - generic [ref=e17] [cursor=pointer]: Show slices
+      - generic [ref=e18]:
+        - checkbox "Show tests" [checked] [ref=e19] [cursor=pointer]
+        - generic [ref=e20] [cursor=pointer]: Show tests
+      - generic [ref=e21]:
+        - checkbox "Show types" [checked] [ref=e22] [cursor=pointer]
+        - generic [ref=e23] [cursor=pointer]: Show types
+      - generic [ref=e24]:
+        - checkbox "Show swimlanes" [checked] [ref=e25] [cursor=pointer]
+        - generic [ref=e26] [cursor=pointer]: Show swimlanes
+  - generic [ref=e27]:
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]: Editor
+        - button "◀" [ref=e31] [cursor=pointer]
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - button "Code" [ref=e34] [cursor=pointer]
+          - button "Tree" [ref=e35] [cursor=pointer]
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - button "▼" [ref=e38] [cursor=pointer]
+            - button "▶" [ref=e39] [cursor=pointer]
+            - button "↶" [disabled] [ref=e40]
+            - button "↷" [disabled] [ref=e41]
+            - button "+" [ref=e42] [cursor=pointer]
+          - generic [ref=e43]:
+            - textbox [ref=e44]
+            - generic [ref=e47]:
+              - text: "1"
+              - button [ref=e48]
+            - generic [ref=e51]:
+              - generic:
+                - generic:
+                  - generic: // No JSON loaded. Upload a file to
+                  - generic: start.
+    - generic [ref=e53]:
+      - generic [ref=e54]:
+        - button "▶" [ref=e55] [cursor=pointer]
+        - generic [ref=e56]: Viewer
+      - generic [ref=e60]: Upload a JSON file to visualize the diagram
+      - generic [ref=e61]:
+        - button "+" [ref=e62] [cursor=pointer]
+        - generic [ref=e63]: 100%
+        - button "−" [ref=e64] [cursor=pointer]
+        - button "⊙" [ref=e65] [cursor=pointer]
+        - button "PNG" [ref=e67] [cursor=pointer]
+        - button "SVG" [ref=e68] [cursor=pointer]
+```
