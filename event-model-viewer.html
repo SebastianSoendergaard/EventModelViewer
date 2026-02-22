@@ -16,7 +16,6 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
 
         header {
@@ -761,7 +760,6 @@
         .resizer.resizing {
             background: #3498db;
         }
-
         .diagram-panel {
             width: 75%;
             display: flex;
@@ -1400,8 +1398,6 @@
     <script>
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName');
-        const codeEditor = document.getElementById('codeEditor');
-        const treeEditor = document.getElementById('treeEditor');
         const diagramElement = document.getElementById('diagram');
         const diagramContainer = document.getElementById('diagramContainer');
         const diagramWrapper = document.getElementById('diagramWrapper');
@@ -1409,8 +1405,6 @@
         const diagramPanel = document.getElementById('diagramPanel');
         const panelCollapseBtn = document.getElementById('panelCollapseBtn');
         const viewerCollapseBtn = document.getElementById('viewerCollapseBtn');
-        const codeCollapseBtn = document.getElementById('codeCollapseBtn');
-        const codeExpandBtn = document.getElementById('codeExpandBtn');
         const showSlicesCheckbox = document.getElementById('showSlices');
         const showTestsCheckbox = document.getElementById('showTests');
         const showTypesCheckbox = document.getElementById('showTypes');
@@ -1420,17 +1414,381 @@
         const zoomOutBtn = document.getElementById('zoomOutBtn');
         const zoomResetBtn = document.getElementById('zoomResetBtn');
         const zoomLevelDisplay = document.getElementById('zoomLevel');
+
+        // Current JSON data
+        let currentJson = null;
+        let currentFileName = null; // Track loaded filename for save functionality
+        function updateDiagram() {
+            if (currentJson) {
+                renderDiagram(JSON.stringify(currentJson));
+                // Auto-save to localStorage
+                saveJsonToLocalStorage();
+            }
+        }
+
+        // LocalStorage functions for JSON persistence
+        function saveJsonToLocalStorage() {
+            try {
+                const jsonString = JSON.stringify(currentJson);
+                localStorage.setItem('eventModelJson', jsonString);
+                if (currentFileName) {
+                    localStorage.setItem('eventModelFileName', currentFileName);
+                }
+                console.log('JSON auto-saved to localStorage');
+            } catch (error) {
+                if (error.name === 'QuotaExceededError') {
+                    console.warn('localStorage quota exceeded, could not save JSON');
+                } else {
+                    console.warn('Failed to save JSON to localStorage:', error);
+                }
+            }
+        }
+
+        function loadJsonFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem('eventModelJson');
+                if (saved) {
+                    const json = JSON.parse(saved);
+                    currentJson = json;
+                    
+                    // Restore filename if available
+                    const savedFileName = localStorage.getItem('eventModelFileName');
+                    if (savedFileName) {
+                        currentFileName = savedFileName;
+                        fileName.textContent = savedFileName;
+                    } else {
+                        fileName.textContent = 'Restored from previous session';
+                    }
+                    
+                    // Initialize history
+                    historyManager.clear();
+                    historyManager.pushState(currentJson);
+                    
+                    // Update editor
+                    if (codeMirrorView && codeMirrorView.setValue) {
+                        codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
+                    }
+                    
+                    // Update tree view
+                    renderTreeView();
+                    
+                    // Render diagram
+                    renderDiagram(JSON.stringify(currentJson));
+                    
+                    console.log('JSON loaded from localStorage');
+                    return true;
+                }
+            } catch (error) {
+                console.warn('Failed to load JSON from localStorage:', error);
+                // Clear corrupted data
+                localStorage.removeItem('eventModelJson');
+                localStorage.removeItem('eventModelFileName');
+            }
+            return false;
+        }
+
+        function clearLocalStorage() {
+            try {
+                localStorage.removeItem('eventModelJson');
+                localStorage.removeItem('eventModelFileName');
+                console.log('localStorage cleared');
+            } catch (error) {
+                console.warn('Failed to clear localStorage:', error);
+            }
+        }
+
+        // New document function
+        function createNew() {
+            // Clear current data
+            currentJson = null;
+            currentFileName = null;
+            
+            // Clear localStorage
+            clearLocalStorage();
+            
+            // Clear file input
+            fileInput.value = '';
+            fileName.textContent = 'No file selected';
+            
+            // Clear history
+            historyManager.clear();
+            
+            // Clear editors
+            if (codeMirrorView && codeMirrorView.setValue) {
+                codeMirrorView.setValue('', -1);
+            }
+            
+            // Clear tree view
+            renderTreeView();
+            
+            // Clear diagram
+            const diagramEl = document.getElementById('diagram');
+            diagramEl.innerHTML = '<div class="placeholder">Create or load an event model to visualize</div>';
+            
+            console.log('New document created');
+        }
+
+        // Save to file function
+        function saveToFile() {
+            if (!currentJson) {
+                alert('No content to save');
+                return;
+            }
+            
+            // Determine filename
+            let filename = 'event-model.json';
+            
+            if (currentFileName) {
+                // Use original filename if available
+                filename = currentFileName;
+            } else if (currentJson.title) {
+                // Derive from title field
+                filename = sanitizeFilename(currentJson.title) + '.json';
+            }
+            
+            // Create blob and download
+            const jsonString = JSON.stringify(currentJson, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            console.log('File saved as:', filename);
+        }
+
+        // Sanitize filename helper
+        function sanitizeFilename(title) {
+            return title
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .substring(0, 50) || 'event-model';
+        }
+
+
+        // Resizer state
+        let isResizing = false;
+        let resizeStartX = 0;
+        let startWidth = 0;
+
+        // Panel state management with localStorage persistence
+        const panelState = {
+            editor: {
+                collapsed: false,
+                savedWidth: '25%'
+            },
+            viewer: {
+                collapsed: false,
+                savedWidth: '75%'
+            }
+        };
+
+        // Load layout state from localStorage
+        function loadLayoutState() {
+            try {
+                const saved = localStorage.getItem('eventModelViewerLayout');
+                if (saved) {
+                    const state = JSON.parse(saved);
+                    panelState.editor = state.editor || { collapsed: false, savedWidth: '25%' };
+                    panelState.viewer = state.viewer || { collapsed: false, savedWidth: '75%' };
+                    console.log('Layout state loaded from localStorage');
+                } else {
+                    console.log('No saved layout, using defaults (25/75)');
+                }
+            } catch (error) {
+                console.warn('Failed to load layout state:', error);
+            }
+        }
+
+        // Save layout state to localStorage
+        function saveLayoutState() {
+            try {
+                const state = {
+                    editor: {
+                        collapsed: panelState.editor.collapsed,
+                        savedWidth: panelState.editor.savedWidth
+                    },
+                    viewer: {
+                        collapsed: panelState.viewer.collapsed,
+                        savedWidth: panelState.viewer.savedWidth
+                    }
+                };
+                localStorage.setItem('eventModelViewerLayout', JSON.stringify(state));
+                console.log('Layout state saved to localStorage:', state);
+            } catch (error) {
+                console.warn('Failed to save layout state:', error);
+            }
+        }
+
+        // Update panel layout based on state
+        function updatePanelLayout() {
+            const editorCollapsed = panelState.editor.collapsed;
+            const viewerCollapsed = panelState.viewer.collapsed;
+            
+            // Update collapse classes
+            editorPanel.classList.toggle('collapsed', editorCollapsed);
+            diagramPanel.classList.toggle('collapsed', viewerCollapsed);
+            
+            if (editorCollapsed && viewerCollapsed) {
+                // Both collapsed - minimal view
+                editorPanel.style.width = '40px';
+                diagramPanel.style.width = 'calc(100% - 40px)';
+                resizer.style.display = 'none';
+            } else if (editorCollapsed) {
+                // Editor collapsed - viewer full width
+                editorPanel.style.width = '40px';
+                diagramPanel.style.width = 'calc(100% - 40px)';
+                resizer.style.display = 'none';
+            } else if (viewerCollapsed) {
+                // Viewer collapsed - editor full width
+                editorPanel.style.width = 'calc(100% - 40px)';
+                diagramPanel.style.width = '40px';
+                resizer.style.display = 'none';
+            } else {
+                // Both expanded - restore saved widths
+                editorPanel.style.width = panelState.editor.savedWidth;
+                diagramPanel.style.width = panelState.viewer.savedWidth;
+                resizer.style.display = 'block';
+            }
+            
+            // Update button icons
+            panelCollapseBtn.textContent = editorCollapsed ? '▶' : '◀';
+            viewerCollapseBtn.textContent = viewerCollapsed ? '◀' : '▶';
+            
+            // Resize ACE editor if it exists
+            if (codeMirrorView && codeMirrorView.resize) {
+                setTimeout(() => codeMirrorView.resize(), 100);
+            }
+        }
+
+
+        // Mouse drag to pan
+        diagramContainer.addEventListener('mousedown', (e) => {
+            // Ignore if clicking on zoom controls or if resizing
+            if (e.target.closest('.zoom-controls') || isResizing) return;
+            
+            isDragging = true;
+            diagramContainer.classList.add('dragging');
+            dragStartX = e.pageX - diagramContainer.offsetLeft;
+            dragStartY = e.pageY - diagramContainer.offsetTop;
+            scrollLeft = diagramContainer.scrollLeft;
+            scrollTop = diagramContainer.scrollTop;
+            e.preventDefault();
+        });
+
+        diagramContainer.addEventListener('mouseleave', () => {
+            if (isDragging) {
+                isDragging = false;
+                diagramContainer.classList.remove('dragging');
+            }
+        });
+
+        diagramContainer.addEventListener('mouseup', () => {
+            isDragging = false;
+            diagramContainer.classList.remove('dragging');
+        });
+
+        diagramContainer.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const x = e.pageX - diagramContainer.offsetLeft;
+            const y = e.pageY - diagramContainer.offsetTop;
+            const walkX = (x - dragStartX) * 1.5; // Scroll speed multiplier
+            const walkY = (y - dragStartY) * 1.5;
+            diagramContainer.scrollLeft = scrollLeft - walkX;
+            diagramContainer.scrollTop = scrollTop - walkY;
+        });
+
+        // Resizer functionality
+        resizer.addEventListener('mousedown', (e) => {
+            // Only allow resize if both panels are expanded
+            if (panelState.editor.collapsed || panelState.viewer.collapsed) {
+                return;
+            }
+            
+            isResizing = true;
+            resizeStartX = e.clientX;
+            startWidth = editorPanel.offsetWidth;
+            resizer.classList.add('resizing');
+            
+            // Disable transitions for immediate response
+            editorPanel.classList.add('resizing');
+            diagramPanel.classList.add('resizing');
+            
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            const deltaX = e.clientX - resizeStartX;
+            const newEditorWidth = startWidth + deltaX;
+            const containerWidth = editorPanel.parentElement.offsetWidth;
+            
+            // Set minimum widths (10% each, max 90%)
+            const minWidth = containerWidth * 0.1;
+            const maxWidth = containerWidth * 0.9;
+            
+            if (newEditorWidth >= minWidth && newEditorWidth <= maxWidth) {
+                const editorWidthPercent = (newEditorWidth / containerWidth) * 100;
+                const viewerWidthPercent = 100 - editorWidthPercent;
+                
+                // Update both panel widths
+                editorPanel.style.width = editorWidthPercent + '%';
+                diagramPanel.style.width = viewerWidthPercent + '%';
+                
+                // Update state (will be saved on mouseup)
+                panelState.editor.savedWidth = editorWidthPercent + '%';
+                panelState.viewer.savedWidth = viewerWidthPercent + '%';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                resizer.classList.remove('resizing');
+                
+                // Re-enable transitions
+                editorPanel.classList.remove('resizing');
+                diagramPanel.classList.remove('resizing');
+                
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                
+                // Save the new widths to localStorage
+                saveLayoutState();
+                
+                // Resize ACE editor if it exists
+                if (codeMirrorView && codeMirrorView.resize) {
+                    codeMirrorView.resize();
+                }
+            }
+        });
+
+        // Initialize JSON Editor
+        // (Custom editor initialized above)
+
+
+        const codeEditor = document.getElementById('codeEditor');
+        const treeEditor = document.getElementById('treeEditor');
+
+        const codeCollapseBtn = document.getElementById('codeCollapseBtn');
+        const codeExpandBtn = document.getElementById('codeExpandBtn');
         const editorTabs = document.querySelectorAll('.editor-tab');
         const codeView = document.getElementById('codeView');
         const treeView = document.getElementById('treeView');
 
-        // Current JSON data
-        let currentJson = null;
         let collapsedLines = new Set();
         let jsonLines = [];
         let debounceTimer;
-        let currentFileName = null; // Track loaded filename for save functionality
-        
         // CodeMirror editor instance
         let codeMirrorView = null;
 
@@ -3050,363 +3408,6 @@
             input.addEventListener('blur', blurHandler);
         }
 
-        function updateDiagram() {
-            if (currentJson) {
-                renderDiagram(JSON.stringify(currentJson));
-                // Auto-save to localStorage
-                saveJsonToLocalStorage();
-            }
-        }
-
-        // LocalStorage functions for JSON persistence
-        function saveJsonToLocalStorage() {
-            try {
-                const jsonString = JSON.stringify(currentJson);
-                localStorage.setItem('eventModelJson', jsonString);
-                if (currentFileName) {
-                    localStorage.setItem('eventModelFileName', currentFileName);
-                }
-                console.log('JSON auto-saved to localStorage');
-            } catch (error) {
-                if (error.name === 'QuotaExceededError') {
-                    console.warn('localStorage quota exceeded, could not save JSON');
-                } else {
-                    console.warn('Failed to save JSON to localStorage:', error);
-                }
-            }
-        }
-
-        function loadJsonFromLocalStorage() {
-            try {
-                const saved = localStorage.getItem('eventModelJson');
-                if (saved) {
-                    const json = JSON.parse(saved);
-                    currentJson = json;
-                    
-                    // Restore filename if available
-                    const savedFileName = localStorage.getItem('eventModelFileName');
-                    if (savedFileName) {
-                        currentFileName = savedFileName;
-                        fileName.textContent = savedFileName;
-                    } else {
-                        fileName.textContent = 'Restored from previous session';
-                    }
-                    
-                    // Initialize history
-                    historyManager.clear();
-                    historyManager.pushState(currentJson);
-                    
-                    // Update editor
-                    if (codeMirrorView && codeMirrorView.setValue) {
-                        codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
-                    }
-                    
-                    // Update tree view
-                    renderTreeView();
-                    
-                    // Render diagram
-                    renderDiagram(JSON.stringify(currentJson));
-                    
-                    console.log('JSON loaded from localStorage');
-                    return true;
-                }
-            } catch (error) {
-                console.warn('Failed to load JSON from localStorage:', error);
-                // Clear corrupted data
-                localStorage.removeItem('eventModelJson');
-                localStorage.removeItem('eventModelFileName');
-            }
-            return false;
-        }
-
-        function clearLocalStorage() {
-            try {
-                localStorage.removeItem('eventModelJson');
-                localStorage.removeItem('eventModelFileName');
-                console.log('localStorage cleared');
-            } catch (error) {
-                console.warn('Failed to clear localStorage:', error);
-            }
-        }
-
-        // New document function
-        function createNew() {
-            // Clear current data
-            currentJson = null;
-            currentFileName = null;
-            
-            // Clear localStorage
-            clearLocalStorage();
-            
-            // Clear file input
-            fileInput.value = '';
-            fileName.textContent = 'No file selected';
-            
-            // Clear history
-            historyManager.clear();
-            
-            // Clear editors
-            if (codeMirrorView && codeMirrorView.setValue) {
-                codeMirrorView.setValue('', -1);
-            }
-            
-            // Clear tree view
-            renderTreeView();
-            
-            // Clear diagram
-            const diagramEl = document.getElementById('diagram');
-            diagramEl.innerHTML = '<div class="placeholder">Create or load an event model to visualize</div>';
-            
-            console.log('New document created');
-        }
-
-        // Save to file function
-        function saveToFile() {
-            if (!currentJson) {
-                alert('No content to save');
-                return;
-            }
-            
-            // Determine filename
-            let filename = 'event-model.json';
-            
-            if (currentFileName) {
-                // Use original filename if available
-                filename = currentFileName;
-            } else if (currentJson.title) {
-                // Derive from title field
-                filename = sanitizeFilename(currentJson.title) + '.json';
-            }
-            
-            // Create blob and download
-            const jsonString = JSON.stringify(currentJson, null, 2);
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            console.log('File saved as:', filename);
-        }
-
-        // Sanitize filename helper
-        function sanitizeFilename(title) {
-            return title
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '')
-                .substring(0, 50) || 'event-model';
-        }
-
-
-        // Resizer state
-        let isResizing = false;
-        let resizeStartX = 0;
-        let startWidth = 0;
-
-        // Panel state management with localStorage persistence
-        const panelState = {
-            editor: {
-                collapsed: false,
-                savedWidth: '25%'
-            },
-            viewer: {
-                collapsed: false,
-                savedWidth: '75%'
-            }
-        };
-
-        // Load layout state from localStorage
-        function loadLayoutState() {
-            try {
-                const saved = localStorage.getItem('eventModelViewerLayout');
-                if (saved) {
-                    const state = JSON.parse(saved);
-                    panelState.editor = state.editor || { collapsed: false, savedWidth: '25%' };
-                    panelState.viewer = state.viewer || { collapsed: false, savedWidth: '75%' };
-                    console.log('Layout state loaded from localStorage');
-                } else {
-                    console.log('No saved layout, using defaults (25/75)');
-                }
-            } catch (error) {
-                console.warn('Failed to load layout state:', error);
-            }
-        }
-
-        // Save layout state to localStorage
-        function saveLayoutState() {
-            try {
-                const state = {
-                    editor: {
-                        collapsed: panelState.editor.collapsed,
-                        savedWidth: panelState.editor.savedWidth
-                    },
-                    viewer: {
-                        collapsed: panelState.viewer.collapsed,
-                        savedWidth: panelState.viewer.savedWidth
-                    }
-                };
-                localStorage.setItem('eventModelViewerLayout', JSON.stringify(state));
-                console.log('Layout state saved to localStorage:', state);
-            } catch (error) {
-                console.warn('Failed to save layout state:', error);
-            }
-        }
-
-        // Update panel layout based on state
-        function updatePanelLayout() {
-            const editorCollapsed = panelState.editor.collapsed;
-            const viewerCollapsed = panelState.viewer.collapsed;
-            
-            // Update collapse classes
-            editorPanel.classList.toggle('collapsed', editorCollapsed);
-            diagramPanel.classList.toggle('collapsed', viewerCollapsed);
-            
-            if (editorCollapsed && viewerCollapsed) {
-                // Both collapsed - minimal view
-                editorPanel.style.width = '40px';
-                diagramPanel.style.width = 'calc(100% - 40px)';
-                resizer.style.display = 'none';
-            } else if (editorCollapsed) {
-                // Editor collapsed - viewer full width
-                editorPanel.style.width = '40px';
-                diagramPanel.style.width = 'calc(100% - 40px)';
-                resizer.style.display = 'none';
-            } else if (viewerCollapsed) {
-                // Viewer collapsed - editor full width
-                editorPanel.style.width = 'calc(100% - 40px)';
-                diagramPanel.style.width = '40px';
-                resizer.style.display = 'none';
-            } else {
-                // Both expanded - restore saved widths
-                editorPanel.style.width = panelState.editor.savedWidth;
-                diagramPanel.style.width = panelState.viewer.savedWidth;
-                resizer.style.display = 'block';
-            }
-            
-            // Update button icons
-            panelCollapseBtn.textContent = editorCollapsed ? '▶' : '◀';
-            viewerCollapseBtn.textContent = viewerCollapsed ? '◀' : '▶';
-            
-            // Resize ACE editor if it exists
-            if (codeMirrorView && codeMirrorView.resize) {
-                setTimeout(() => codeMirrorView.resize(), 100);
-            }
-        }
-
-
-        // Mouse drag to pan
-        diagramContainer.addEventListener('mousedown', (e) => {
-            // Ignore if clicking on zoom controls or if resizing
-            if (e.target.closest('.zoom-controls') || isResizing) return;
-            
-            isDragging = true;
-            diagramContainer.classList.add('dragging');
-            dragStartX = e.pageX - diagramContainer.offsetLeft;
-            dragStartY = e.pageY - diagramContainer.offsetTop;
-            scrollLeft = diagramContainer.scrollLeft;
-            scrollTop = diagramContainer.scrollTop;
-            e.preventDefault();
-        });
-
-        diagramContainer.addEventListener('mouseleave', () => {
-            if (isDragging) {
-                isDragging = false;
-                diagramContainer.classList.remove('dragging');
-            }
-        });
-
-        diagramContainer.addEventListener('mouseup', () => {
-            isDragging = false;
-            diagramContainer.classList.remove('dragging');
-        });
-
-        diagramContainer.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            e.preventDefault();
-            const x = e.pageX - diagramContainer.offsetLeft;
-            const y = e.pageY - diagramContainer.offsetTop;
-            const walkX = (x - dragStartX) * 1.5; // Scroll speed multiplier
-            const walkY = (y - dragStartY) * 1.5;
-            diagramContainer.scrollLeft = scrollLeft - walkX;
-            diagramContainer.scrollTop = scrollTop - walkY;
-        });
-
-        // Resizer functionality
-        resizer.addEventListener('mousedown', (e) => {
-            // Only allow resize if both panels are expanded
-            if (panelState.editor.collapsed || panelState.viewer.collapsed) {
-                return;
-            }
-            
-            isResizing = true;
-            resizeStartX = e.clientX;
-            startWidth = editorPanel.offsetWidth;
-            resizer.classList.add('resizing');
-            
-            // Disable transitions for immediate response
-            editorPanel.classList.add('resizing');
-            diagramPanel.classList.add('resizing');
-            
-            document.body.style.cursor = 'col-resize';
-            document.body.style.userSelect = 'none';
-            e.preventDefault();
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-            
-            const deltaX = e.clientX - resizeStartX;
-            const newEditorWidth = startWidth + deltaX;
-            const containerWidth = editorPanel.parentElement.offsetWidth;
-            
-            // Set minimum widths (10% each, max 90%)
-            const minWidth = containerWidth * 0.1;
-            const maxWidth = containerWidth * 0.9;
-            
-            if (newEditorWidth >= minWidth && newEditorWidth <= maxWidth) {
-                const editorWidthPercent = (newEditorWidth / containerWidth) * 100;
-                const viewerWidthPercent = 100 - editorWidthPercent;
-                
-                // Update both panel widths
-                editorPanel.style.width = editorWidthPercent + '%';
-                diagramPanel.style.width = viewerWidthPercent + '%';
-                
-                // Update state (will be saved on mouseup)
-                panelState.editor.savedWidth = editorWidthPercent + '%';
-                panelState.viewer.savedWidth = viewerWidthPercent + '%';
-            }
-        });
-
-        document.addEventListener('mouseup', () => {
-            if (isResizing) {
-                isResizing = false;
-                resizer.classList.remove('resizing');
-                
-                // Re-enable transitions
-                editorPanel.classList.remove('resizing');
-                diagramPanel.classList.remove('resizing');
-                
-                document.body.style.cursor = '';
-                document.body.style.userSelect = '';
-                
-                // Save the new widths to localStorage
-                saveLayoutState();
-                
-                // Resize ACE editor if it exists
-                if (codeMirrorView && codeMirrorView.resize) {
-                    codeMirrorView.resize();
-                }
-            }
-        });
-
-        // Initialize JSON Editor
-        // (Custom editor initialized above)
 
         // Editor panel collapse/expand handler
         panelCollapseBtn.addEventListener('click', () => {

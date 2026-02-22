@@ -1,0 +1,35 @@
+        <div class="editor-panel" id="editorPanel">
+            <div class="panel-header">
+                <span>Editor</span>
+                <button class="panel-collapse-btn" id="panelCollapseBtn" title="Collapse/Expand">◀</button>
+            </div>
+            <div class="editor-container">
+                <div class="editor-tabs">
+                    <button class="editor-tab active" data-tab="code">Code</button>
+                    <button class="editor-tab" data-tab="tree">Tree</button>
+                </div>
+                <div class="editor-view active" id="codeView">
+                    <div class="code-toolbar">
+                        <button class="code-collapse-btn" id="codeCollapseBtn" title="Collapse all JSON objects">▼</button>
+                        <button class="code-expand-btn" id="codeExpandBtn" title="Expand all JSON objects">▶</button>
+                        <button id="codeUndoBtn" title="Undo (Ctrl+Z)" disabled>↶</button>
+                        <button id="codeRedoBtn" title="Redo (Ctrl+Y)" disabled>↷</button>
+                        <button id="codeAddSliceBtn" title="Add new slice">+</button>
+                    </div>
+                    <div id="codeEditor">
+                        <div style="color: #999; padding: 1rem;">Loading code editor...</div>
+                    </div>
+                </div>
+                <div class="editor-view" id="treeView">
+                    <div class="tree-toolbar">
+                        <button id="treeCollapseAllBtn" title="Collapse all nodes">▼</button>
+                        <button id="treeExpandAllBtn" title="Expand all nodes">▶</button>
+                        <button id="treeUndoBtn" title="Undo (Ctrl+Z)" disabled>↶</button>
+                        <button id="treeRedoBtn" title="Redo (Ctrl+Y)" disabled>↷</button>
+                        <button id="treeAddSliceBtn" title="Add new slice">+</button>
+                    </div>
+                    <div id="treeEditor"></div>
+                </div>
+            </div>
+            <div class="resizer" id="resizer"></div>
+        </div>
