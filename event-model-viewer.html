@@ -310,6 +310,26 @@
             flex-direction: column;
         }
 
+        .resizer {
+            width: 5px;
+            cursor: col-resize;
+            background: transparent;
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 10;
+            transition: background 0.2s;
+        }
+
+        .resizer:hover {
+            background: rgba(52, 152, 219, 0.5);
+        }
+
+        .resizer.resizing {
+            background: #3498db;
+        }
+
         #codeEditor {
             flex: 1;
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -739,26 +759,6 @@
         /* Add spacing before + button */
         #codeAddSliceBtn, #treeAddSliceBtn {
             margin-left: 8px;
-        }
-
-        .resizer {
-            width: 5px;
-            cursor: col-resize;
-            background: transparent;
-            position: absolute;
-            right: 0;
-            top: 0;
-            bottom: 0;
-            z-index: 10;
-            transition: background 0.2s;
-        }
-
-        .resizer:hover {
-            background: rgba(52, 152, 219, 0.5);
-        }
-
-        .resizer.resizing {
-            background: #3498db;
         }
         .diagram-panel {
             width: 75%;
@@ -1777,155 +1777,15 @@
         // (Custom editor initialized above)
 
 
-        const codeEditor = document.getElementById('codeEditor');
-        const treeEditor = document.getElementById('treeEditor');
-
+﻿        const codeEditor = document.getElementById('codeEditor');
         const codeCollapseBtn = document.getElementById('codeCollapseBtn');
         const codeExpandBtn = document.getElementById('codeExpandBtn');
-        const editorTabs = document.querySelectorAll('.editor-tab');
-        const codeView = document.getElementById('codeView');
-        const treeView = document.getElementById('treeView');
 
         let collapsedLines = new Set();
         let jsonLines = [];
         let debounceTimer;
         // CodeMirror editor instance
         let codeMirrorView = null;
-
-        // History Manager for Undo/Redo
-        const historyManager = {
-            states: [],
-            currentIndex: -1,
-            maxStates: 50,
-            isRestoring: false,
-
-            pushState(json) {
-                if (this.isRestoring) return; // Don't push during undo/redo
-                if (!json) return;
-
-                // Check if JSON actually changed
-                const jsonString = JSON.stringify(json);
-                if (this.states.length > 0 && this.currentIndex >= 0) {
-                    const lastState = this.states[this.currentIndex];
-                    if (JSON.stringify(lastState) === jsonString) {
-                        return; // No change, don't push
-                    }
-                }
-
-                // Remove any states after current position (if we're in middle of history)
-                if (this.currentIndex < this.states.length - 1) {
-                    this.states = this.states.slice(0, this.currentIndex + 1);
-                }
-
-                // Deep clone the JSON to avoid reference issues
-                const clonedJson = JSON.parse(jsonString);
-                this.states.push(clonedJson);
-
-                // Limit to maxStates (remove oldest if exceeded)
-                if (this.states.length > this.maxStates) {
-                    this.states.shift();
-                } else {
-                    this.currentIndex++;
-                }
-
-                this.updateButtons();
-            },
-
-            undo() {
-                if (!this.canUndo()) return;
-
-                this.currentIndex--;
-                this.restoreState(this.states[this.currentIndex]);
-                this.updateButtons();
-            },
-
-            redo() {
-                if (!this.canRedo()) return;
-
-                this.currentIndex++;
-                this.restoreState(this.states[this.currentIndex]);
-                this.updateButtons();
-            },
-
-            restoreState(json) {
-                this.isRestoring = true;
-                
-                // Deep clone to avoid reference issues
-                currentJson = JSON.parse(JSON.stringify(json));
-                
-                // Update ACE Editor if exists
-                if (codeMirrorView && codeMirrorView.setValue) {
-                    codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
-                }
-                
-                // Update tree view only
-                renderTreeView();
-                updateDiagram();
-                
-                this.isRestoring = false;
-            },
-
-            canUndo() {
-                return this.currentIndex > 0;
-            },
-
-            canRedo() {
-                return this.currentIndex < this.states.length - 1;
-            },
-
-            clear() {
-                this.states = [];
-                this.currentIndex = -1;
-                this.updateButtons();
-            },
-
-            updateButtons() {
-                const canUndo = this.canUndo();
-                const canRedo = this.canRedo();
-
-                // Update code toolbar buttons
-                const codeUndoBtn = document.getElementById('codeUndoBtn');
-                const codeRedoBtn = document.getElementById('codeRedoBtn');
-                if (codeUndoBtn) codeUndoBtn.disabled = !canUndo;
-                if (codeRedoBtn) codeRedoBtn.disabled = !canRedo;
-
-                // Update tree toolbar buttons
-                const treeUndoBtn = document.getElementById('treeUndoBtn');
-                const treeRedoBtn = document.getElementById('treeRedoBtn');
-                if (treeUndoBtn) treeUndoBtn.disabled = !canUndo;
-                if (treeRedoBtn) treeRedoBtn.disabled = !canRedo;
-            }
-        };
-
-        // Tab switching
-        editorTabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const tabName = tab.getAttribute('data-tab');
-                
-                // Update active tab
-                editorTabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                
-                // Update active view
-                if (tabName === 'code') {
-                    codeView.classList.add('active');
-                    treeView.classList.remove('active');
-                    
-                    // Refresh ACE Editor content if currentJson changed in Tree view
-                    if (codeMirrorView && currentJson) {
-                        const currentContent = codeMirrorView.getValue();
-                        const expectedContent = JSON.stringify(currentJson, null, 2);
-                        if (currentContent !== expectedContent) {
-                            codeMirrorView.setValue(expectedContent, -1);
-                        }
-                    }
-                } else {
-                    treeView.classList.add('active');
-                    codeView.classList.remove('active');
-                    renderTreeView();
-                }
-            });
-        });
 
         function parseJsonToLines(json) {
             const lines = [];
@@ -2591,6 +2451,12 @@
                 }
             }, 1000);
         }
+
+
+        codeCollapseBtn.addEventListener('click', collapseAll);
+        codeExpandBtn.addEventListener('click', expandAll);
+
+﻿        const treeEditor = document.getElementById('treeEditor');
 
         // Tree View State
         let treeData = null;
@@ -3409,6 +3275,158 @@
         }
 
 
+        const treeCollapseAllBtn = document.getElementById('treeCollapseAllBtn');
+        const treeExpandAllBtn = document.getElementById('treeExpandAllBtn');
+
+        treeCollapseAllBtn.addEventListener('click', () => {
+            collapseAllTreeNodes();
+            renderTreeView();
+        });
+
+        treeExpandAllBtn.addEventListener('click', () => {
+            expandAllTreeNodes();
+            renderTreeView();
+        });
+
+﻿        const editorTabs = document.querySelectorAll('.editor-tab');
+        const codeView = document.getElementById('codeView');
+        const treeView = document.getElementById('treeView');
+
+        // History Manager for Undo/Redo
+        const historyManager = {
+            states: [],
+            currentIndex: -1,
+            maxStates: 50,
+            isRestoring: false,
+
+            pushState(json) {
+                if (this.isRestoring) return; // Don't push during undo/redo
+                if (!json) return;
+
+                // Check if JSON actually changed
+                const jsonString = JSON.stringify(json);
+                if (this.states.length > 0 && this.currentIndex >= 0) {
+                    const lastState = this.states[this.currentIndex];
+                    if (JSON.stringify(lastState) === jsonString) {
+                        return; // No change, don't push
+                    }
+                }
+
+                // Remove any states after current position (if we're in middle of history)
+                if (this.currentIndex < this.states.length - 1) {
+                    this.states = this.states.slice(0, this.currentIndex + 1);
+                }
+
+                // Deep clone the JSON to avoid reference issues
+                const clonedJson = JSON.parse(jsonString);
+                this.states.push(clonedJson);
+
+                // Limit to maxStates (remove oldest if exceeded)
+                if (this.states.length > this.maxStates) {
+                    this.states.shift();
+                } else {
+                    this.currentIndex++;
+                }
+
+                this.updateButtons();
+            },
+
+            undo() {
+                if (!this.canUndo()) return;
+
+                this.currentIndex--;
+                this.restoreState(this.states[this.currentIndex]);
+                this.updateButtons();
+            },
+
+            redo() {
+                if (!this.canRedo()) return;
+
+                this.currentIndex++;
+                this.restoreState(this.states[this.currentIndex]);
+                this.updateButtons();
+            },
+
+            restoreState(json) {
+                this.isRestoring = true;
+                
+                // Deep clone to avoid reference issues
+                currentJson = JSON.parse(JSON.stringify(json));
+                
+                // Update ACE Editor if exists
+                if (codeMirrorView && codeMirrorView.setValue) {
+                    codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
+                }
+                
+                // Update tree view only
+                renderTreeView();
+                updateDiagram();
+                
+                this.isRestoring = false;
+            },
+
+            canUndo() {
+                return this.currentIndex > 0;
+            },
+
+            canRedo() {
+                return this.currentIndex < this.states.length - 1;
+            },
+
+            clear() {
+                this.states = [];
+                this.currentIndex = -1;
+                this.updateButtons();
+            },
+
+            updateButtons() {
+                const canUndo = this.canUndo();
+                const canRedo = this.canRedo();
+
+                // Update code toolbar buttons
+                const codeUndoBtn = document.getElementById('codeUndoBtn');
+                const codeRedoBtn = document.getElementById('codeRedoBtn');
+                if (codeUndoBtn) codeUndoBtn.disabled = !canUndo;
+                if (codeRedoBtn) codeRedoBtn.disabled = !canRedo;
+
+                // Update tree toolbar buttons
+                const treeUndoBtn = document.getElementById('treeUndoBtn');
+                const treeRedoBtn = document.getElementById('treeRedoBtn');
+                if (treeUndoBtn) treeUndoBtn.disabled = !canUndo;
+                if (treeRedoBtn) treeRedoBtn.disabled = !canRedo;
+            }
+        };
+
+        // Tab switching
+        editorTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.getAttribute('data-tab');
+                
+                // Update active tab
+                editorTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Update active view
+                if (tabName === 'code') {
+                    codeView.classList.add('active');
+                    treeView.classList.remove('active');
+                    
+                    // Refresh ACE Editor content if currentJson changed in Tree view
+                    if (codeMirrorView && currentJson) {
+                        const currentContent = codeMirrorView.getValue();
+                        const expectedContent = JSON.stringify(currentJson, null, 2);
+                        if (currentContent !== expectedContent) {
+                            codeMirrorView.setValue(expectedContent, -1);
+                        }
+                    }
+                } else {
+                    treeView.classList.add('active');
+                    codeView.classList.remove('active');
+                    renderTreeView();
+                }
+            });
+        });
+
         // Editor panel collapse/expand handler
         panelCollapseBtn.addEventListener('click', () => {
             // If trying to collapse editor while viewer is collapsed, expand viewer first
@@ -3421,24 +3439,6 @@
             saveLayoutState();
         });
 
-
-        // Collapse/Expand button handlers for code editor
-        codeCollapseBtn.addEventListener('click', collapseAll);
-        codeExpandBtn.addEventListener('click', expandAll);
-
-        // Collapse/Expand button handlers for tree editor
-        const treeCollapseAllBtn = document.getElementById('treeCollapseAllBtn');
-        const treeExpandAllBtn = document.getElementById('treeExpandAllBtn');
-        
-        treeCollapseAllBtn.addEventListener('click', () => {
-            collapseAllTreeNodes();
-            renderTreeView();
-        });
-        
-        treeExpandAllBtn.addEventListener('click', () => {
-            expandAllTreeNodes();
-            renderTreeView();
-        });
 
         // Undo/Redo button handlers
         const codeUndoBtn = document.getElementById('codeUndoBtn');
