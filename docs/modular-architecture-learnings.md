@@ -10,6 +10,380 @@ This document captures the learnings from splitting the monolithic `app.html` (~
 2. **Single-file deployment** — one HTML file, no server required
 3. **Incremental extraction** — move one module at a time, verify between steps
 4. **Complete module isolation** — each module owns its HTML, CSS, and JS
+5. **No naming conflicts** — JS variables and CSS classes must not clash across modules
+
+---
+
+## Module Hierarchy
+
+```
+event-bus/                       ← global EventBus (NOT wrapped in IIFE)
+app.html                         ← app shell (header, context menus)
+ └── toolbar/                    ← toolbar bar
+ │     ├── file-buttons/         ← file load/save/new buttons
+ │     └── filter-toggles/       ← show/hide slices, tests, types, swimlanes
+ └── resizer/                    ← panel layout manager (owns both panels)
+       ├── editor/               ← editor shell (tabs, historyManager)
+       │     ├── code-view/      ← ACE code editor + toolbar
+       │     └── tree-view/      ← JSON tree editor + toolbar
+       └── viewer/               ← diagram viewer
+             ├── diagram/        ← diagram render logic
+             └── zoom-export/    ← zoom, pan, export
+```
+
+### Why resizer is the parent, not a sibling
+
+The resizer module manages the layout of both panels. It owns:
+- `panelState` — collapse/expand state and saved widths for both panels
+- `updatePanelLayout()` — applies widths and collapse classes to both panels
+- `loadLayoutState()` / `saveLayoutState()` — persists layout to localStorage
+- The collapse button click handlers for **both** editor and viewer panels
+- The drag-resize mouse handlers
+
+Because of this, it makes semantic sense for resizer to be the container that includes editor and viewer, not a child of either. The editor and viewer are content modules; resizer is the layout module that frames them.
+
+---
+
+## Build Script Design
+
+### Placeholder pattern
+
+Each module exposes three injection points:
+- `<!-- MODULE_HTML -->` — injected into the parent's HTML
+- `/* MODULE_CSS */` — injected into the parent's `<style>` block
+- `// MODULE_JS` — injected into the parent's `<script>` block
+
+The build script performs simple string replacement — no transpilation, no bundling tools needed.
+
+### Three-level assembly
+
+```
+Level 1a: file-buttons + filter-toggles → toolbar
+Level 1b: code-view + tree-view → editor
+Level 1c: diagram + zoom-export → viewer
+Level 2:  editor + viewer → resizer
+Level 3:  event-bus + toolbar + resizer → app
+```
+
+### IIFE wrapping for JS scope isolation
+
+Every module JS file (except `event-bus.js`) is wrapped in an IIFE before injection:
+
+```javascript
+function iife(js) {
+    return `(function() {\n${js.trimEnd()}\n})();`;
+}
+
+// event-bus.js is NOT wrapped — it must be global
+const combinedToolbarJs = iife(toolbarJs) + '\n\n' + iife(fileButtonsJs) + '\n\n' + iife(filterTogglesJs);
+```
+
+**Why**: Without IIFEs, all module JS runs in the same script scope. `const` and `let` variables with the same name in different modules would collide at parse time. IIFEs give each module its own private scope.
+
+**Why event-bus.js is the exception**: `EventBus` and `Events` are the inter-module communication channel. They must be accessible from all IIFE scopes. Since they are the only intentional globals, keeping just them outside an IIFE is acceptable and explicit.
+
+### CSS concatenation order matters
+
+CSS is concatenated in dependency order — outer modules last so they can override inner module styles:
+
+```
+resizer.css → editor.css → code-view.css → tree-view.css → viewer.css → diagram.css → zoom-export.css
+```
+
+---
+
+## EventBus Pattern
+
+### The problem with direct cross-module calls
+
+Before EventBus, modules communicated via shared global variables (`currentJson`, `currentFileName`) and direct function calls (`renderTreeView()`, `codeMirrorView.setValue()`, `initCodeMirror()`). After IIFE isolation, each module's private functions and variables are inaccessible to other modules.
+
+### EventBus design
+
+A minimal publish/subscribe bus defined in `src/event-bus/event-bus.js`:
+
+```javascript
+const EventBus = {
+    _listeners: {},
+    on(event, cb)      { /* subscribe */ },
+    off(event, cb)     { /* unsubscribe */ },
+    emit(event, data)  { /* publish to all subscribers */ }
+};
+
+const Events = {
+    FILE_LOADED:    'file:loaded',    // { json, fileName }
+    JSON_CHANGED:   'json:changed',   // { json, source }
+    FILTER_TOGGLED: 'filter:toggled', // { type, checked }
+    EDITOR_RESIZED: 'editor:resized', // {}
+    APP_INIT:       'app:init',       // {}
+    TREE_SYNC:      'tree:sync',      // {}
+    CODE_SYNC:      'code:sync',      // { json }
+};
+```
+
+### Preventing circular updates
+
+When multiple modules subscribe to `JSON_CHANGED`, each must avoid re-emitting the event for changes it originated:
+
+```javascript
+EventBus.on(Events.JSON_CHANGED, ({ json, source }) => {
+    if (source === 'code') return; // ignore our own edits
+    // update from other sources
+});
+```
+
+The `source` field identifies the originator: `'code'` | `'tree'` | `'history'` | `'addslice'`.
+
+### APP_INIT: replacing direct initialization calls
+
+Previously `app.html` directly called `loadLayoutState()`, `initCodeMirror()`, `loadJsonFromLocalStorage()` — all functions defined in other modules' IIFEs (inaccessible after IIFE wrapping).
+
+The fix: each module subscribes to `APP_INIT` and self-initializes:
+
+```javascript
+// resizer.js
+EventBus.on(Events.APP_INIT, () => {
+    loadLayoutState();
+    updatePanelLayout();
+});
+
+// code-view.js
+EventBus.on(Events.APP_INIT, () => {
+    initCodeMirror();
+});
+
+// file-buttons.js
+EventBus.on(Events.APP_INIT, () => {
+    loadJsonFromLocalStorage();
+});
+```
+
+Then `app.html` simply fires:
+```javascript
+EventBus.emit(Events.APP_INIT, {});
+```
+
+**Key insight**: `APP_INIT` inverts the dependency — `app.html` no longer needs to know which functions each module exposes. Modules declare their own initialization needs.
+
+### TREE_SYNC and CODE_SYNC: replacing tab-switch calls
+
+Editor tab switching previously called `renderTreeView()` (from tree-view.js) and `codeMirrorView.setValue()` (from code-view.js) directly. After IIFE isolation those are inaccessible.
+
+```javascript
+// editor.js — tab switching
+if (tabName === 'code') {
+    EventBus.emit(Events.CODE_SYNC, { json: _editorJson });
+} else {
+    EventBus.emit(Events.TREE_SYNC, {});
+}
+
+// tree-view.js — responds to tab switch
+EventBus.on(Events.TREE_SYNC, () => renderTreeView());
+
+// code-view.js — responds to tab switch
+EventBus.on(Events.CODE_SYNC, ({ json }) => {
+    if (codeMirrorView.getValue() !== JSON.stringify(json, null, 2))
+        codeMirrorView.setValue(JSON.stringify(json, null, 2), -1);
+});
+```
+
+---
+
+## Key Technical Challenges
+
+### Challenge 1: Cross-IIFE variable references — pan/drag state
+
+**Problem**: The diagram container's mouse drag-to-pan handlers (in `diagram.js`) referenced `isDragging`, `dragStartX`, `dragStartY`, `scrollLeft`, `scrollTop` — all defined in `zoom-export.js`. After IIFE wrapping those variables were inaccessible.
+
+**Solution**: Move the 4 pan event listeners (`mousedown`, `mouseleave`, `mouseup`, `mousemove`) from `diagram.js` into `zoom-export.js`, where all the state variables already live. Since panning is a zoom/viewport concern, this is also the correct semantic home.
+
+**For `isResizing`** (from `resizer.js`): instead of passing the variable across modules, read the resizer element's CSS class:
+```javascript
+const resizerEl = document.getElementById('resizer');
+if (resizerEl && resizerEl.classList.contains('resizing')) return;
+```
+
+**Key insight**: When a set of event handlers and all the state they need are split across modules, move the handlers to where the state lives — not the other way around.
+
+### Challenge 2: Cross-IIFE variable references — currentZoom
+
+**Problem**: `diagram.js` used `currentZoom` (defined in `zoom-export.js`) when calculating arrow positions.
+
+**Solution**: Read the scale from the wrapper element's CSS transform instead of sharing the variable:
+```javascript
+const transformVal = diagramWrapper.style.transform;
+const scale = transformVal ? parseFloat(transformVal.replace('scale(', '')) || 1 : 1;
+```
+
+**Key insight**: When a module needs a piece of state owned by another module, prefer reading it from the DOM (the shared source of truth) rather than introducing cross-IIFE dependencies.
+
+### Challenge 3: Cross-IIFE utility functions — escapeHtml
+
+**Problem**: `tree-view.js` called `escapeHtml()` which was defined in `diagram.js`. After IIFE wrapping it threw `ReferenceError: escapeHtml is not defined`.
+
+**Solution**: Add a copy of `escapeHtml` directly to `tree-view.js`. Small pure utility functions are cheap to duplicate:
+```javascript
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(String(text)));
+    return div.innerHTML;
+}
+```
+
+**Key insight**: A function that appears in multiple modules is a signal that it belongs in a shared utility module. Until that refactor happens, duplication is safer than cross-IIFE coupling. Do NOT share utility functions via the global scope just to avoid duplication.
+
+### Challenge 4: zoom-export.js needs diagramWrapper and diagramContainer
+
+**Problem**: After moving pan handlers to `zoom-export.js`, it needed `diagramWrapper` and `diagramContainer` — both previously defined only in `diagram.js`.
+
+**Solution**: Add local DOM lookups at the top of `zoom-export.js`:
+```javascript
+const diagramWrapper  = document.getElementById('diagramWrapper');
+const diagramContainer = document.getElementById('diagramContainer');
+```
+
+Having the same DOM element looked up in two modules is fine — both get the same element. Each IIFE is just capturing a reference to the same DOM node.
+
+### Challenge 5: Temporal Dead Zone (TDZ) with `let`
+
+**Problem**: `let` declarations are NOT hoisted. If viewer module code ran before viewer variables were declared, accessing them threw `ReferenceError`.
+
+**Solution**: Ensure the initialization block (`EventBus.emit(Events.APP_INIT)`) is placed **after all module JS placeholders** in `app.html`:
+```html
+<script>
+    // TOOLBAR_JS   ← all module IIFEs injected here
+    // RESIZER_JS   ← all module IIFEs injected here
+
+    // Only after all modules are loaded:
+    EventBus.emit(Events.APP_INIT, {});
+</script>
+```
+
+### Challenge 6: UTF-8 BOM encoding
+
+**Problem**: PowerShell's default `[System.Text.Encoding]::UTF8` adds a Byte Order Mark (BOM) to the output file.
+
+**Solution**: Use Node.js `fs.writeFileSync` with `{ encoding: 'utf8' }` — no BOM by default.
+
+---
+
+## Module Ownership Table
+
+| Module | Owns |
+|--------|------|
+| `event-bus` | `EventBus` object and `Events` constants — only global intentionally |
+| `app` | Page shell: header HTML; init block (`EventBus.emit(APP_INIT)`) |
+| `toolbar` | Toolbar container HTML/CSS |
+| `file-buttons` | File load/save/new; `_currentJson`, `_currentFileName`; localStorage save; subscribes `APP_INIT` → `loadJsonFromLocalStorage()` |
+| `filter-toggles` | Checkbox UI; emits `FILTER_TOGGLED` |
+| `resizer` | `panelState`, layout functions, panel collapse handlers, drag-resize; subscribes `APP_INIT` |
+| `editor` | `historyManager`, tab switching, add-slice; emits `CODE_SYNC`/`TREE_SYNC` on tab change |
+| `code-view` | `codeMirrorView`; subscribes `APP_INIT` → `initCodeMirror()`, `CODE_SYNC`, `EDITOR_RESIZED` |
+| `tree-view` | `treeData`, all tree render/edit functions; subscribes `TREE_SYNC` |
+| `diagram` | All diagram render logic, `_diagramJson`, `_filters`; subscribes `FILE_LOADED`, `JSON_CHANGED`, `FILTER_TOGGLED` |
+| `zoom-export` | `currentZoom`, pan/drag state, zoom buttons, export; subscribes nothing (stateless re: JSON) |
+
+### No more shared globals for JSON
+
+`currentJson` was previously a global that all modules read. It is now gone. Each module maintains its own copy:
+- `file-buttons.js` → `_currentJson` (source of truth for save/export)
+- `code-view.js` → `_codeViewJson`
+- `tree-view.js` → `_treeViewJson`
+- `editor.js` → `_editorJson` (source of truth for history)
+- `diagram.js` → `_diagramJson` (source of truth for rendering)
+
+All copies are kept in sync via `FILE_LOADED` and `JSON_CHANGED` events.
+
+---
+
+## File Structure Reference
+
+```
+src/
+├── event-bus/
+│   └── event-bus.js            # EventBus + Events constants (global, no IIFE)
+├── app.html                    # App shell template
+├── toolbar/
+│   ├── toolbar.html / .css / .js
+│   ├── file-buttons/
+│   │   ├── file-buttons.html / .css / .js
+│   └── filter-toggles/
+│       ├── filter-toggles.html / .css / .js
+├── resizer/
+│   ├── resizer.html            # panel wrappers + panel headers + EDITOR_HTML + VIEWER_HTML
+│   ├── resizer.css             # All panel CSS: .editor-panel, .diagram-panel, .panel-header
+│   └── resizer.js              # panelState, layout functions, collapse + resize handlers
+├── editor/
+│   ├── editor.html / .css / .js
+│   ├── code-view/
+│   │   ├── code-view.html / .css / .js
+│   └── tree-view/
+│       ├── tree-view.html / .css / .js
+└── viewer/
+    ├── viewer.html / .css / .js
+    ├── diagram/
+    │   ├── diagram.html / .css / .js
+    └── zoom-export/
+        ├── zoom-export.html / .css / .js
+
+build.js                        # Assembly script (run with: node build.js)
+event-model-viewer.html         # Built output (~191 KB, single-file deployment)
+```
+
+---
+
+## Running the Build
+
+```bash
+node build.js
+# → Build successful: event-model-viewer.html
+# → Size: 191 KB
+```
+
+After building, verify JS syntax:
+```powershell
+$content = Get-Content event-model-viewer.html -Raw
+$start = $content.LastIndexOf('<script>') + 8
+$end = $content.LastIndexOf('</script>')
+$content.Substring($start, $end - $start) | Out-File C:\Temp\test-script.js
+node --check C:\Temp\test-script.js
+```
+
+---
+
+## Key Learnings Summary
+
+1. **Simple string replacement** is sufficient for a build script when modules have no dynamic imports — no bundler needed
+2. **Placeholder naming convention** (`<!-- MODULE_HTML -->`, `/* MODULE_CSS */`, `// MODULE_JS`) makes injection points unambiguous and self-documenting
+3. **Wrap every module JS in an IIFE** to prevent variable/function name collisions — the only exception is the EventBus which must be global
+4. **EventBus decouples modules** — no module needs to know another module's internal function names; they communicate only via named events with documented payloads
+5. **APP_INIT inverts initialization** — modules self-register their startup logic; `app.html` fires one event without knowing what each module needs
+6. **`source` field prevents circular updates** — when emitting `JSON_CHANGED`, include a `source` identifier so subscribers can ignore their own events
+7. **Read shared state from the DOM** when it avoids cross-IIFE coupling (e.g., read zoom from `transform` style instead of sharing `currentZoom`)
+8. **Move event handlers to where their state lives** — pan handlers belong in `zoom-export.js` because that's where pan state (`isDragging` etc.) is defined
+9. **Duplicate small utility functions** rather than making them globals — `escapeHtml` in two modules is better than a global `escapeHtml`
+10. **Check resizer state via DOM class**, not variable: `resizerEl.classList.contains('resizing')` works across IIFE boundaries
+11. **Move initialization to after all injections** to avoid TDZ errors with `let` variables
+12. **Dependency direction**: sub-modules depend on their parent shell, never the reverse; resizer is the layout authority so it is the parent of editor and viewer
+13. **Verify by JS syntax check** after every build: extract the `<script>` block and run `node --check` to catch errors before opening the browser
+
+## Related Documentation
+
+- [Resizer Implementation](./resizer-implementation-learnings.md) — deep dive on drag resize and panel collapse
+- [Code Editor Selection](./code-editor-selection-learnings.md) — ACE Editor integration details
+- [INDEX.md](./INDEX.md) — full documentation index
+
+
+## Overview
+
+This document captures the learnings from splitting the monolithic `app.html` (~4600 lines) into a modular source tree while preserving single-file deployment. The build script assembles all modules back into one standalone `event-model-viewer.html`.
+
+## Goals
+
+1. **Maintainability** — each concern lives in its own file
+2. **Single-file deployment** — one HTML file, no server required
+3. **Incremental extraction** — move one module at a time, verify between steps
+4. **Complete module isolation** — each module owns its HTML, CSS, and JS
 
 ---
 
