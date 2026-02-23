@@ -1,0 +1,200 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "Event Model Viewer" [level=1] [ref=e7]
+  - generic [ref=e8]:
+    - button "📄 New" [ref=e9] [cursor=pointer]
+    - generic [ref=e11] [cursor=pointer]: 📁 Open
+    - button "💾 Save" [ref=e12] [cursor=pointer]
+    - generic [ref=e13]: complex-event-model.json
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - checkbox "Show slices" [checked] [ref=e16] [cursor=pointer]
+        - generic [ref=e17] [cursor=pointer]: Show slices
+      - generic [ref=e18]:
+        - checkbox "Show tests" [checked] [ref=e19] [cursor=pointer]
+        - generic [ref=e20] [cursor=pointer]: Show tests
+      - generic [ref=e21]:
+        - checkbox "Show types" [checked] [ref=e22] [cursor=pointer]
+        - generic [ref=e23] [cursor=pointer]: Show types
+      - generic [ref=e24]:
+        - checkbox "Show swimlanes" [checked] [ref=e25] [cursor=pointer]
+        - generic [ref=e26] [cursor=pointer]: Show swimlanes
+  - generic [ref=e27]:
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]: Editor
+        - button "◀" [ref=e31] [cursor=pointer]
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - button "Code" [ref=e34] [cursor=pointer]
+          - button "Tree" [ref=e35] [cursor=pointer]
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - button "▼" [ref=e38] [cursor=pointer]
+            - button "▶" [ref=e39] [cursor=pointer]
+            - button "↶" [disabled] [ref=e40]
+            - button "↷" [disabled] [ref=e41]
+            - button "+" [ref=e42] [cursor=pointer]
+          - generic [ref=e43]:
+            - textbox [ref=e44]
+            - generic [ref=e46]:
+              - generic [ref=e47]:
+                - text: "1"
+                - button [expanded] [ref=e48] [cursor=pointer]
+              - generic [ref=e49]: "2"
+              - generic [ref=e50]:
+                - text: "3"
+                - button [expanded] [ref=e51] [cursor=pointer]
+              - generic [ref=e52]:
+                - text: "4"
+                - button [expanded] [ref=e53] [cursor=pointer]
+              - generic [ref=e54]: "5"
+              - generic [ref=e55]: "6"
+              - generic [ref=e56]: "7"
+              - generic [ref=e57]:
+                - text: "8"
+                - button [expanded] [ref=e58] [cursor=pointer]
+              - generic [ref=e59]: "9"
+              - generic [ref=e60]: "10"
+              - generic [ref=e61]:
+                - text: "11"
+                - button [expanded] [ref=e62] [cursor=pointer]
+              - generic [ref=e63]: "12"
+              - generic [ref=e64]: "13"
+              - generic [ref=e65]: "14"
+              - generic [ref=e66]:
+                - text: "15"
+                - button [expanded] [ref=e67] [cursor=pointer]
+              - generic [ref=e68]: "16"
+              - generic [ref=e69]:
+                - text: "17"
+                - button [expanded] [ref=e70] [cursor=pointer]
+              - generic [ref=e71]:
+                - text: "18"
+                - button [expanded] [ref=e72] [cursor=pointer]
+              - generic [ref=e73]: "19"
+            - generic [ref=e75]:
+              - generic:
+                - generic:
+                  - generic: "{"
+                - generic:
+                  - generic: "\"title\": \"Complex Event Model"
+                  - generic: with Multiple Patterns",
+                - generic:
+                  - generic: "\"slices\": ["
+                - generic:
+                  - generic: "{"
+                - generic:
+                  - generic: "\"id\": \"1\","
+                - generic:
+                  - generic: "\"name\": \"Register User\","
+                - generic:
+                  - generic: "\"border\": \"#4CBB17\","
+                - generic:
+                  - generic: "\"trigger\": {"
+                - generic:
+                  - generic: "\"role\": \"User\","
+                - generic:
+                  - generic: "\"type\": \"input-ui\","
+                - generic:
+                  - generic: "\"buttons\": ["
+                - generic:
+                  - generic: "\"Register\""
+                - generic:
+                  - generic: "]"
+                - generic:
+                  - generic: "},"
+                - generic:
+                  - generic: "\"command\": {"
+                - generic:
+                  - generic: "\"name\": \"Register User\","
+                - generic:
+                  - generic: "\"properties\": ["
+                - generic:
+                  - generic: "{"
+                - generic:
+                  - generic: "\"name\": \"UserId\","
+        - text: ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮
+    - generic [ref=e79]:
+      - generic [ref=e80]:
+        - button "▶" [ref=e81] [cursor=pointer]
+        - generic [ref=e82]: Viewer
+      - generic [ref=e86]:
+        - generic [ref=e87]: Complex Event Model with Multiple Patterns
+        - generic [ref=e88]:
+          - generic [ref=e89]: Register User
+          - generic [ref=e90]: User Profile
+          - generic [ref=e91]: Send Welcome Email
+          - generic [ref=e92]: User
+          - generic [ref=e93]: System
+          - generic [ref=e96]: Tests
+          - generic [ref=e98]:
+            - generic [ref=e99]: User
+            - generic [ref=e100]: "Trigger: input-ui"
+            - generic [ref=e101]: "Buttons: Register"
+          - generic [ref=e103]:
+            - generic [ref=e104]: Register User
+            - generic [ref=e105]:
+              - generic [ref=e106]: "UserId: Guid"
+              - generic [ref=e107]: "Email: string"
+              - generic [ref=e108]: "Password: string"
+          - generic [ref=e110]:
+            - generic [ref=e111]:
+              - generic [ref=e112]:
+                - generic [ref=e113]: "Given:"
+                - generic [ref=e114]: undefined
+              - generic [ref=e115]:
+                - generic [ref=e116]: "When:"
+                - generic [ref=e117]: undefined
+              - generic [ref=e118]:
+                - generic [ref=e119]: "Then:"
+                - generic [ref=e120]: undefined
+            - generic [ref=e121]:
+              - generic [ref=e122]:
+                - generic [ref=e123]: "Given:"
+                - generic [ref=e124]: undefined
+              - generic [ref=e125]:
+                - generic [ref=e126]: "When:"
+                - generic [ref=e127]: undefined
+              - generic [ref=e128]:
+                - generic [ref=e129]: "Then:"
+                - generic [ref=e130]: undefined
+          - generic [ref=e132]:
+            - generic [ref=e133]: User
+            - generic [ref=e134]: "Trigger: list-ui"
+          - generic [ref=e136]:
+            - generic [ref=e137]: User Profile
+            - generic [ref=e138]:
+              - generic [ref=e139]: "UserId: Guid"
+              - generic [ref=e140]: "Email: string"
+              - generic [ref=e141]: "LastUpdated: DateTime"
+          - generic [ref=e144]:
+            - generic [ref=e145]:
+              - generic [ref=e146]: "Given:"
+              - generic [ref=e147]: undefined
+            - generic [ref=e148]:
+              - generic [ref=e149]: "When:"
+              - generic [ref=e150]: undefined
+            - generic [ref=e151]:
+              - generic [ref=e152]: "Then:"
+              - generic [ref=e153]: undefined
+          - generic [ref=e155]:
+            - generic [ref=e156]: System
+            - generic [ref=e157]: "Trigger: automated"
+          - generic [ref=e159]:
+            - generic [ref=e160]: Send Welcome Email
+            - generic [ref=e161]:
+              - generic [ref=e162]: "UserId: Guid"
+              - generic [ref=e163]: "Email: string"
+        - img
+      - generic [ref=e171]:
+        - button "+" [ref=e172] [cursor=pointer]
+        - generic [ref=e173]: 100%
+        - button "−" [ref=e174] [cursor=pointer]
+        - button "⊙" [ref=e175] [cursor=pointer]
+        - button "PNG" [ref=e177] [cursor=pointer]
+        - button "SVG" [ref=e178] [cursor=pointer]
+```

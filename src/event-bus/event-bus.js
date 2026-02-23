@@ -30,4 +30,16 @@
             // The editor panel was resized; ACE editor should call .resize().
             // Payload: {}
             EDITOR_RESIZED: 'editor:resized',
+
+            // The application is ready; modules should self-initialize.
+            // Payload: {}
+            APP_INIT:       'app:init',
+
+            // Request the tree view to re-render its current state (e.g. on tab switch).
+            // Payload: {}
+            TREE_SYNC:      'tree:sync',
+
+            // Request the code editor to sync its content with current JSON (e.g. on tab switch).
+            // Payload: { json }
+            CODE_SYNC:      'code:sync',
         };

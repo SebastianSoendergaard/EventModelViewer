@@ -150,22 +150,10 @@
         // RESIZER_JS
 
 
-        // Initialize editor
-        console.log('Initializing editor...');
-        
-        // Load saved layout state from localStorage
-        loadLayoutState();
-        
-        // Apply initial layout
-        updatePanelLayout();
-        
-        // Initialize CodeMirror for Code tab
-        initCodeMirror();
-        
-        console.log('Editor initialized');
-        
-        // Load saved JSON from localStorage
-        loadJsonFromLocalStorage();
+        // Initialize: emit APP_INIT so all modules self-initialize
+        console.log('Initializing application...');
+        EventBus.emit(Events.APP_INIT, {});
+        console.log('Application initialized');
 
     </script>
 </body>

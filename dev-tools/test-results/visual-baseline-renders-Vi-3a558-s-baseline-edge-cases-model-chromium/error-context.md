@@ -1,0 +1,150 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "Event Model Viewer" [level=1] [ref=e7]
+  - generic [ref=e8]:
+    - button "📄 New" [ref=e9] [cursor=pointer]
+    - generic [ref=e11] [cursor=pointer]: 📁 Open
+    - button "💾 Save" [ref=e12] [cursor=pointer]
+    - generic [ref=e13]: edge-cases.json
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - checkbox "Show slices" [checked] [ref=e16] [cursor=pointer]
+        - generic [ref=e17] [cursor=pointer]: Show slices
+      - generic [ref=e18]:
+        - checkbox "Show tests" [checked] [ref=e19] [cursor=pointer]
+        - generic [ref=e20] [cursor=pointer]: Show tests
+      - generic [ref=e21]:
+        - checkbox "Show types" [checked] [ref=e22] [cursor=pointer]
+        - generic [ref=e23] [cursor=pointer]: Show types
+      - generic [ref=e24]:
+        - checkbox "Show swimlanes" [checked] [ref=e25] [cursor=pointer]
+        - generic [ref=e26] [cursor=pointer]: Show swimlanes
+  - generic [ref=e27]:
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]: Editor
+        - button "◀" [ref=e31] [cursor=pointer]
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - button "Code" [ref=e34] [cursor=pointer]
+          - button "Tree" [ref=e35] [cursor=pointer]
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - button "▼" [ref=e38] [cursor=pointer]
+            - button "▶" [ref=e39] [cursor=pointer]
+            - button "↶" [disabled] [ref=e40]
+            - button "↷" [disabled] [ref=e41]
+            - button "+" [ref=e42] [cursor=pointer]
+          - generic [ref=e43]:
+            - textbox [ref=e44]
+            - generic [ref=e46]:
+              - generic [ref=e47]:
+                - text: "1"
+                - button [expanded] [ref=e48] [cursor=pointer]
+              - generic [ref=e49]: "2"
+              - generic [ref=e50]:
+                - text: "3"
+                - button [expanded] [ref=e51] [cursor=pointer]
+              - generic [ref=e52]:
+                - text: "4"
+                - button [expanded] [ref=e53] [cursor=pointer]
+              - generic [ref=e54]: "5"
+              - generic [ref=e55]: "6"
+              - generic [ref=e56]:
+                - text: "7"
+                - button [expanded] [ref=e57] [cursor=pointer]
+              - generic [ref=e58]: "8"
+              - generic [ref=e59]: "9"
+              - generic [ref=e60]:
+                - text: "10"
+                - button [expanded] [ref=e61] [cursor=pointer]
+              - generic [ref=e62]: "11"
+              - generic [ref=e63]: "12"
+              - generic [ref=e64]: "13"
+              - generic [ref=e65]: "14"
+              - generic [ref=e66]: "15"
+              - generic [ref=e67]: "16"
+            - generic [ref=e69]:
+              - generic:
+                - generic:
+                  - generic: "{"
+                - generic:
+                  - generic: "\"title\": \"Edge Cases Model\","
+                - generic:
+                  - generic: "\"slices\": ["
+                - generic:
+                  - generic: "{"
+                - generic:
+                  - generic: "\"id\": \"1\","
+                - generic:
+                  - generic: "\"name\": \"Slice with very"
+                  - generic: long name that should
+                  - generic: wrap properly in the
+                  - generic: UI",
+                - generic:
+                  - generic: "\"trigger\": {"
+                - generic:
+                  - generic: "\"role\": \"User with a very"
+                  - generic: long role name",
+                - generic:
+                  - generic: "\"type\": \"input-ui\","
+                - generic:
+                  - generic: "\"buttons\": ["
+                - generic:
+                  - generic: "\"Button 1\","
+                - generic:
+                  - generic: "\"Button 2\","
+                - generic:
+                  - generic: "\"Button 3\","
+                - generic:
+                  - generic: "\"Button 4\""
+                - generic:
+                  - generic: "]"
+                - generic:
+                  - generic: "},"
+        - text: ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮
+    - generic [ref=e73]:
+      - generic [ref=e74]:
+        - button "▶" [ref=e75] [cursor=pointer]
+        - generic [ref=e76]: Viewer
+      - generic [ref=e80]:
+        - generic [ref=e81]: Edge Cases Model
+        - generic [ref=e82]:
+          - generic [ref=e83]: Slice with very long name that should wrap properly in the UI
+          - generic [ref=e84]: Empty Slice
+          - generic [ref=e85]: "Special Characters: <>&\"'"
+          - generic [ref=e86]: User with a very long role name
+          - generic [ref=e87]: User
+          - generic [ref=e90]: Tests
+          - generic [ref=e92]:
+            - generic [ref=e93]: User with a very long role name
+            - generic [ref=e94]: "Trigger: input-ui"
+            - generic [ref=e95]: "Buttons: Button 1, Button 2, Button 3, Button 4"
+          - generic [ref=e97]:
+            - generic [ref=e98]: Command with many properties
+            - generic [ref=e99]:
+              - generic [ref=e100]: "Prop1: string"
+              - generic [ref=e101]: "Prop2: string"
+              - generic [ref=e102]: "Prop3: string"
+              - generic [ref=e103]: "Prop4: string"
+              - generic [ref=e104]: "Prop5: string"
+              - generic [ref=e105]: "Prop6: string"
+              - generic [ref=e106]: "Prop7: string"
+              - generic [ref=e107]: "Prop8: string"
+          - generic [ref=e110]:
+            - generic [ref=e111]: User
+            - generic [ref=e112]: "Trigger: input-ui"
+            - generic [ref=e113]: "Buttons: Click & Submit"
+          - generic [ref=e116]: Test <script>alert('XSS')</script>
+        - img
+      - generic [ref=e127]:
+        - button "+" [ref=e128] [cursor=pointer]
+        - generic [ref=e129]: 100%
+        - button "−" [ref=e130] [cursor=pointer]
+        - button "⊙" [ref=e131] [cursor=pointer]
+        - button "PNG" [ref=e133] [cursor=pointer]
+        - button "SVG" [ref=e134] [cursor=pointer]
+```

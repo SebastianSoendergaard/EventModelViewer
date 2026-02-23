@@ -5,7 +5,13 @@ function readFile(filePath) {
     return fs.readFileSync(path.join(__dirname, filePath), 'utf8');
 }
 
-// Event bus (must be first JS in the bundle)
+// Wrap JS content in an IIFE for scope isolation.
+// event-bus.js is intentionally NOT wrapped — it must be global.
+function iife(js) {
+    return `(function() {\n${js.trimEnd()}\n})();`;
+}
+
+// Event bus (must be first JS in the bundle, NOT wrapped in IIFE)
 const eventBusJs = readFile('src/event-bus/event-bus.js');
 
 // Toolbar sub-modules
@@ -51,13 +57,13 @@ let   appTemplate = readFile('src/app.html');
 toolbarHtml = toolbarHtml.replace('        <!-- FILE_BUTTONS_HTML -->', fileButtonsHtml.trimEnd());
 toolbarHtml = toolbarHtml.replace('        <!-- FILTER_TOGGLES_HTML -->', filterTogglesHtml.trimEnd());
 const combinedToolbarCss = toolbarCss.trimEnd() + '\n\n' + fileButtonsCss.trimEnd() + '\n\n' + filterTogglesCss.trimEnd();
-const combinedToolbarJs  = toolbarJs.trimEnd()  + '\n\n' + fileButtonsJs.trimEnd()  + '\n\n' + filterTogglesJs.trimEnd();
+const combinedToolbarJs  = iife(toolbarJs) + '\n\n' + iife(fileButtonsJs) + '\n\n' + iife(filterTogglesJs);
 
 // Level 1b: assemble editor sub-modules into editor
 editorHtml = editorHtml.replace('                <!-- CODE_VIEW_HTML -->', codeViewHtml.trimEnd());
 editorHtml = editorHtml.replace('                <!-- TREE_VIEW_HTML -->', treeViewHtml.trimEnd());
 const combinedEditorCss = editorCss.trimEnd() + '\n\n' + codeViewCss.trimEnd() + '\n\n' + treeViewCss.trimEnd();
-const combinedEditorJs  = codeViewJs.trimEnd() + '\n\n' + treeViewJs.trimEnd() + '\n\n' + editorJs.trimEnd();
+const combinedEditorJs  = iife(codeViewJs) + '\n\n' + iife(treeViewJs) + '\n\n' + iife(editorJs);
 
 // Level 1c: assemble viewer sub-modules into viewer
 // IMPORTANT: diagramJs MUST come before zoomExportJs because zoom-export.js
@@ -65,13 +71,13 @@ const combinedEditorJs  = codeViewJs.trimEnd() + '\n\n' + treeViewJs.trimEnd() +
 viewerHtml = viewerHtml.replace('            <!-- DIAGRAM_HTML -->', diagramHtml.trimEnd());
 viewerHtml = viewerHtml.replace('            <!-- ZOOM_EXPORT_HTML -->', zoomExportHtml.trimEnd());
 const combinedViewerCss = viewerCss.trimEnd() + '\n\n' + diagramCss.trimEnd() + '\n\n' + zoomExportCss.trimEnd();
-const combinedViewerJs  = diagramJs.trimEnd() + '\n\n' + zoomExportJs.trimEnd() + '\n\n' + viewerJs.trimEnd();
+const combinedViewerJs  = iife(diagramJs) + '\n\n' + iife(zoomExportJs) + '\n\n' + iife(viewerJs);
 
 // Level 2: assemble editor + viewer into resizer
 resizerHtml = resizerHtml.replace('        <!-- EDITOR_HTML -->', editorHtml.trimEnd());
 resizerHtml = resizerHtml.replace('        <!-- VIEWER_HTML -->', viewerHtml.trimEnd());
 const combinedResizerCss = resizerCss.trimEnd() + '\n\n' + combinedEditorCss + '\n\n' + combinedViewerCss;
-const combinedResizerJs  = combinedEditorJs + '\n\n' + combinedViewerJs + '\n\n' + resizerJs.trimEnd();
+const combinedResizerJs  = combinedEditorJs + '\n\n' + combinedViewerJs + '\n\n' + iife(resizerJs);
 
 // Level 3: assemble toolbar + resizer into app
 let result = appTemplate;

@@ -17,6 +17,11 @@
             _currentFileName = name;
         });
 
+        // Self-initialize when app is ready
+        EventBus.on(Events.APP_INIT, () => {
+            loadJsonFromLocalStorage();
+        });
+
         // LocalStorage functions for JSON persistence
         function saveJsonToLocalStorage() {
             _saveJsonToLocalStorage(_currentJson, _currentFileName);

@@ -6,6 +6,10 @@
         let scrollLeft = 0;
         let scrollTop = 0;
 
+        // DOM references (defined here so this module is self-contained)
+        const diagramWrapper = document.getElementById('diagramWrapper');
+        const diagramContainer = document.getElementById('diagramContainer');
+
         // Zoom functions
         function setZoom(zoom) {
             currentZoom = Math.min(Math.max(zoom, 0.1), 5); // Clamp between 10% and 500%
@@ -162,3 +166,41 @@
                 setZoom(currentZoom + delta);
             }
         }, { passive: false });
+
+        // Mouse drag to pan the diagram
+        diagramContainer.addEventListener('mousedown', (e) => {
+            // Ignore if clicking on zoom controls or if resizer is currently being dragged
+            const resizerEl = document.getElementById('resizer');
+            if (e.target.closest('.zoom-controls') || (resizerEl && resizerEl.classList.contains('resizing'))) return;
+            
+            isDragging = true;
+            diagramContainer.classList.add('dragging');
+            dragStartX = e.pageX - diagramContainer.offsetLeft;
+            dragStartY = e.pageY - diagramContainer.offsetTop;
+            scrollLeft = diagramContainer.scrollLeft;
+            scrollTop = diagramContainer.scrollTop;
+            e.preventDefault();
+        });
+
+        diagramContainer.addEventListener('mouseleave', () => {
+            if (isDragging) {
+                isDragging = false;
+                diagramContainer.classList.remove('dragging');
+            }
+        });
+
+        diagramContainer.addEventListener('mouseup', () => {
+            isDragging = false;
+            diagramContainer.classList.remove('dragging');
+        });
+
+        diagramContainer.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const x = e.pageX - diagramContainer.offsetLeft;
+            const y = e.pageY - diagramContainer.offsetTop;
+            const walkX = (x - dragStartX) * 1.5;
+            const walkY = (y - dragStartY) * 1.5;
+            diagramContainer.scrollLeft = scrollLeft - walkX;
+            diagramContainer.scrollTop = scrollTop - walkY;
+        });

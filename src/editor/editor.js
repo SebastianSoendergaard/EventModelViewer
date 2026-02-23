@@ -133,19 +133,12 @@
                 if (tabName === 'code') {
                     codeView.classList.add('active');
                     treeView.classList.remove('active');
-                    
-                    // Refresh ACE Editor content if currentJson changed in Tree view
-                    if (codeMirrorView && _editorJson) {
-                        const currentContent = codeMirrorView.getValue();
-                        const expectedContent = JSON.stringify(_editorJson, null, 2);
-                        if (currentContent !== expectedContent) {
-                            codeMirrorView.setValue(expectedContent, -1);
-                        }
-                    }
+                    // Sync ACE editor content via event
+                    EventBus.emit(Events.CODE_SYNC, { json: _editorJson });
                 } else {
                     treeView.classList.add('active');
                     codeView.classList.remove('active');
-                    renderTreeView();
+                    EventBus.emit(Events.TREE_SYNC, {});
                 }
             });
         });

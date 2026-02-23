@@ -34,6 +34,19 @@
             }
         });
 
+        EventBus.on(Events.APP_INIT, () => {
+            initCodeMirror();
+        });
+
+        EventBus.on(Events.CODE_SYNC, ({ json }) => {
+            if (!codeMirrorView) return;
+            if (json === undefined) return;
+            const expected = JSON.stringify(json, null, 2);
+            if (codeMirrorView.getValue() !== expected) {
+                codeMirrorView.setValue(expected, -1);
+            }
+        });
+
         function parseJsonToLines(json) {
             const lines = [];
             const text = JSON.stringify(json, null, 2);

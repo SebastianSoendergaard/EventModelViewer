@@ -1483,10 +1483,25 @@
             // The editor panel was resized; ACE editor should call .resize().
             // Payload: {}
             EDITOR_RESIZED: 'editor:resized',
+
+            // The application is ready; modules should self-initialize.
+            // Payload: {}
+            APP_INIT:       'app:init',
+
+            // Request the tree view to re-render its current state (e.g. on tab switch).
+            // Payload: {}
+            TREE_SYNC:      'tree:sync',
+
+            // Request the code editor to sync its content with current JSON (e.g. on tab switch).
+            // Payload: { json }
+            CODE_SYNC:      'code:sync',
         };
 
+(function() {
         // Toolbar shell — sub-module JS handles all behaviour
+})();
 
+(function() {
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName');
 
@@ -1504,6 +1519,11 @@
         EventBus.on(Events.FILE_LOADED, ({ json, fileName: name }) => {
             _currentJson = json;
             _currentFileName = name;
+        });
+
+        // Self-initialize when app is ready
+        EventBus.on(Events.APP_INIT, () => {
+            loadJsonFromLocalStorage();
         });
 
         // LocalStorage functions for JSON persistence
@@ -1670,7 +1690,9 @@
         saveBtn.addEventListener('click', () => {
             saveToFile();
         });
+})();
 
+(function() {
         const showSlicesCheckbox = document.getElementById('showSlices');
         const showTestsCheckbox = document.getElementById('showTests');
         const showTypesCheckbox = document.getElementById('showTypes');
@@ -1691,8 +1713,10 @@
         showSwimlanesCheckbox.addEventListener('change', () => {
             EventBus.emit(Events.FILTER_TOGGLED, { type: 'swimlanes', checked: showSwimlanesCheckbox.checked });
         });
+})();
 
 
+(function() {
 ﻿        const codeEditor = document.getElementById('codeEditor');
         const codeCollapseBtn = document.getElementById('codeCollapseBtn');
         const codeExpandBtn = document.getElementById('codeExpandBtn');
@@ -1726,6 +1750,19 @@
         EventBus.on(Events.EDITOR_RESIZED, () => {
             if (codeMirrorView && codeMirrorView.resize) {
                 codeMirrorView.resize();
+            }
+        });
+
+        EventBus.on(Events.APP_INIT, () => {
+            initCodeMirror();
+        });
+
+        EventBus.on(Events.CODE_SYNC, ({ json }) => {
+            if (!codeMirrorView) return;
+            if (json === undefined) return;
+            const expected = JSON.stringify(json, null, 2);
+            if (codeMirrorView.getValue() !== expected) {
+                codeMirrorView.setValue(expected, -1);
             }
         });
 
@@ -2376,7 +2413,9 @@
 
         codeCollapseBtn.addEventListener('click', collapseAll);
         codeExpandBtn.addEventListener('click', expandAll);
+})();
 
+(function() {
 ﻿        const treeEditor = document.getElementById('treeEditor');
 
         // Tree View State
@@ -2389,6 +2428,12 @@
         // Local JSON state
         let _treeViewJson = null;
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(String(text)));
+            return div.innerHTML;
+        }
+
         // Subscribe to events
         EventBus.on(Events.FILE_LOADED, ({ json }) => {
             _treeViewJson = json;
@@ -2398,6 +2443,10 @@
         EventBus.on(Events.JSON_CHANGED, ({ json, source }) => {
             if (source === 'tree') return; // Don't update from our own edits
             _treeViewJson = json;
+            renderTreeView();
+        });
+
+        EventBus.on(Events.TREE_SYNC, () => {
             renderTreeView();
         });
 
@@ -3207,7 +3256,9 @@
             expandAllTreeNodes();
             renderTreeView();
         });
+})();
 
+(function() {
 ﻿        const editorTabs = document.querySelectorAll('.editor-tab');
         const codeView = document.getElementById('codeView');
         const treeView = document.getElementById('treeView');
@@ -3343,19 +3394,12 @@
                 if (tabName === 'code') {
                     codeView.classList.add('active');
                     treeView.classList.remove('active');
-                    
-                    // Refresh ACE Editor content if currentJson changed in Tree view
-                    if (codeMirrorView && _editorJson) {
-                        const currentContent = codeMirrorView.getValue();
-                        const expectedContent = JSON.stringify(_editorJson, null, 2);
-                        if (currentContent !== expectedContent) {
-                            codeMirrorView.setValue(expectedContent, -1);
-                        }
-                    }
+                    // Sync ACE editor content via event
+                    EventBus.emit(Events.CODE_SYNC, { json: _editorJson });
                 } else {
                     treeView.classList.add('active');
                     codeView.classList.remove('active');
-                    renderTreeView();
+                    EventBus.emit(Events.TREE_SYNC, {});
                 }
             });
         });
@@ -3542,7 +3586,9 @@
                 historyManager.redo();
             }
         });
+})();
 
+(function() {
         const diagramElement = document.getElementById('diagram');
         const diagramContainer = document.getElementById('diagramContainer');
         const diagramWrapper = document.getElementById('diagramWrapper');
@@ -3580,42 +3626,7 @@
             }
         });
 
-        // Mouse drag to pan
-        diagramContainer.addEventListener('mousedown', (e) => {
-            // Ignore if clicking on zoom controls or if resizing
-            if (e.target.closest('.zoom-controls') || isResizing) return;
-            
-            isDragging = true;
-            diagramContainer.classList.add('dragging');
-            dragStartX = e.pageX - diagramContainer.offsetLeft;
-            dragStartY = e.pageY - diagramContainer.offsetTop;
-            scrollLeft = diagramContainer.scrollLeft;
-            scrollTop = diagramContainer.scrollTop;
-            e.preventDefault();
-        });
-
-        diagramContainer.addEventListener('mouseleave', () => {
-            if (isDragging) {
-                isDragging = false;
-                diagramContainer.classList.remove('dragging');
-            }
-        });
-
-        diagramContainer.addEventListener('mouseup', () => {
-            isDragging = false;
-            diagramContainer.classList.remove('dragging');
-        });
-
-        diagramContainer.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            e.preventDefault();
-            const x = e.pageX - diagramContainer.offsetLeft;
-            const y = e.pageY - diagramContainer.offsetTop;
-            const walkX = (x - dragStartX) * 1.5;
-            const walkY = (y - dragStartY) * 1.5;
-            diagramContainer.scrollLeft = scrollLeft - walkX;
-            diagramContainer.scrollTop = scrollTop - walkY;
-        });
+        // Mouse drag to pan — remove from here, handled in zoom-export.js
         function toggleSliceBorders(show) {
             const borders = document.querySelectorAll('.slice-border');
             borders.forEach(border => {
@@ -3970,8 +3981,9 @@
             const containerRect = container.getBoundingClientRect();
             const wrapperRect = diagramWrapper.getBoundingClientRect();
 
-            // Account for zoom and scroll offset
-            const scale = currentZoom;
+            // Account for zoom and scroll offset — read scale from the wrapper's CSS transform
+            const transformVal = diagramWrapper.style.transform;
+            const scale = transformVal ? parseFloat(transformVal.replace('scale(', '')) || 1 : 1;
             const offsetX = (wrapperRect.left - containerRect.left) / scale;
             const offsetY = (wrapperRect.top - containerRect.top) / scale;
 
@@ -4675,7 +4687,9 @@
         function showError(message) {
             diagramElement.innerHTML = `<div class="error-message">${escapeHtml(message)}</div>`;
         }
+})();
 
+(function() {
         // Zoom and pan state
         let currentZoom = 1;
         let isDragging = false;
@@ -4683,6 +4697,10 @@
         let dragStartY = 0;
         let scrollLeft = 0;
         let scrollTop = 0;
+
+        // DOM references (defined here so this module is self-contained)
+        const diagramWrapper = document.getElementById('diagramWrapper');
+        const diagramContainer = document.getElementById('diagramContainer');
 
         // Zoom functions
         function setZoom(zoom) {
@@ -4841,8 +4859,50 @@
             }
         }, { passive: false });
 
-        // Viewer shell — diagram and zoom-export sub-modules contain all behaviour
+        // Mouse drag to pan the diagram
+        diagramContainer.addEventListener('mousedown', (e) => {
+            // Ignore if clicking on zoom controls or if resizer is currently being dragged
+            const resizerEl = document.getElementById('resizer');
+            if (e.target.closest('.zoom-controls') || (resizerEl && resizerEl.classList.contains('resizing'))) return;
+            
+            isDragging = true;
+            diagramContainer.classList.add('dragging');
+            dragStartX = e.pageX - diagramContainer.offsetLeft;
+            dragStartY = e.pageY - diagramContainer.offsetTop;
+            scrollLeft = diagramContainer.scrollLeft;
+            scrollTop = diagramContainer.scrollTop;
+            e.preventDefault();
+        });
 
+        diagramContainer.addEventListener('mouseleave', () => {
+            if (isDragging) {
+                isDragging = false;
+                diagramContainer.classList.remove('dragging');
+            }
+        });
+
+        diagramContainer.addEventListener('mouseup', () => {
+            isDragging = false;
+            diagramContainer.classList.remove('dragging');
+        });
+
+        diagramContainer.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const x = e.pageX - diagramContainer.offsetLeft;
+            const y = e.pageY - diagramContainer.offsetTop;
+            const walkX = (x - dragStartX) * 1.5;
+            const walkY = (y - dragStartY) * 1.5;
+            diagramContainer.scrollLeft = scrollLeft - walkX;
+            diagramContainer.scrollTop = scrollTop - walkY;
+        });
+})();
+
+(function() {
+        // Viewer shell — diagram and zoom-export sub-modules contain all behaviour
+})();
+
+(function() {
         const resizer = document.getElementById('resizer');
 
         // Resizer state
@@ -4861,6 +4921,12 @@
                 savedWidth: '75%'
             }
         };
+
+        // Self-initialize when app is ready
+        EventBus.on(Events.APP_INIT, () => {
+            loadLayoutState();
+            updatePanelLayout();
+        });
 
         // Load layout state from localStorage
         function loadLayoutState() {
@@ -5028,24 +5094,13 @@
             updatePanelLayout();
             saveLayoutState();
         });
+})();
 
 
-        // Initialize editor
-        console.log('Initializing editor...');
-        
-        // Load saved layout state from localStorage
-        loadLayoutState();
-        
-        // Apply initial layout
-        updatePanelLayout();
-        
-        // Initialize CodeMirror for Code tab
-        initCodeMirror();
-        
-        console.log('Editor initialized');
-        
-        // Load saved JSON from localStorage
-        loadJsonFromLocalStorage();
+        // Initialize: emit APP_INIT so all modules self-initialize
+        console.log('Initializing application...');
+        EventBus.emit(Events.APP_INIT, {});
+        console.log('Application initialized');
 
     </script>
 </body>

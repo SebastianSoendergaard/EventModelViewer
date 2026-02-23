@@ -17,6 +17,12 @@
             }
         };
 
+        // Self-initialize when app is ready
+        EventBus.on(Events.APP_INIT, () => {
+            loadLayoutState();
+            updatePanelLayout();
+        });
+
         // Load layout state from localStorage
         function loadLayoutState() {
             try {

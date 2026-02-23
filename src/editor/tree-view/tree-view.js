@@ -10,6 +10,12 @@
         // Local JSON state
         let _treeViewJson = null;
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(String(text)));
+            return div.innerHTML;
+        }
+
         // Subscribe to events
         EventBus.on(Events.FILE_LOADED, ({ json }) => {
             _treeViewJson = json;
@@ -19,6 +25,10 @@
         EventBus.on(Events.JSON_CHANGED, ({ json, source }) => {
             if (source === 'tree') return; // Don't update from our own edits
             _treeViewJson = json;
+            renderTreeView();
+        });
+
+        EventBus.on(Events.TREE_SYNC, () => {
             renderTreeView();
         });
 

@@ -35,42 +35,7 @@
             }
         });
 
-        // Mouse drag to pan
-        diagramContainer.addEventListener('mousedown', (e) => {
-            // Ignore if clicking on zoom controls or if resizing
-            if (e.target.closest('.zoom-controls') || isResizing) return;
-            
-            isDragging = true;
-            diagramContainer.classList.add('dragging');
-            dragStartX = e.pageX - diagramContainer.offsetLeft;
-            dragStartY = e.pageY - diagramContainer.offsetTop;
-            scrollLeft = diagramContainer.scrollLeft;
-            scrollTop = diagramContainer.scrollTop;
-            e.preventDefault();
-        });
-
-        diagramContainer.addEventListener('mouseleave', () => {
-            if (isDragging) {
-                isDragging = false;
-                diagramContainer.classList.remove('dragging');
-            }
-        });
-
-        diagramContainer.addEventListener('mouseup', () => {
-            isDragging = false;
-            diagramContainer.classList.remove('dragging');
-        });
-
-        diagramContainer.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            e.preventDefault();
-            const x = e.pageX - diagramContainer.offsetLeft;
-            const y = e.pageY - diagramContainer.offsetTop;
-            const walkX = (x - dragStartX) * 1.5;
-            const walkY = (y - dragStartY) * 1.5;
-            diagramContainer.scrollLeft = scrollLeft - walkX;
-            diagramContainer.scrollTop = scrollTop - walkY;
-        });
+        // Mouse drag to pan — remove from here, handled in zoom-export.js
         function toggleSliceBorders(show) {
             const borders = document.querySelectorAll('.slice-border');
             borders.forEach(border => {
@@ -425,8 +390,9 @@
             const containerRect = container.getBoundingClientRect();
             const wrapperRect = diagramWrapper.getBoundingClientRect();
 
-            // Account for zoom and scroll offset
-            const scale = currentZoom;
+            // Account for zoom and scroll offset — read scale from the wrapper's CSS transform
+            const transformVal = diagramWrapper.style.transform;
+            const scale = transformVal ? parseFloat(transformVal.replace('scale(', '')) || 1 : 1;
             const offsetX = (wrapperRect.left - containerRect.left) / scale;
             const offsetY = (wrapperRect.top - containerRect.top) / scale;
 
