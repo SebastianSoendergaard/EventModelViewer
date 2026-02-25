@@ -227,8 +227,3 @@ mermaid.initialize({
 
 MIT
 
----
-
-**Version:** 1.0  
-**Last Updated:** 2026-02-10  
-**Maintainer:** [Your name/team]
