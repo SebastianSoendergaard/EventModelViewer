@@ -1,6 +1,51 @@
 # Event Model Viewer
 
-A web-based application for visualizing event-driven architecture models using Event Medeling defined in JSON format. Features an interactive JSON editor with collapsible objects, a drag-and-drop tree view, and a diagram viewer using Mermaid.js.
+A web-based application for visualizing event-driven architecture models using Event Modeling defined in a JSON format. Features an interactive JSON editor with collapsable objects, a drag-and-drop tree view, and a diagram viewer.
+
+## Usage
+
+On build the file **event-model-viewer.html** is created as a single file application. The file can easily be commited to your git repository together with the event model json files. This way the viewer lives next to the event model and can be used by anyone. 
+
+By having the viewer as a single file application next to the diagram json files, you will always have a viewer that can handle your diagrams without the fear for compatibility issues or version mismatches. The viewer can be used for any event model defined in the supported json format, making it a versatile tool for visualizing and sharing event-driven architecture models.
+
+To see a diagram simply open **event-model-viewer.html** in a web browser and load the json file. You can then edit the json file in the code view or tree view and see the changes reflected in the diagram in real-time. After edits the updated diagram can be saved back to a json file or exported as an image.
+
+## Event Model Format
+
+The viewer supports event models defined with:
+
+### Building Blocks
+- **Trigger** - What initiates a use case (user, automation, external system)
+- **Command** - Intention to change system state
+- **Event** - Business fact that occurred
+- **View** - Current state projection from events
+
+### Patterns
+- **Command Pattern** - Trigger → Command → Event(s)
+- **View Pattern** - Event(s) → View
+- **Automation Pattern** - Event(s) → View → Trigger → Command
+- **Translation Pattern** - Event(s) → View → Trigger → Command (cross-system)
+
+### Example Structure
+```json
+{
+  "title": "Shopping Cart",
+  "slices": [
+    {
+      "name": "Add item",
+      "trigger": { "role": "User", "type": "input-ui" },
+      "command": {
+        "name": "Add item",
+        "properties": [...],
+        "events": [...]
+      },
+      "tests": [...]
+    }
+  ]
+}
+```
+
+See `em.json` for a complete example.
 
 ## Diagram JSON specification
 
@@ -56,7 +101,7 @@ slices: list of slices on the diagram
 ## Features
 
 ### 📝 JSON Editor (Code View)
-- **Collapsible objects and arrays** - Navigate large JSON files easily
+- **Collapsable objects and arrays** - Navigate large JSON files easily
 - **Smart labels** - See property names and item counts when collapsed
 - **Live editing** - Changes update the diagram in real-time
 - **Syntax highlighting** - Clear visual distinction
@@ -142,66 +187,11 @@ Visualizes Event Modeling patterns:
    - Click ▶/▼ to collapse/expand nodes
    - Drop between items (green line = valid drop)
 
-## Project Structure
-
-```
-EventModelViewer/
-├── index.html              # Main application (single-page app)
-├── em.json                 # Example event model
-├── em-schema.json          # JSON schema definition
-├── docs/                   # Documentation
-│   ├── README.md           # Documentation index
-│   ├── collapse-feature-learnings.md
-│   └── collapse-quick-reference.md
-├── tests/                  # Test suite
-│   ├── README.md           # Test documentation
-│   └── collapse-functionality.test.html
-└── dev-tools/              # Development utilities
-```
-
-## Documentation
-
-### For Users
-- 📖 **Quick Reference** - [docs/collapse-quick-reference.md](docs/collapse-quick-reference.md)
-  - How to use collapse feature
-  - What can be collapsed
-  - Tips and tricks
-
-### For Developers
-- 🔍 **Detailed Learnings** - [docs/collapse-feature-learnings.md](docs/collapse-feature-learnings.md)
-  - Implementation details
-  - Technical decisions
-  - Performance considerations
-  - Lessons learned
-
-- 🧪 **Test Suite** - [tests/README.md](tests/README.md)
-  - How to run tests
-  - Test coverage
-  - Adding new tests
-
-## Testing
-
-Run the comprehensive test suite:
-
-```bash
-cd tests
-start collapse-functionality.test.html
-```
-
-**Test Coverage:**
-- ✅ 29+ automated tests
-- ✅ 100% pass rate
-- ✅ Covers all collapse functionality
-- ✅ Edge cases and real-world scenarios
-
-See [tests/README.md](tests/README.md) for details.
-
 ## Technology Stack
 
 - **HTML5** - Structure
 - **CSS3** - Styling with gradients and animations
 - **JavaScript (ES6+)** - Logic and interactivity
-- **Mermaid.js** - Diagram rendering
 - **No build tools** - Just open and run!
 
 ## Browser Support
@@ -211,78 +201,6 @@ Works in all modern browsers:
 - ✅ Firefox 121+
 - ✅ Edge 120+
 - ✅ Safari 17+
-
-## Recent Updates
-
-### 2026-02-13: Add Slice Button
-- ✨ Quick slice creation with + button in both toolbars
-- ✨ Context menu with two template options
-- ✨ Full slice template (trigger, command, view, events, tests)
-- ✨ Event-only slice template for minimal structures
-- 📝 Added comprehensive documentation
-- 🔄 Full integration with undo/redo and persistence
-
-### 2026-02-10: Enhanced Collapse Functionality
-- ✨ All objects and arrays now collapsible (not just standalone brackets)
-- ✨ Smart labels show property names and item counts
-- ✨ Improved bracket matching for nested structures
-- 📝 Comprehensive documentation added
-- 🧪 Full test suite with 29+ tests
-
-See [docs/collapse-feature-learnings.md](docs/collapse-feature-learnings.md) for technical details.
-
-## Event Model Format
-
-The viewer supports event models defined with:
-
-### Building Blocks
-- **Trigger** - What initiates a use case (user, automation, external system)
-- **Command** - Intention to change system state
-- **Event** - Business fact that occurred
-- **View** - Current state projection from events
-
-### Patterns
-- **Command Pattern** - Trigger → Command → Event(s)
-- **View Pattern** - Event(s) → View
-- **Automation Pattern** - Event(s) → View → Trigger → Command
-- **Translation Pattern** - Event(s) → View → Trigger → Command (cross-system)
-
-### Example Structure
-```json
-{
-  "title": "Shopping Cart",
-  "slices": [
-    {
-      "name": "Add item",
-      "trigger": { "role": "User", "type": "input-ui" },
-      "command": {
-        "name": "Add item",
-        "properties": [...],
-        "events": [...]
-      },
-      "tests": [...]
-    }
-  ]
-}
-```
-
-See `em.json` for a complete example.
-
-## Contributing
-
-### Adding Features
-1. Implement the feature
-2. Add tests to `tests/`
-3. Document learnings in `docs/`
-4. Update this README
-
-### Documentation Standards
-- Use Markdown format
-- Include code examples
-- Explain trade-offs
-- Add references
-
-See [docs/README.md](docs/README.md) for templates.
 
 ## Customization
 
@@ -305,53 +223,12 @@ mermaid.initialize({
 });
 ```
 
-## Troubleshooting
-
-**Diagram not showing?**
-- Check browser console for errors
-- Ensure JSON is valid
-- Verify Mermaid CDN is accessible
-
-**Collapse not working?**
-- Load a JSON file first
-- Check that properties have objects/arrays on same line
-- See [docs/collapse-quick-reference.md](docs/collapse-quick-reference.md)
-
-**Performance issues?**
-- Files over 5,000 lines may be slow
-- Use "Collapse All" to reduce rendering
-- Consider splitting large JSON files
-
-## Roadmap
-
-### Planned Features
-- [ ] Persist collapse state (localStorage)
-- [ ] Keyboard navigation
-- [ ] Syntax highlighting
-- [ ] Line numbers
-- [ ] Export diagrams (PNG, SVG)
-- [ ] Multiple diagram types
-- [ ] Dark mode
-- [ ] Custom themes
-
-See individual doc files for more enhancement ideas.
-
 ## License
 
-[Add your license here]
-
-## Resources
-
-### Event Modeling
-- [Event Modeling Official Site](https://eventmodeling.org/)
-- [Event Modeling Book by Adam Dymitruk & Martin Dilger](https://leanpub.com/eventmodeling-and-eventsourcing)
-
-### Technical References
-- [Mermaid.js Documentation](https://mermaid.js.org/)
-- [MDN Web Docs](https://developer.mozilla.org/)
+MIT
 
 ---
 
-**Version:** 2.0  
+**Version:** 1.0  
 **Last Updated:** 2026-02-10  
 **Maintainer:** [Your name/team]
