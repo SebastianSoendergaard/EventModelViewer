@@ -166,7 +166,7 @@
                 "name": "New Slice",
                 "border": "#000000",
                 "trigger": {
-                    "role": "User",
+                    "swimlane": "User",
                     "type": "input-ui",
                     "buttons": ["Action"]
                 },

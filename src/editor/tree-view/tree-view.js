@@ -117,7 +117,7 @@
         function getNodeDisplayValue(node) {
             if (node.type === 'object' && node.value !== null) {
                 // Try to find a meaningful property to display
-                const meaningfulProps = ['name', 'title', 'id', 'type', 'role'];
+                const meaningfulProps = ['name', 'title', 'id', 'type', 'swimlane'];
                 for (const prop of meaningfulProps) {
                     if (node.value[prop]) {
                         const val = node.value[prop];

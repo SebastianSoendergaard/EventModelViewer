@@ -1084,6 +1084,12 @@
             letter-spacing: 0.5px;
         }
 
+        .trigger .element-subtitle {
+            font-size: 12px;
+            color: #555;
+            margin-bottom: 4px;
+        }
+
         .command {
             background: #3498db;
             color: white;
@@ -2535,7 +2541,7 @@
         function getNodeDisplayValue(node) {
             if (node.type === 'object' && node.value !== null) {
                 // Try to find a meaningful property to display
-                const meaningfulProps = ['name', 'title', 'id', 'type', 'role'];
+                const meaningfulProps = ['name', 'title', 'id', 'type', 'swimlane'];
                 for (const prop of meaningfulProps) {
                     if (node.value[prop]) {
                         const val = node.value[prop];
@@ -3427,7 +3433,7 @@
                 "name": "New Slice",
                 "border": "#000000",
                 "trigger": {
-                    "role": "User",
+                    "swimlane": "User",
                     "type": "input-ui",
                     "buttons": ["Action"]
                 },
@@ -3862,51 +3868,7 @@
                     drawArrow(svg, trigger, view, diagramDiv, 'bottom', 'top');
                 }
 
-                // Event -> Trigger (automation triggers)
-                if (trigger) {
-                    const triggerEventsAttr = trigger.getAttribute('data-trigger-events');
-                    if (triggerEventsAttr && triggerEventsAttr.trim()) {
-                        const triggerEventNames = triggerEventsAttr.split(',').filter(n => n.trim());
-                        triggerEventNames.forEach(eventIdentifier => {
-                            const eventMatches = findEventElements(eventIdentifier);
-                            if (eventMatches.length === 0) {
-                                console.warn(`Trigger references event "${eventIdentifier}" but no matching event found`);
-                                return;
-                            }
-
-                            let selectedMatch = null;
-                            let isDashed = false;
-
-                            // First, check for events in the SAME slice
-                            const sameSliceEvents = eventMatches.filter(m => m.sliceIndex === sliceIndex);
-                            if (sameSliceEvents.length > 0) {
-                                // Use first same-slice event (should typically be only one)
-                                selectedMatch = sameSliceEvents[0];
-                            } else {
-                                // Try to find nearest preceding event
-                                selectedMatch = selectNearestPrecedingEvent(eventMatches, sliceIndex);
-
-                                // If no preceding, use nearest subsequent with dashed arrow
-                                if (!selectedMatch) {
-                                    selectedMatch = selectNearestSubsequentEvent(eventMatches, sliceIndex);
-                                    isDashed = true;
-                                }
-                            }
-
-                            if (selectedMatch) {
-                                // Determine arrow direction based on same-slice vs cross-slice
-                                const isSameSlice = selectedMatch.sliceIndex === sliceIndex;
-                                if (isSameSlice) {
-                                    // Same slice: event above, trigger below
-                                    drawArrow(svg, selectedMatch.element, trigger, diagramDiv, 'top', 'bottom', isDashed);
-                                } else {
-                                    // Different slice: horizontal connection
-                                    drawArrow(svg, selectedMatch.element, trigger, diagramDiv, 'right', 'left', isDashed);
-                                }
-                            }
-                        });
-                    }
-                }
+                // Event -> Trigger arrow drawing removed (trigger.events no longer in spec)
             });
 
             // Event -> View (across slices)
@@ -4089,26 +4051,25 @@
             const triggerLanes = [];
             const eventLanes = [];
             const seenRoles = new Set();
-            const seenSystems = new Set();
             
             const automationRoles = [];
             const otherRoles = [];
             let hasNoRoleTrigger = false;
 
-            // First pass: collect trigger roles
+            // First pass: collect trigger swimlanes
             if (data.slices && Array.isArray(data.slices)) {
                 data.slices.forEach(slice => {
                     if (slice.trigger) {
-                        const role = slice.trigger.role;
+                        const swimlane = slice.trigger.swimlane;
                         const type = slice.trigger.type;
                         
-                        if (role && role.trim()) {
-                            if (!seenRoles.has(role)) {
-                                seenRoles.add(role);
+                        if (swimlane && swimlane.trim()) {
+                            if (!seenRoles.has(swimlane)) {
+                                seenRoles.add(swimlane);
                                 if (type === 'automation') {
-                                    automationRoles.push(role);
+                                    automationRoles.push(swimlane);
                                 } else {
-                                    otherRoles.push(role);
+                                    otherRoles.push(swimlane);
                                 }
                             }
                         } else {
@@ -4118,30 +4079,40 @@
                 });
 
                 // Build trigger lanes in order: automation -> others -> no-role
-                automationRoles.forEach(role => {
-                    triggerLanes.push({ type: 'role', role: role, label: role });
+                automationRoles.forEach(swimlane => {
+                    triggerLanes.push({ type: 'role', role: swimlane, label: swimlane });
                 });
-                otherRoles.forEach(role => {
-                    triggerLanes.push({ type: 'role', role: role, label: role });
+                otherRoles.forEach(swimlane => {
+                    triggerLanes.push({ type: 'role', role: swimlane, label: swimlane });
                 });
                 if (hasNoRoleTrigger) {
-                    triggerLanes.push({ type: 'no-role', label: '(no role)' });
+                    triggerLanes.push({ type: 'no-role', label: '' });
                 }
 
-                // Second pass: collect event systems
+                // Second pass: collect event swimlanes
                 let hasNoSystemEvent = false;
-                let hasExternalEvent = false;
-                const systemsList = [];
+                let hasUnnamedExternal = false;
+                const nonExternalSwimlanes = [];
+                const externalSwimlanes = [];
+                const seenNonExternal = new Set();
+                const seenExternal = new Set();
 
                 data.slices.forEach(slice => {
                     if (slice.events && Array.isArray(slice.events)) {
                         slice.events.forEach(event => {
                             if (event.external) {
-                                hasExternalEvent = true;
-                            } else if (event.system && event.system.trim()) {
-                                if (!seenSystems.has(event.system)) {
-                                    seenSystems.add(event.system);
-                                    systemsList.push(event.system);
+                                if (event.swimlane && event.swimlane.trim()) {
+                                    if (!seenExternal.has(event.swimlane)) {
+                                        seenExternal.add(event.swimlane);
+                                        externalSwimlanes.push(event.swimlane);
+                                    }
+                                } else {
+                                    hasUnnamedExternal = true;
+                                }
+                            } else if (event.swimlane && event.swimlane.trim()) {
+                                if (!seenNonExternal.has(event.swimlane)) {
+                                    seenNonExternal.add(event.swimlane);
+                                    nonExternalSwimlanes.push(event.swimlane);
                                 }
                             } else {
                                 hasNoSystemEvent = true;
@@ -4150,14 +4121,17 @@
                     }
                 });
 
-                // Build event lanes in order: no-system -> systems -> external
+                // Build event lanes: no-swimlane → non-external named → external named → External default
                 if (hasNoSystemEvent) {
                     eventLanes.push({ type: 'no-system', label: '' });
                 }
-                systemsList.forEach(system => {
-                    eventLanes.push({ type: 'system', system: system, label: system });
+                nonExternalSwimlanes.forEach(swimlane => {
+                    eventLanes.push({ type: 'system', system: swimlane, label: swimlane });
                 });
-                if (hasExternalEvent) {
+                externalSwimlanes.forEach(swimlane => {
+                    eventLanes.push({ type: 'system', system: swimlane, label: swimlane });
+                });
+                if (hasUnnamedExternal) {
                     eventLanes.push({ type: 'external', label: 'External' });
                 }
             }
@@ -4235,8 +4209,8 @@
         function getTriggerLaneKey(trigger, showSwimlanes) {
             if (!showSwimlanes) return 'all';
             if (!trigger) return 'no-role';
-            if (trigger.role && trigger.role.trim()) {
-                return `role:${trigger.role}`;
+            if (trigger.swimlane && trigger.swimlane.trim()) {
+                return `role:${trigger.swimlane}`;
             }
             return 'no-role';
         }
@@ -4247,9 +4221,14 @@
         function getEventLaneKey(event, showSwimlanes) {
             if (!showSwimlanes) return 'all';
             if (!event) return 'no-system';
-            if (event.external) return 'external';
-            if (event.system && event.system.trim()) {
-                return `system:${event.system}`;
+            if (event.external) {
+                if (event.swimlane && event.swimlane.trim()) {
+                    return `system:${event.swimlane}`;
+                }
+                return 'external';
+            }
+            if (event.swimlane && event.swimlane.trim()) {
+                return `system:${event.swimlane}`;
             }
             return 'no-system';
         }
@@ -4401,9 +4380,6 @@
                     html += `<div class="lane-header" style="grid-column: 1; grid-row: ${currentRow};">${escapeHtml(lane.label)}</div>`;
                     currentRow++;
                 });
-                
-                // Test header
-                html += `<div class="lane-header" style="grid-column: 1; grid-row: ${currentRow};">Tests</div>`;
             }
             
             // Render all grid cells with content
@@ -4579,11 +4555,14 @@
         }
 
         function generateTrigger(trigger, sliceIndex) {
-            const triggerEvents = trigger.events ? trigger.events.join(',') : '';
-            let html = `<div class="element trigger" data-trigger-events="${escapeHtml(triggerEvents)}" data-slice-index="${sliceIndex}">`;
+            let html = `<div class="element trigger" data-slice-index="${sliceIndex}">`;
             
-            if (trigger.role) {
-                html += `<div class="element-role">${escapeHtml(trigger.role)}</div>`;
+            if (trigger.swimlane) {
+                html += `<div class="element-role">${escapeHtml(trigger.swimlane)}</div>`;
+            }
+            
+            if (trigger.name) {
+                html += `<div class="element-subtitle">${escapeHtml(trigger.name)}</div>`;
             }
             
             html += `<div class="element-title">Trigger: ${escapeHtml(trigger.type)}</div>`;

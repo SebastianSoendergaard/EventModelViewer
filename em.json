@@ -6,7 +6,7 @@
       "name": "Add item",
       "border": "#4CBB17",
       "trigger": {
-        "role": "User",
+        "swimlane": "User",
         "type": "input-ui",
         "buttons": [
           "Add"
@@ -52,7 +52,7 @@
       "events": [
         {
           "name": "Cart created",
-          "system": "Cart",
+          "swimlane": "Cart",
           "properties": [
             {
               "name": "CartId",
@@ -62,7 +62,7 @@
         },
         {
           "name": "Item added",
-          "system": "Cart",
+          "swimlane": "Cart",
           "properties": [
             {
               "name": "CartId",
@@ -291,7 +291,7 @@
       "name": "Remove item",
       "border": "#000000",
       "trigger": {
-        "role": "User",
+        "swimlane": "User",
         "type": "input-ui",
         "buttons": [
           "Add",
@@ -320,7 +320,7 @@
       "events": [
         {
           "name": "Item removed",
-          "system": "Cart",
+          "swimlane": "Cart",
           "properties": [
             {
               "name": "CartId",
@@ -411,7 +411,7 @@
       "name": "Clear cart",
       "border": "#000000",
       "trigger": {
-        "role": "User",
+        "swimlane": "User",
         "type": "input-ui",
         "buttons": [
           "Add",
@@ -437,7 +437,7 @@
       "events": [
         {
           "name": "Cart cleared",
-          "system": "Cart",
+          "swimlane": "Cart",
           "properties": [
             {
               "name": "CartId",
@@ -472,7 +472,7 @@
       "id": "2",
       "name": "Cart items",
       "trigger": {
-        "role": "User",
+        "swimlane": "User",
         "type": "input-ui",
         "buttons": [
           "Add"
@@ -511,8 +511,24 @@
       "name": "Inventory changed",
       "border": "#000000",
       "trigger": {
-        "role": "Bot",
+        "swimlane": "Bot",
         "type": "automation",
+        "views": [
+          "Changed inventory"
+        ]
+      },
+      "view": {
+        "name": "Changed inventory",
+        "properties": [
+          {
+            "name": "ProductId",
+            "type": "Guid"
+          },
+          {
+            "name": "Inventory",
+            "type": "int"
+          }
+        ],
         "events": [
           "Inventory changed - external"
         ]
@@ -538,7 +554,7 @@
           "id": "Inventory changed - external",
           "name": "Inventory changed",
           "external": true,
-          "system": "Warehouse",
+          "swimlane": "Warehouse",
           "properties": [
             {
               "name": "ProductId",
@@ -552,7 +568,7 @@
         },
         {
           "name": "Inventory changed",
-          "system": "Inventory",
+          "swimlane": "Inventory",
           "properties": [
             {
               "name": "ProductId",
@@ -570,7 +586,7 @@
       "name": "Inventories",
       "border": "#000000",
       "trigger": {
-        "role": "User",
+        "swimlane": "User",
         "type": "input-ui",
         "buttons": [
           "Add",
@@ -602,8 +618,28 @@
       "name": "Price changed",
       "border": "#000000",
       "trigger": {
-        "role": "Bot",
+        "swimlane": "Bot",
         "type": "automation",
+        "views": [
+          "Changed prices"
+        ]
+      },
+      "view": {
+        "name": "Changed prices",
+        "properties": [
+          {
+            "name": "ProductId",
+            "type": "Guid"
+          },
+          {
+            "name": "OldPrice",
+            "type": "decimal"
+          },
+          {
+            "name": "NewPrice",
+            "type": "decimal"
+          }
+        ],
         "events": [
           "Price changed - external"
         ]
@@ -633,7 +669,7 @@
           "id": "Price changed - external",
           "name": "Price changed",
           "external": true,
-          "system": "Pricing engine",
+          "swimlane": "Pricing engine",
           "properties": [
             {
               "name": "ProductId",
@@ -651,7 +687,7 @@
         },
         {
           "name": "Price changed",
-          "system": "Pricing",
+          "swimlane": "Pricing",
           "properties": [
             {
               "name": "ProductId",
@@ -701,7 +737,7 @@
       "name": "Archive item",
       "border": "#000000",
       "trigger": {
-        "role": "Bot",
+        "swimlane": "Bot",
         "type": "automation",
         "views": [
           "Carts with products",
@@ -747,7 +783,7 @@
       "events": [
         {
           "name": "Item archived",
-          "system": "Cart",
+          "swimlane": "Cart",
           "properties": [
             {
               "name": "CartId",
@@ -765,7 +801,7 @@
       "name": "Submit cart",
       "border": "#000000",
       "trigger": {
-        "role": "User",
+        "swimlane": "User",
         "type": "input-ui",
         "buttons": [
           "Add",
@@ -792,7 +828,7 @@
       "events": [
         {
           "name": "Cart submitted",
-          "system": "Cart",
+          "swimlane": "Cart",
           "properties": [
             {
               "name": "CartId",
@@ -814,7 +850,7 @@
       "name": "Publish cart",
       "border": "#000000",
       "trigger": {
-        "role": "Bot",
+        "swimlane": "Bot",
         "type": "automation",
         "views": [
           "Submitted cart data"
@@ -838,7 +874,8 @@
         ],
         "events": [
           "Cart submitted",
-          "Cart published - external"
+          "Cart published",
+          "Cart publication failed"
         ]
       },
       "command": {
@@ -867,7 +904,7 @@
         {
           "id": "Cart published - external",
           "name": "Cart published",
-          "system": "External",
+          "swimlane": "External",
           "external": true,
           "properties": [
             {
@@ -878,7 +915,7 @@
         },
         {
           "name": "Cart published",
-          "system": "Cart",
+          "swimlane": "Cart",
           "properties": [
             {
               "name": "CartId",
@@ -888,7 +925,7 @@
         },
         {
           "name": "Cart publication failed",
-          "system": "Cart",
+          "swimlane": "Cart",
           "properties": [
             {
               "name": "CartId",

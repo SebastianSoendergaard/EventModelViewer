@@ -23,8 +23,8 @@ The viewer supports event models defined with:
 ### Patterns
 - **Command Pattern** - Trigger → Command → Event(s)
 - **View Pattern** - Event(s) → View
-- **Automation Pattern** - Event(s) → View → Trigger → Command
-- **Translation Pattern** - Event(s) → View → Trigger → Command (cross-system)
+- **Automation Pattern** - Event(s) → View → Automated Trigger → Command → Event(s)
+- **Translation Pattern** - External Event(s) → View → Automated Trigger → Command → Event(s)
 
 ### Example Structure
 ```json
@@ -39,6 +39,7 @@ The viewer supports event models defined with:
         "properties": [...],
         "events": [...]
       },
+      "events": [...],
       "tests": [...]
     }
   ]
@@ -55,25 +56,30 @@ slices: list of slices on the diagram
   slice: a single slice
     name: name of the slice
     border: color to mark a slice and its state (e.g. black=>todo, red=>in progress, green=>done)
-    trigger: something that triggers actions in the flow  
-      role: name of the role/person/system that initiates an action
+    trigger: something that triggers actions in the flow 
+      name: name of the trigger that initiates an action
       type: type of the trigger e.g. ui or automation
+      swimlane: name of the swimlane (role/person/system) the trigger belongs to, if not defined it will be put in a default swimlane 
       buttons: list of buttons to show on ui trigger
+      views: list of dependencies of views (id of view if defined, else name of view) 
     command: a command
       name: name of the command
+      id: unique id of a command, can be used for reference on name clashes, if not defined fallback to name property
       properties: list of properties for the command
         name: name of a command property
         type: type of a command property
-      events: list of references to events (id of event if it exists else name) 
+      events: list of references to events (id of event if defined, else name of event) 
     view: a view
       name: name of the view
+      id: unique id of a view, can be used for reference on name clashes, if not defined fallback to name property
       properties: list of properties for the view
         name: name of a view property
         type: type of a view property
-      events: list of references to events (id of event if it exists else name) 
+      events: list of dependencies of events (id of event if defined, else name of event) 
     events: list of events 
-      id: unique id of an event, can be used for reference on name clashes, if not defined fallback to name property
       name: name of an event
+      id: unique id of an event, can be used for reference on name clashes, if not defined fallback to name property
+      swimlane: name of the swimlane (aggregate/module/system) the event belongs to, if not defined it will be put in a default swimlane
       external: true if the event is external
       properties: list of properties for the event
         name: name of an event property
@@ -81,7 +87,7 @@ slices: list of slices on the diagram
     tests: list of test cases for the slice
       name: name of the test case
       given: list of preconditional events
-        name: id or name of the event
+        name: name of the event
         properties: list of properties for the event
           name: name of an event property
           value: value of an event property
@@ -90,13 +96,12 @@ slices: list of slices on the diagram
         properties: list of properties for the command
           name: name of a command property
           value: value of a command property
-      then: list of resulting events
-        name: id or name of the event
-        properties: list of properties for the event
-          name: name of an event property
-          value: value of an event property
+      then: list of resulting events or views
+        name: name of the event or view
+        properties: list of properties for the event or view
+          name: name of an event or view property
+          value: value of an event or view property
 ```
-
 
 ## Features
 
@@ -145,15 +150,6 @@ slices: list of slices on the diagram
 - **Zoom and pan** - Navigate large diagrams
 - **Error messages** - Helpful feedback for invalid JSON
 
-### 🎯 Event Modeling Support
-Visualizes Event Modeling patterns:
-- Slices (bounded contexts)
-- Triggers (UI, automation)
-- Commands (write operations)
-- Events (business facts)
-- Views (read models)
-- Tests (given-when-then)
-
 ## Quick Start
 
 1. **Open the viewer**
@@ -201,27 +197,6 @@ Works in all modern browsers:
 - ✅ Firefox 121+
 - ✅ Edge 120+
 - ✅ Safari 17+
-
-## Customization
-
-### Modifying Diagram Generation
-Edit the `convertJsonToMermaid()` function in `index.html` to support custom JSON structures.
-
-### Styling
-All styles are in the `<style>` section of `index.html`. Key classes:
-- `.editor-panel` - Left panel
-- `.diagram-panel` - Right panel
-- `.code-line` - Individual editor lines
-- `.line-toggle` - Collapse/expand icons
-
-### Mermaid Configuration
-```javascript
-mermaid.initialize({ 
-    startOnLoad: false,
-    theme: 'default',  // 'default', 'dark', 'forest', 'neutral'
-    securityLevel: 'loose'
-});
-```
 
 ## License
 
