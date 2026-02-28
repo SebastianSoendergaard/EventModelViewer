@@ -4055,10 +4055,12 @@
                 const midX = (startX + endX) / 2;
                 d = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
             } else {
-                // Mixed connection — quadratic Bezier
-                const midX = (startX + endX) / 2;
-                const midY = (startY + endY) / 2;
-                d = `M ${startX} ${startY} Q ${midX} ${midY}, ${endX} ${endY}`;
+                // Mixed connection — quadratic Bezier with a non-collinear control point
+                const fromIsHorizontal = fromSide === 'left' || fromSide === 'right';
+                const toIsHorizontal = toSide === 'left' || toSide === 'right';
+                const controlX = fromIsHorizontal && !toIsHorizontal ? endX : startX;
+                const controlY = fromIsHorizontal && !toIsHorizontal ? startY : endY;
+                d = `M ${startX} ${startY} Q ${controlX} ${controlY}, ${endX} ${endY}`;
             }
 
             // Create per-arrow arrowhead marker using context-stroke so it follows stroke color
