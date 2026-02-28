@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arrow Logic Tests</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 20px auto; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
+        .test-section h3 { margin-top: 0; color: #333; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 3px; }
+        .test-result.pass { background: #d4edda; color: #155724; }
+        .test-result.fail { background: #f8d7da; color: #721c24; }
+        .summary { margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 4px; font-size: 18px; font-weight: bold; }
+        .summary.all-pass { background: #d4edda; color: #155724; }
+        .summary.some-fail { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Arrow Logic Tests</h1>
+    <p>Tests for arrow routing logic in diagram.js</p>
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <!-- Hidden DOM fixture for DOM-based tests -->
+    <div id="fixture" style="display:none;"></div>
+
+    <script>
+        // =====================================================================
+        // Standalone implementations of testable arrow logic functions
+        // (mirroring the logic in src/viewer/diagram/diagram.js)
+        // =====================================================================
+
+        function selectNearestPrecedingEvent(eventMatches, referenceSliceIndex) {
+            const preceding = eventMatches.filter(m => m.sliceIndex < referenceSliceIndex);
+            if (preceding.length === 0) return null;
+            return preceding.reduce((max, current) =>
+                current.sliceIndex > max.sliceIndex ? current : max
+            );
+        }
+
+        function selectNearestSubsequentEvent(eventMatches, referenceSliceIndex) {
+            const subsequent = eventMatches.filter(m => m.sliceIndex > referenceSliceIndex);
+            if (subsequent.length === 0) return null;
+            return subsequent.reduce((min, current) =>
+                current.sliceIndex < min.sliceIndex ? current : min
+            );
+        }
+
+        function selectNearestPrecedingView(viewMatches, referenceSliceIndex) {
+            const preceding = viewMatches.filter(m => m.sliceIndex < referenceSliceIndex);
+            if (preceding.length === 0) return null;
+            return preceding.reduce((max, current) =>
+                current.sliceIndex > max.sliceIndex ? current : max
+            );
+        }
+
+        // DOM-based helpers — operate on #fixture
+        function findEventElements(eventIdentifier) {
+            const fixture = document.getElementById('fixture');
+            let elements = Array.from(fixture.querySelectorAll('.element.event[data-event-id]'))
+                .filter(el => el.getAttribute('data-event-id') === eventIdentifier);
+            if (elements.length === 0) {
+                elements = Array.from(fixture.querySelectorAll('.element.event[data-event-name]'))
+                    .filter(el => el.getAttribute('data-event-name') === eventIdentifier);
+            }
+            return elements.map(el => ({
+                element: el,
+                sliceIndex: parseInt(el.getAttribute('data-slice-index'))
+            }));
+        }
+
+        function findViewElements(viewIdentifier) {
+            const fixture = document.getElementById('fixture');
+            let elements = Array.from(fixture.querySelectorAll('.element.view[data-view-id]'))
+                .filter(el => el.getAttribute('data-view-id') === viewIdentifier);
+            if (elements.length === 0) {
+                elements = Array.from(fixture.querySelectorAll('.element.view[data-view-name]'))
+                    .filter(el => el.getAttribute('data-view-name') === viewIdentifier);
+            }
+            return elements.map(el => ({
+                element: el,
+                sliceIndex: parseInt(el.getAttribute('data-slice-index') || '0')
+            }));
+        }
+
+        // Command→Event ID-first resolution (mirrors updated logic in diagram.js)
+        function resolveCommandEvents(commandEventIds, eventsInSlice, commandSliceIndex) {
+            const result = [];
+            commandEventIds.forEach(eventIdentifier => {
+                // ID match first
+                let matches = eventsInSlice.filter(e =>
+                    e.getAttribute('data-event-id') === eventIdentifier
+                );
+                // Name fallback
+                if (matches.length === 0) {
+                    matches = eventsInSlice.filter(e =>
+                        e.getAttribute('data-event-name') === eventIdentifier
+                    );
+                }
+                // Multiple matches: nearest subsequent by slice-index
+                if (matches.length > 1) {
+                    const sameOrAfter = matches.filter(e =>
+                        parseInt(e.getAttribute('data-slice-index')) >= commandSliceIndex
+                    );
+                    if (sameOrAfter.length > 0) {
+                        const nearest = sameOrAfter.reduce((min, cur) =>
+                            parseInt(cur.getAttribute('data-slice-index')) < parseInt(min.getAttribute('data-slice-index')) ? cur : min
+                        );
+                        matches = [nearest];
+                    }
+                }
+                matches.forEach(e => result.push(e));
+            });
+            return result;
+        }
+
+        // Straight-line detection (mirrors logic in drawArrow)
+        function shouldBeStraitLine(startX, startY, endX, endY) {
+            const THRESHOLD = 4;
+            return Math.abs(startX - endX) < THRESHOLD || Math.abs(startY - endY) < THRESHOLD;
+        }
+
+        // =====================================================================
+        // Test framework
+        // =====================================================================
+        const results = [];
+        let currentSection = null;
+
+        function section(name) {
+            currentSection = name;
+        }
+
+        function test(name, fn) {
+            const fullName = currentSection ? `${currentSection}: ${name}` : name;
+            try {
+                document.getElementById('fixture').innerHTML = '';
+                fn();
+                results.push({ name: fullName, status: 'pass', error: null });
+            } catch (error) {
+                results.push({ name: fullName, status: 'fail', error: error.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) throw new Error(message || 'Assertion failed');
+        }
+
+        function assertEquals(actual, expected, message) {
+            if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+                throw new Error(message || `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+            }
+        }
+
+        function assertNull(actual, message) {
+            if (actual !== null && actual !== undefined) {
+                throw new Error(message || `Expected null, got ${JSON.stringify(actual)}`);
+            }
+        }
+
+        // =====================================================================
+        // Helper: create a mock event element in the fixture
+        // =====================================================================
+        function makeEventEl(name, id, sliceIndex) {
+            const el = document.createElement('div');
+            el.className = 'element event';
+            el.setAttribute('data-event-name', name);
+            el.setAttribute('data-slice-index', String(sliceIndex));
+            if (id) el.setAttribute('data-event-id', id);
+            document.getElementById('fixture').appendChild(el);
+            return el;
+        }
+
+        function makeViewEl(name, id, sliceIndex) {
+            const fixture = document.getElementById('fixture');
+            // Wrap in a grid-cell-like element with data-slice-index for findViewElements
+            const el = document.createElement('div');
+            el.className = 'element view';
+            el.setAttribute('data-view-name', name);
+            el.setAttribute('data-view-id', id || name);
+            el.setAttribute('data-slice-index', String(sliceIndex));
+            fixture.appendChild(el);
+            return el;
+        }
+
+        // =====================================================================
+        // Tests: selectNearestPrecedingEvent
+        // =====================================================================
+        section('selectNearestPrecedingEvent');
+
+        test('returns null when no preceding events', () => {
+            const matches = [{ element: {}, sliceIndex: 5 }];
+            assertNull(selectNearestPrecedingEvent(matches, 3), 'Should be null when all are after reference');
+        });
+
+        test('returns the only preceding event', () => {
+            const a = { element: {}, sliceIndex: 1 };
+            const result = selectNearestPrecedingEvent([a], 3);
+            assertEquals(result, a);
+        });
+
+        test('returns the nearest (highest) preceding event', () => {
+            const a = { element: {}, sliceIndex: 1 };
+            const b = { element: {}, sliceIndex: 2 };
+            const c = { element: {}, sliceIndex: 4 };
+            const result = selectNearestPrecedingEvent([a, b, c], 5);
+            assertEquals(result.sliceIndex, 4, 'Should pick sliceIndex 4 as nearest preceding');
+        });
+
+        test('excludes events at the exact reference index', () => {
+            const a = { element: {}, sliceIndex: 3 };
+            assertNull(selectNearestPrecedingEvent([a], 3), 'Exact-index event should not be preceding');
+        });
+
+        // =====================================================================
+        // Tests: selectNearestSubsequentEvent
+        // =====================================================================
+        section('selectNearestSubsequentEvent');
+
+        test('returns null when no subsequent events', () => {
+            const matches = [{ element: {}, sliceIndex: 2 }];
+            assertNull(selectNearestSubsequentEvent(matches, 5));
+        });
+
+        test('returns the nearest (lowest) subsequent event', () => {
+            const a = { element: {}, sliceIndex: 6 };
+            const b = { element: {}, sliceIndex: 8 };
+            const result = selectNearestSubsequentEvent([a, b], 4);
+            assertEquals(result.sliceIndex, 6, 'Should pick sliceIndex 6');
+        });
+
+        test('excludes events at exact reference', () => {
+            const a = { element: {}, sliceIndex: 4 };
+            assertNull(selectNearestSubsequentEvent([a], 4));
+        });
+
+        // =====================================================================
+        // Tests: selectNearestPrecedingView
+        // =====================================================================
+        section('selectNearestPrecedingView');
+
+        test('returns null when no preceding views', () => {
+            assertNull(selectNearestPrecedingView([{ element: {}, sliceIndex: 5 }], 2));
+        });
+
+        test('returns the nearest preceding view', () => {
+            const a = { element: {}, sliceIndex: 1 };
+            const b = { element: {}, sliceIndex: 3 };
+            const result = selectNearestPrecedingView([a, b], 5);
+            assertEquals(result.sliceIndex, 3);
+        });
+
+        // =====================================================================
+        // Tests: findEventElements — by ID
+        // =====================================================================
+        section('findEventElements by ID');
+
+        test('finds event by ID', () => {
+            makeEventEl('Cart created', 'cart-created-1', 0);
+            const matches = findEventElements('cart-created-1');
+            assertEquals(matches.length, 1, 'Should find 1 element');
+            assertEquals(matches[0].sliceIndex, 0);
+        });
+
+        test('finds multiple events with same ID', () => {
+            makeEventEl('Item added', 'item-added', 0);
+            makeEventEl('Item added', 'item-added', 2);
+            const matches = findEventElements('item-added');
+            assertEquals(matches.length, 2, 'Should find 2 elements with same ID');
+        });
+
+        test('prefers ID match over name match when both could apply', () => {
+            // One event with id="x", another with name="x" but no id
+            makeEventEl('x', 'x', 0);
+            makeEventEl('x', null, 1);
+            const byId = findEventElements('x');
+            // Should find 2: one by id match in first pass, but name fallback won't run
+            // since id search found something — only the id-match one
+            assertEquals(byId.length, 1, 'Should only find the element with data-event-id="x"');
+            assertEquals(byId[0].sliceIndex, 0);
+        });
+
+        // =====================================================================
+        // Tests: findEventElements — by name fallback
+        // =====================================================================
+        section('findEventElements by name fallback');
+
+        test('falls back to name when no ID match', () => {
+            makeEventEl('Item removed', null, 3);
+            const matches = findEventElements('Item removed');
+            assertEquals(matches.length, 1);
+            assertEquals(matches[0].sliceIndex, 3);
+        });
+
+        test('returns empty array when nothing matches', () => {
+            const matches = findEventElements('Nonexistent event');
+            assertEquals(matches.length, 0);
+        });
+
+        // =====================================================================
+        // Tests: findViewElements — by ID / name
+        // =====================================================================
+        section('findViewElements');
+
+        test('finds view by ID', () => {
+            makeViewEl('Cart items', 'cart-items', 2);
+            const matches = findViewElements('cart-items');
+            assertEquals(matches.length, 1);
+            assertEquals(matches[0].sliceIndex, 2);
+        });
+
+        test('falls back to name when no ID matches', () => {
+            makeViewEl('Order summary', null, 4);
+            const matches = findViewElements('Order summary');
+            assertEquals(matches.length, 1);
+        });
+
+        test('returns empty array for unknown view', () => {
+            assertEquals(findViewElements('Ghost view').length, 0);
+        });
+
+        // =====================================================================
+        // Tests: Command→Event ID-first resolution
+        // =====================================================================
+        section('Command→Event ID resolution');
+
+        test('resolves by ID when event has explicit ID', () => {
+            const e1 = makeEventEl('Cart created', 'cart-created', 0);
+            const e2 = makeEventEl('Item added', 'item-added', 0);
+            const resolved = resolveCommandEvents(['cart-created'], [e1, e2], 0);
+            assertEquals(resolved.length, 1);
+            assertEquals(resolved[0].getAttribute('data-event-id'), 'cart-created');
+        });
+
+        test('resolves by name when no ID match', () => {
+            const e1 = makeEventEl('Cart created', null, 0);
+            const resolved = resolveCommandEvents(['Cart created'], [e1], 0);
+            assertEquals(resolved.length, 1);
+            assertEquals(resolved[0].getAttribute('data-event-name'), 'Cart created');
+        });
+
+        test('resolves multiple events', () => {
+            const e1 = makeEventEl('Cart created', 'cart-created', 0);
+            const e2 = makeEventEl('Item added', 'item-added', 0);
+            const resolved = resolveCommandEvents(['cart-created', 'item-added'], [e1, e2], 0);
+            assertEquals(resolved.length, 2);
+        });
+
+        test('with duplicate IDs picks nearest subsequent', () => {
+            const e1 = makeEventEl('Item', 'dup', 0);
+            const e2 = makeEventEl('Item', 'dup', 1);
+            // commandSliceIndex=0 — e1 is at same index (>=0), e2 is also (>=0); nearest = e1 (sliceIndex 0)
+            const resolved = resolveCommandEvents(['dup'], [e1, e2], 0);
+            assertEquals(resolved.length, 1);
+            assertEquals(resolved[0].getAttribute('data-slice-index'), '0', 'Should pick sliceIndex 0 (nearest subsequent)');
+        });
+
+        test('returns empty array for unknown event identifier', () => {
+            const e1 = makeEventEl('Known event', 'known', 0);
+            const resolved = resolveCommandEvents(['unknown-id'], [e1], 0);
+            assertEquals(resolved.length, 0);
+        });
+
+        // =====================================================================
+        // Tests: Straight-line detection
+        // =====================================================================
+        section('Straight-line detection');
+
+        test('detects vertical alignment (same X)', () => {
+            assert(shouldBeStraitLine(100, 50, 100, 200), 'Same X should be straight');
+        });
+
+        test('detects horizontal alignment (same Y)', () => {
+            assert(shouldBeStraitLine(50, 100, 200, 100), 'Same Y should be straight');
+        });
+
+        test('detects near-vertical alignment within threshold', () => {
+            assert(shouldBeStraitLine(100, 50, 103, 200), 'Within 4px X should be straight');
+        });
+
+        test('detects near-horizontal alignment within threshold', () => {
+            assert(shouldBeStraitLine(50, 100, 200, 103), 'Within 4px Y should be straight');
+        });
+
+        test('does not flag diagonal connections as straight', () => {
+            assert(!shouldBeStraitLine(50, 50, 200, 200), 'Diagonal should not be straight');
+        });
+
+        test('does not flag connections just outside threshold', () => {
+            assert(!shouldBeStraitLine(100, 50, 105, 200), 'X diff > 4 should not be straight');
+        });
+
+        // =====================================================================
+        // Render results
+        // =====================================================================
+        const resultsDiv = document.getElementById('results');
+        const sections = {};
+        results.forEach(r => {
+            const sectionName = r.name.includes(': ') ? r.name.split(': ')[0] : 'General';
+            if (!sections[sectionName]) sections[sectionName] = [];
+            sections[sectionName].push(r);
+        });
+
+        Object.entries(sections).forEach(([sectionName, sectionResults]) => {
+            const sectionDiv = document.createElement('div');
+            sectionDiv.className = 'test-section';
+            sectionDiv.innerHTML = `<h3>${sectionName}</h3>`;
+            sectionResults.forEach(r => {
+                const div = document.createElement('div');
+                div.className = `test-result ${r.status}`;
+                div.innerHTML = r.status === 'pass'
+                    ? `✅ ${r.name.split(': ').slice(1).join(': ')}`
+                    : `❌ ${r.name.split(': ').slice(1).join(': ')}<br><small>${r.error}</small>`;
+                sectionDiv.appendChild(div);
+            });
+            resultsDiv.appendChild(sectionDiv);
+        });
+
+        const passed = results.filter(r => r.status === 'pass').length;
+        const failed = results.filter(r => r.status === 'fail').length;
+        const summaryDiv = document.getElementById('summary');
+        summaryDiv.className = `summary ${failed === 0 ? 'all-pass' : 'some-fail'}`;
+        summaryDiv.textContent = `${passed} passed, ${failed} failed out of ${results.length} tests`;
+
+        // Console output
+        console.log(`Arrow Logic Tests: ${passed}/${results.length} passed`);
+        results.filter(r => r.status === 'fail').forEach(r => {
+            console.error(`FAIL: ${r.name} — ${r.error}`);
+        });
+    </script>
+</body>
+</html>

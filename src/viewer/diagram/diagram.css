@@ -121,6 +121,15 @@
             justify-content: start;
         }
 
+        /* Commands and views side-by-side in the same cell */
+        .grid-cell .cmdview-group {
+            display: flex;
+            flex-direction: row;
+            gap: 12px;
+            width: max-content;
+            align-items: flex-start;
+        }
+
         /* Extra padding for commands and views */
         .element.command,
         .element.view {

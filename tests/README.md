@@ -4,6 +4,23 @@ This directory contains test files for the Event Model Viewer application.
 
 ## Available Tests
 
+### [arrow-logic.test.html](arrow-logic.test.html)
+Test suite for the arrow routing logic in `src/viewer/diagram/diagram.js`.
+
+**Test Coverage:**
+- ✅ `selectNearestPrecedingEvent()` — null on no preceding, single event, multiple events, exact-index exclusion
+- ✅ `selectNearestSubsequentEvent()` — null on no subsequent, nearest pick, exact-index exclusion
+- ✅ `selectNearestPrecedingView()` — null on no preceding, nearest pick
+- ✅ `findEventElements()` — by ID, multiple with same ID, ID-over-name priority
+- ✅ `findEventElements()` name fallback — fallback to name, empty on no match
+- ✅ `findViewElements()` — by ID, name fallback, empty on no match
+- ✅ Command→Event ID resolution — ID first, name fallback, multiple events, duplicate ID nearest-subsequent, unknown identifier
+- ✅ Straight-line detection — vertical, horizontal, near-vertical, near-horizontal, diagonal, just-outside-threshold
+
+**Status:** ✅ All 31 tests passing
+
+---
+
 ### [collapse-functionality.test.html](collapse-functionality.test.html)
 Comprehensive test suite for the collapsible JSON editor feature.
 

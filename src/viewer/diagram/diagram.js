@@ -136,12 +136,45 @@
             );
         }
 
+        // Helper function: Find view elements by ID or name
+        function findViewElements(viewIdentifier) {
+            // First try to find by data-view-id
+            let elements = Array.from(document.querySelectorAll('.element.view[data-view-id]'))
+                .filter(el => el.getAttribute('data-view-id') === viewIdentifier);
+            
+            // If not found by id, try by name
+            if (elements.length === 0) {
+                elements = Array.from(document.querySelectorAll('.element.view[data-view-name]'))
+                    .filter(el => el.getAttribute('data-view-name') === viewIdentifier);
+            }
+            
+            return elements.map(el => {
+                const cell = el.closest('.grid-cell[data-slice-index]');
+                return {
+                    element: el,
+                    sliceIndex: cell ? parseInt(cell.getAttribute('data-slice-index')) : -1
+                };
+            });
+        }
+
+        // Helper function: Select nearest preceding view
+        function selectNearestPrecedingView(viewMatches, referenceSliceIndex) {
+            const preceding = viewMatches.filter(m => m.sliceIndex < referenceSliceIndex);
+            if (preceding.length === 0) return null;
+            return preceding.reduce((max, current) =>
+                current.sliceIndex > max.sliceIndex ? current : max
+            );
+        }
+
         function drawAllArrows() {
             // Remove existing SVG if any
             const existingSvg = document.getElementById('arrow-svg');
             if (existingSvg) {
                 existingSvg.remove();
             }
+
+            // Reset per-arrow marker counter
+            _arrowCounter = 0;
 
             const diagramDiv = document.querySelector('.event-model-diagram');
             if (!diagramDiv) return;
@@ -153,44 +186,15 @@
             svg.style.left = '0';
             svg.style.width = '100%';
             svg.style.height = '100%';
+            // Allow pointer events on child paths (hit areas) while background is transparent
             svg.style.pointerEvents = 'none';
             svg.style.zIndex = '1';
 
             diagramDiv.style.position = 'relative';
             diagramDiv.appendChild(svg);
 
-            // Create arrow marker
+            // Defs — per-arrow markers will be added dynamically in drawArrow()
             const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-            marker.setAttribute('id', 'arrowhead');
-            marker.setAttribute('markerWidth', '10');
-            marker.setAttribute('markerHeight', '10');
-            marker.setAttribute('refX', '9');
-            marker.setAttribute('refY', '3');
-            marker.setAttribute('orient', 'auto');
-
-            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            polygon.setAttribute('points', '0 0, 10 3, 0 6');
-            polygon.setAttribute('fill', 'black');
-
-            marker.appendChild(polygon);
-            defs.appendChild(marker);
-            
-            // Create dashed arrow marker
-            const markerDashed = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-            markerDashed.setAttribute('id', 'arrowhead-dashed');
-            markerDashed.setAttribute('markerWidth', '10');
-            markerDashed.setAttribute('markerHeight', '10');
-            markerDashed.setAttribute('refX', '9');
-            markerDashed.setAttribute('refY', '3');
-            markerDashed.setAttribute('orient', 'auto');
-
-            const polygonDashed = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            polygonDashed.setAttribute('points', '0 0, 10 3, 0 6');
-            polygonDashed.setAttribute('fill', 'black');
-
-            markerDashed.appendChild(polygonDashed);
-            defs.appendChild(markerDashed);
             svg.appendChild(defs);
 
             // Draw all connections
@@ -235,26 +239,22 @@
                 if (command) {
                     const commandEventsAttr = command.getAttribute('data-command-events');
                     if (commandEventsAttr && commandEventsAttr.trim()) {
-                        // Command has explicit event list
-                        const commandEventNames = commandEventsAttr.split(',').filter(n => n.trim());
-                        commandEventNames.forEach(eventName => {
-                            // Find matching events in this slice BY NAME ONLY
-                            const matchingEvents = Array.from(events).filter(event => {
-                                const eventNameAttr = event.getAttribute('data-event-name');
-                                return eventNameAttr === eventName;
-                            });
-                            
-                            // If multiple events with same name, prefer ones WITHOUT id (internal events)
-                            let eventsToConnect = matchingEvents;
-                            if (matchingEvents.length > 1) {
-                                const eventsWithoutId = matchingEvents.filter(e => !e.getAttribute('data-event-id'));
-                                if (eventsWithoutId.length > 0) {
-                                    eventsToConnect = eventsWithoutId;
-                                }
+                        // Command has explicit event list — match by ID first, name as fallback
+                        const commandEventIds = commandEventsAttr.split(',').map(n => n.trim()).filter(Boolean);
+                        commandEventIds.forEach(eventIdentifier => {
+                            // Try ID match first
+                            let matchingEvents = Array.from(events).filter(event =>
+                                event.getAttribute('data-event-id') === eventIdentifier
+                            );
+                            // Fallback: match by name
+                            if (matchingEvents.length === 0) {
+                                matchingEvents = Array.from(events).filter(event =>
+                                    event.getAttribute('data-event-name') === eventIdentifier
+                                );
                             }
-                            
-                            // Draw arrows to selected events
-                            eventsToConnect.forEach(event => {
+
+                            // Connect to all matching events — commands only reference events in the same slice
+                            matchingEvents.forEach(event => {
                                 drawArrow(svg, command, event, diagramDiv, 'bottom', 'top');
                             });
                         });
@@ -266,7 +266,7 @@
                     }
                 }
 
-                // Trigger -> View
+                // Trigger -> View (when no command; also when both command and view exist, trigger connects to command only)
                 if (trigger && view && !command) {
                     drawArrow(svg, trigger, view, diagramDiv, 'bottom', 'top');
                 }
@@ -312,33 +312,53 @@
                     }
 
                     if (selectedMatch) {
-                        drawArrow(svg, selectedMatch.element, view, diagramDiv, 'top', 'bottom', isDashed);
+                        if (isDashed) {
+                            // Event is after the view — exit from the side closest to the view
+                            const eventRect = selectedMatch.element.getBoundingClientRect();
+                            const viewRect = view.getBoundingClientRect();
+                            const fromSide = eventRect.left > viewRect.right ? 'left' : 'right';
+                            drawArrow(svg, selectedMatch.element, view, diagramDiv, fromSide, 'bottom', isDashed);
+                        } else {
+                            drawArrow(svg, selectedMatch.element, view, diagramDiv, 'top', 'bottom', isDashed);
+                        }
                     }
                 });
             });
 
-            // View -> Trigger (find triggers that reference view events)
-            views.forEach(view => {
-                const viewCell = view.closest('.grid-cell');
-                const viewSliceIndex = parseInt(viewCell.getAttribute('data-slice-index'));
-                
-                // Find next slice
-                const nextSliceCells = Array.from(document.querySelectorAll('.grid-cell[data-slice-index]'))
-                    .filter(cell => parseInt(cell.getAttribute('data-slice-index')) === viewSliceIndex + 1);
-                
-                if (nextSliceCells.length > 0) {
-                    let nextTrigger = null;
-                    nextSliceCells.forEach(cell => {
-                        const trigger = cell.querySelector('.element.trigger');
-                        if (trigger) nextTrigger = trigger;
-                    });
-                    
-                    if (nextTrigger) {
-                        drawArrow(svg, view, nextTrigger, diagramDiv, 'top', 'left');
+            // View -> Trigger (driven by trigger.views references)
+            const triggers = document.querySelectorAll('.element.trigger[data-trigger-views]');
+            triggers.forEach(trigger => {
+                const triggerViewsAttr = trigger.getAttribute('data-trigger-views');
+                if (!triggerViewsAttr || !triggerViewsAttr.trim()) return;
+
+                const triggerCell = trigger.closest('.grid-cell[data-slice-index]');
+                if (!triggerCell) return;
+                const triggerSliceIndex = parseInt(triggerCell.getAttribute('data-slice-index'));
+
+                const viewIdList = triggerViewsAttr.split(',').map(s => s.trim()).filter(Boolean);
+                viewIdList.forEach(viewIdentifier => {
+                    const viewMatches = findViewElements(viewIdentifier);
+                    if (viewMatches.length === 0) {
+                        console.warn(`Trigger references view "${viewIdentifier}" but no matching view found`);
+                        return;
                     }
-                }
+
+                    // Use nearest preceding view
+                    const selectedMatch = selectNearestPrecedingView(viewMatches, triggerSliceIndex);
+                    if (!selectedMatch) return;
+
+                    const viewEl = selectedMatch.element;
+                    const viewRect = viewEl.getBoundingClientRect();
+                    const triggerRect = trigger.getBoundingClientRect();
+                    // Enter trigger from the side closest to the view (left or right)
+                    const toSide = viewRect.left < triggerRect.left ? 'left' : 'right';
+                    drawArrow(svg, viewEl, trigger, diagramDiv, 'top', toSide);
+                });
             });
         }
+
+        // Counter for unique per-arrow marker IDs
+        let _arrowCounter = 0;
 
         function drawArrow(svg, fromElement, toElement, container, fromSide = 'bottom', toSide = 'top', isDashed = false) {
             const fromRect = fromElement.getBoundingClientRect();
@@ -394,37 +414,114 @@
                     break;
             }
 
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            
+            // Straight-line threshold: if start and end are within 4px on an axis, draw straight
+            const STRAIGHT_THRESHOLD = 4;
+            const isVerticallyAligned = Math.abs(startX - endX) < STRAIGHT_THRESHOLD;
+            const isHorizontallyAligned = Math.abs(startY - endY) < STRAIGHT_THRESHOLD;
+
             // Choose curve based on direction
             let d;
-            if ((fromSide === 'bottom' && toSide === 'top') || (fromSide === 'top' && toSide === 'bottom')) {
-                // Vertical connection
+            if (isVerticallyAligned || isHorizontallyAligned) {
+                // Straight line — elements are aligned on the same axis
+                d = `M ${startX} ${startY} L ${endX} ${endY}`;
+            } else if ((fromSide === 'bottom' && toSide === 'top') || (fromSide === 'top' && toSide === 'bottom')) {
+                // Vertical connection — cubic Bezier
                 const midY = (startY + endY) / 2;
                 d = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
             } else if ((fromSide === 'right' && toSide === 'left') || (fromSide === 'left' && toSide === 'right')) {
-                // Horizontal connection
+                // Horizontal connection — cubic Bezier
                 const midX = (startX + endX) / 2;
                 d = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
             } else {
-                // Mixed connection - use both control points
+                // Mixed connection — quadratic Bezier
                 const midX = (startX + endX) / 2;
                 const midY = (startY + endY) / 2;
                 d = `M ${startX} ${startY} Q ${midX} ${midY}, ${endX} ${endY}`;
             }
-            
+
+            // Create per-arrow arrowhead marker using context-stroke so it follows stroke color
+            const markerId = `arrowhead-${_arrowCounter++}`;
+            const defs = svg.querySelector('defs');
+            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            marker.setAttribute('id', markerId);
+            marker.setAttribute('markerWidth', '10');
+            marker.setAttribute('markerHeight', '10');
+            marker.setAttribute('refX', '9');
+            marker.setAttribute('refY', '3');
+            marker.setAttribute('orient', 'auto');
+            marker.setAttribute('markerUnits', 'userSpaceOnUse');
+            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygon.setAttribute('points', '0 0, 10 3, 0 6');
+            polygon.setAttribute('fill', 'context-stroke');
+            marker.appendChild(polygon);
+            defs.appendChild(marker);
+
+            // Visible arrow path
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('d', d);
             path.setAttribute('stroke', 'black');
             path.setAttribute('stroke-width', '2');
             path.setAttribute('fill', 'none');
             if (isDashed) {
                 path.setAttribute('stroke-dasharray', '5,5');
-                path.setAttribute('marker-end', 'url(#arrowhead-dashed)');
-            } else {
-                path.setAttribute('marker-end', 'url(#arrowhead)');
+            }
+            path.setAttribute('marker-end', `url(#${markerId})`);
+
+            // Invisible wide hit-area path for easier mouse interaction
+            const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            hitPath.setAttribute('d', d);
+            hitPath.setAttribute('stroke', 'transparent');
+            hitPath.setAttribute('stroke-width', '12');
+            hitPath.setAttribute('fill', 'none');
+            hitPath.style.cursor = 'pointer';
+            hitPath.style.pointerEvents = 'stroke';
+
+            // Highlight helpers
+            function highlight() {
+                path.setAttribute('stroke', '#0066cc');
+                path.setAttribute('stroke-width', '3');
+            }
+            function unhighlight() {
+                const isSelected = hitPath.getAttribute('data-selected') === 'true';
+                if (!isSelected) {
+                    path.setAttribute('stroke', 'black');
+                    path.setAttribute('stroke-width', '2');
+                }
             }
 
+            hitPath.addEventListener('mouseover', () => {
+                highlight();
+            });
+            hitPath.addEventListener('mouseout', () => {
+                unhighlight();
+            });
+            hitPath.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isSelected = hitPath.getAttribute('data-selected') === 'true';
+                if (isSelected) {
+                    // Deselect
+                    hitPath.setAttribute('data-selected', 'false');
+                    path.setAttribute('stroke', 'black');
+                    path.setAttribute('stroke-width', '2');
+                } else {
+                    // Deselect previously selected arrow
+                    const prevSelected = svg.querySelector('path[data-selected="true"]');
+                    if (prevSelected) {
+                        prevSelected.setAttribute('data-selected', 'false');
+                        const prevPath = prevSelected.previousElementSibling;
+                        if (prevPath) {
+                            prevPath.setAttribute('stroke', 'black');
+                            prevPath.setAttribute('stroke-width', '2');
+                        }
+                    }
+                    // Select this arrow
+                    hitPath.setAttribute('data-selected', 'true');
+                    highlight();
+                }
+            });
+
             svg.appendChild(path);
+            svg.appendChild(hitPath);
         }
 
         // Redraw arrows on window resize
@@ -716,10 +813,18 @@
                 const cellKey = `${colNum}-${cmdViewRow}`;
                 if (!cellContents.has(cellKey)) cellContents.set(cellKey, []);
                 
+                // Collect command/view elements; view always appears before command
+                const cmdViewItems = [];
+                if (slice.view) {
+                    cmdViewItems.push(generateView(slice.view, sliceIndex, slice.view.events || []));
+                }
                 if (slice.command) {
-                    cellContents.get(cellKey).push(generateCommand(slice.command, sliceIndex));
-                } else if (slice.view) {
-                    cellContents.get(cellKey).push(generateView(slice.view, sliceIndex, slice.view.events || []));
+                    cmdViewItems.push(generateCommand(slice.command, sliceIndex));
+                }
+                if (cmdViewItems.length > 1) {
+                    cellContents.get(cellKey).push(`<div class="cmdview-group">${cmdViewItems.join('')}</div>`);
+                } else if (cmdViewItems.length === 1) {
+                    cellContents.get(cellKey).push(cmdViewItems[0]);
                 }
                 
                 // Events - Group by lane but keep them together in event cells
@@ -958,7 +1063,9 @@
         }
 
         function generateTrigger(trigger, sliceIndex) {
-            let html = `<div class="element trigger" data-slice-index="${sliceIndex}">`;
+            const triggerViews = trigger.views ? trigger.views.join(',') : '';
+            const triggerIdVal = trigger.id ? trigger.id : (trigger.name || '');
+            let html = `<div class="element trigger" data-slice-index="${sliceIndex}" data-trigger-views="${escapeHtml(triggerViews)}" data-trigger-id="${escapeHtml(triggerIdVal)}">`;
             
             if (trigger.swimlane) {
                 html += `<div class="element-role">${escapeHtml(trigger.swimlane)}</div>`;
@@ -1034,8 +1141,9 @@
 
         function generateView(view, sliceIndex, eventNames) {
             const viewId = `view-${sliceIndex}`;
+            const viewIdVal = view.id ? view.id : (view.name || '');
             const eventNamesAttr = eventNames ? eventNames.join(',') : '';
-            let html = `<div class="element view" id="${viewId}" data-view-events="${escapeHtml(eventNamesAttr)}">`;
+            let html = `<div class="element view" id="${viewId}" data-view-id="${escapeHtml(viewIdVal)}" data-view-name="${escapeHtml(view.name || '')}" data-view-events="${escapeHtml(eventNamesAttr)}">`;
             html += `<div class="element-title">${escapeHtml(view.name)}</div>`;
             
             if (view.properties && view.properties.length > 0) {
