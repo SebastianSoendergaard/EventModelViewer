@@ -3705,16 +3705,29 @@
 
         // Helper function: Find event elements by ID or name
         function findEventElements(eventIdentifier) {
-            // First try to find by ID
+            // First try to find by ID (exact match)
             let elements = Array.from(document.querySelectorAll('.element.event[data-event-id]'))
                 .filter(el => el.getAttribute('data-event-id') === eventIdentifier);
-            
-            // If not found by ID, try by name
+
+            // If not found by ID, try by name, but only if there is no event with the same name and a different id
             if (elements.length === 0) {
-                elements = Array.from(document.querySelectorAll('.element.event[data-event-name]'))
+                // Find all events with this name
+                let nameMatches = Array.from(document.querySelectorAll('.element.event[data-event-name]'))
                     .filter(el => el.getAttribute('data-event-name') === eventIdentifier);
+                // If there are multiple, prefer those without a data-event-id (i.e., not an alias/external)
+                if (nameMatches.length > 1) {
+                    // Filter out those with a data-event-id attribute
+                    let noIdMatches = nameMatches.filter(el => !el.hasAttribute('data-event-id'));
+                    if (noIdMatches.length > 0) {
+                        elements = noIdMatches;
+                    } else {
+                        elements = nameMatches;
+                    }
+                } else {
+                    elements = nameMatches;
+                }
             }
-            
+
             // Return elements with their slice indices
             return elements.map(el => ({
                 element: el,
@@ -3765,6 +3778,10 @@
 
         // Helper function: Select nearest preceding view
         function selectNearestPrecedingView(viewMatches, referenceSliceIndex) {
+            // Same-slice view takes priority over any preceding view
+            const sameSlice = viewMatches.find(m => m.sliceIndex === referenceSliceIndex);
+            if (sameSlice) return sameSlice;
+            // Otherwise pick the nearest preceding (highest sliceIndex < reference)
             const preceding = viewMatches.filter(m => m.sliceIndex < referenceSliceIndex);
             if (preceding.length === 0) return null;
             return preceding.reduce((max, current) =>
@@ -3872,11 +3889,6 @@
                     }
                 }
 
-                // Trigger -> View (when no command; also when both command and view exist, trigger connects to command only)
-                if (trigger && view && !command) {
-                    drawArrow(svg, trigger, view, diagramDiv, 'bottom', 'top');
-                }
-
                 // Event -> Trigger arrow drawing removed (trigger.events no longer in spec)
             });
 
@@ -3956,9 +3968,13 @@
                     const viewEl = selectedMatch.element;
                     const viewRect = viewEl.getBoundingClientRect();
                     const triggerRect = trigger.getBoundingClientRect();
-                    // Enter trigger from the side closest to the view (left or right)
-                    const toSide = viewRect.left < triggerRect.left ? 'left' : 'right';
-                    drawArrow(svg, viewEl, trigger, diagramDiv, 'top', toSide);
+                    // If view and trigger are in the same slice, exit view from top and enter trigger from bottom
+                    let fromSide = 'top', toSide = viewRect.left < triggerRect.left ? 'left' : 'right';
+                    if (selectedMatch.sliceIndex === triggerSliceIndex) {
+                        fromSide = 'top';
+                        toSide = 'bottom';
+                    }
+                    drawArrow(svg, viewEl, trigger, diagramDiv, fromSide, toSide);
                 });
             });
         }
@@ -4020,8 +4036,8 @@
                     break;
             }
 
-            // Straight-line threshold: if start and end are within 4px on an axis, draw straight
-            const STRAIGHT_THRESHOLD = 4;
+            // Straight-line threshold: if start and end are within 1px on an axis, draw straight
+            const STRAIGHT_THRESHOLD = 1;
             const isVerticallyAligned = Math.abs(startX - endX) < STRAIGHT_THRESHOLD;
             const isHorizontallyAligned = Math.abs(startY - endY) < STRAIGHT_THRESHOLD;
 
@@ -4046,18 +4062,26 @@
             }
 
             // Create per-arrow arrowhead marker using context-stroke so it follows stroke color
+            // Arrowhead size: normal or highlighted
+            let arrowheadSize = 20;
+            let arrowheadRefX = 18;
+            let arrowheadRefY = 6;
+            let arrowheadPoints = '0 0, 20 6, 0 12';
+            // If highlighted, double the size
+            let isHighlighted = false;
+            // We'll update this later if the arrow is selected
             const markerId = `arrowhead-${_arrowCounter++}`;
             const defs = svg.querySelector('defs');
             const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
             marker.setAttribute('id', markerId);
-            marker.setAttribute('markerWidth', '10');
-            marker.setAttribute('markerHeight', '10');
-            marker.setAttribute('refX', '9');
-            marker.setAttribute('refY', '3');
+            marker.setAttribute('markerWidth', String(arrowheadSize));
+            marker.setAttribute('markerHeight', String(arrowheadSize));
+            marker.setAttribute('refX', String(arrowheadRefX));
+            marker.setAttribute('refY', String(arrowheadRefY));
             marker.setAttribute('orient', 'auto');
             marker.setAttribute('markerUnits', 'userSpaceOnUse');
             const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            polygon.setAttribute('points', '0 0, 10 3, 0 6');
+            polygon.setAttribute('points', arrowheadPoints);
             polygon.setAttribute('fill', 'context-stroke');
             marker.appendChild(polygon);
             defs.appendChild(marker);
@@ -4085,13 +4109,33 @@
             // Highlight helpers
             function highlight() {
                 path.setAttribute('stroke', '#0066cc');
-                path.setAttribute('stroke-width', '3');
+                path.setAttribute('stroke-width', '6');
+                // Double the arrowhead size when highlighted
+                const marker = svg.querySelector(`#${markerId}`);
+                if (marker) {
+                    marker.setAttribute('markerWidth', '40');
+                    marker.setAttribute('markerHeight', '40');
+                    marker.setAttribute('refX', '36');
+                    marker.setAttribute('refY', '12');
+                    const polygon = marker.querySelector('polygon');
+                    if (polygon) polygon.setAttribute('points', '0 0, 40 12, 0 24');
+                }
             }
             function unhighlight() {
                 const isSelected = hitPath.getAttribute('data-selected') === 'true';
                 if (!isSelected) {
                     path.setAttribute('stroke', 'black');
                     path.setAttribute('stroke-width', '2');
+                    // Restore normal arrowhead size
+                    const marker = svg.querySelector(`#${markerId}`);
+                    if (marker) {
+                        marker.setAttribute('markerWidth', '20');
+                        marker.setAttribute('markerHeight', '20');
+                        marker.setAttribute('refX', '18');
+                        marker.setAttribute('refY', '6');
+                        const polygon = marker.querySelector('polygon');
+                        if (polygon) polygon.setAttribute('points', '0 0, 20 6, 0 12');
+                    }
                 }
             }
 

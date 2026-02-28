@@ -15,8 +15,9 @@
 3. triggers can depend on views, meaning the given view should point to the trigger
 4. triggers can depend on multiple views
 5. a dependend view is identified by its id, if id is not defined the name is used as id
-6. if multiple views with the same id, point to the trigger from the view that is defined in the model immediately before the trigger
+6. if multiple views with the same id, point to the trigger from the view that is defined in the model immediately before the trigger, unless a view with the id is defined in the same slice
 7. arrows should enter on the side of the trigger and exit from the bottom to improve readability
+8. if a trigger depend on a view within the same slice, the arrow should exit the view from the top and enter the trigger in the bottom.
 
 ## Rules for commands
 1. commands can only point to events
