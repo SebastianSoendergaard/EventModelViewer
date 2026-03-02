@@ -307,11 +307,12 @@
                     let selectedMatch = null;
                     let isDashed = false;
 
-                    // First, check for events in the SAME slice (rare but possible)
+                    // First, check for events in the SAME slice
                     const sameSliceEvents = eventMatches.filter(m => m.sliceIndex === viewSliceIndex);
                     if (sameSliceEvents.length > 0) {
                         // Use first same-slice event
                         selectedMatch = sameSliceEvents[0];
+                        isDashed = true; // Always dashed for same-slice event->view
                     } else {
                         // Try to find nearest preceding event
                         selectedMatch = selectNearestPrecedingEvent(eventMatches, viewSliceIndex);
@@ -324,7 +325,10 @@
                     }
 
                     if (selectedMatch) {
-                        if (isDashed) {
+                        // For same-slice, always exit from top and use dashed arrow
+                        if (sameSliceEvents.length > 0) {
+                            drawArrow(svg, selectedMatch.element, view, diagramDiv, 'top', 'bottom', true);
+                        } else if (isDashed) {
                             // Event is after the view — exit from the side closest to the view
                             const eventRect = selectedMatch.element.getBoundingClientRect();
                             const viewRect = view.getBoundingClientRect();
@@ -865,7 +869,8 @@
                     cmdViewItems.push(generateView(slice.view, sliceIndex, slice.view.events || []));
                 }
                 if (slice.command) {
-                    cmdViewItems.push(generateCommand(slice.command, sliceIndex));
+                    // Pass events in this slice for id/name resolution
+                    cmdViewItems.push(generateCommand(slice.command, sliceIndex, slice.events));
                 }
                 if (cmdViewItems.length > 1) {
                     cellContents.get(cellKey).push(`<div class="cmdview-group">${cmdViewItems.join('')}</div>`);
@@ -1141,22 +1146,37 @@
             return html;
         }
 
-        function generateCommand(command, sliceIndex) {
-            const commandEvents = command.events ? command.events.join(',') : '';
-            let html = `<div class="element command" data-command-events="${escapeHtml(commandEvents)}" data-slice-index="${sliceIndex}">`;
-            html += `<div class="element-title">${escapeHtml(command.name)}</div>`;
-            
-            if (command.properties && command.properties.length > 0) {
-                html += '<div class="element-properties">';
-                command.properties.forEach(prop => {
-                    html += `<div class="element-property">${escapeHtml(prop.name)}: ${escapeHtml(prop.type)}</div>`;
-                });
-                html += '</div>';
+        function generateCommand(command, sliceIndex, eventsInSlice) {
+    // Build event references by id if present, else by name
+    let commandEvents = '';
+    if (command.events && Array.isArray(command.events)) {
+        const eventRefs = command.events.map(eventName => {
+            if (eventsInSlice && Array.isArray(eventsInSlice)) {
+                // Find event in this slice by name
+                const match = eventsInSlice.find(ev => ev.name === eventName);
+                if (match) {
+                    return match.id ? match.id : match.name;
+                }
             }
-            
-            html += '</div>';
-            return html;
-        }
+            // Fallback: just use the name
+            return eventName;
+        });
+        commandEvents = eventRefs.join(',');
+    }
+    let html = `<div class="element command" data-command-events="${escapeHtml(commandEvents)}" data-slice-index="${sliceIndex}">`;
+    html += `<div class="element-title">${escapeHtml(command.name)}</div>`;
+    
+    if (command.properties && command.properties.length > 0) {
+        html += '<div class="element-properties">';
+        command.properties.forEach(prop => {
+            html += `<div class="element-property">${escapeHtml(prop.name)}: ${escapeHtml(prop.type)}</div>`;
+        });
+        html += '</div>';
+    }
+    
+    html += '</div>';
+    return html;
+}
 
         function generateEvent(event, sliceIndex, eventIndex, gridColumn) {
             const eventId = `event-${sliceIndex}-${eventIndex}-${event.name.replace(/\s+/g, '-')}`;
