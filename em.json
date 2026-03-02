@@ -99,60 +99,72 @@
         {
           "name": "Creates cart and add initial item",
           "when": {
-            "name": "Add item"
-          },
-          "then": [
-            {
-              "name": "Cart created"
-            },
-            {
-              "name": "Item added"
+            "command": {
+              "name": "Add item"
             }
-          ]
+          },
+          "then": {
+            "events": [
+              {
+                "name": "Cart created"
+              },
+              {
+                "name": "Item added"
+              }
+            ]
+          }
         },
         {
           "name": "Adds item to existing cart",
-          "given": [
-            {
-              "name": "Cart created"
-            },
-            {
-              "name": "Item added"
-            }
-          ],
-          "when": {
-            "name": "Add item"
+          "given": {
+            "events": [
+              {
+                "name": "Cart created"
+              },
+              {
+                "name": "Item added"
+              }
+            ]
           },
-          "then": [
-            {
-              "name": "Item added"
+          "when": {
+            "command": {
+              "name": "Add item"
             }
-          ]
+          },
+          "then": {
+            "events": [
+              {
+                "name": "Item added"
+              }
+            ]
+          }
         },
         {
           "name": "Fails when too many items are added",
-          "given": [
-            {
-              "name": "Cart created"
-            },
-            {
-              "name": "Item added"
-            },
-            {
-              "name": "Item added"
-            },
-            {
-              "name": "Item added"
-            }
-          ],
-          "when": {
-            "name": "Add item"
+          "given": {
+            "events": [
+              {
+                "name": "Cart created"
+              },
+              {
+                "name": "Item added"
+              },
+              {
+                "name": "Item added"
+              },
+              {
+                "name": "Item added"
+              }
+            ]
           },
-          "then": [
-            {
-              "error": "Too many items"
+          "when": {
+            "command": {
+              "name": "Add item"
             }
-          ]
+          },
+          "then": {
+            "error": "Too many items"
+          }
         }
       ]
     },
@@ -187,102 +199,111 @@
       "tests": [
         {
           "name": "Sums the prices",
-          "given": [
-            {
-              "name": "Item added",
-              "properties": [
-                {
-                  "name": "Price",
-                  "value": "5"
-                }
-              ]
-            },
-            {
-              "name": "Item added",
-              "properties": [
-                {
-                  "name": "Price",
-                  "value": "7"
-                }
-              ]
-            }
-          ],
-          "then": [
-            {
-              "name": "Cart items",
-              "properties": [
-                {
-                  "name": "Price",
-                  "value": "12"
-                }
-              ]
-            }
-          ]
+          "given": {
+            "events": [
+              {
+                "name": "Item added",
+                "properties": [
+                  {
+                    "name": "Price",
+                    "value": "5"
+                  }
+                ]
+              },
+              {
+                "name": "Item added",
+                "properties": [
+                  {
+                    "name": "Price",
+                    "value": "7"
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {
+            "views": [
+              {
+                "name": "Cart items",
+                "properties": [
+                  {
+                    "name": "Price",
+                    "value": "12"
+                  }
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "Fails when no cart yet",
-          "given": [],
-          "then": [
-            {
-              "error": "Cart not found"
-            }
-          ]
+          "then": {
+            "error": "Cart not found"
+          }
         },
         {
           "name": "Subtracts from total when item removed",
-          "given": [
-            {
-              "name": "Item added",
-              "properties": [
-                {
-                  "name": "Price",
-                  "value": "5"
-                }
-              ]
-            },
-            {
-              "name": "Item removed"
-            }
-          ],
-          "then": [
-            {
-              "name": "Cart items",
-              "properties": [
-                {
-                  "name": "Price",
-                  "value": "0"
-                }
-              ]
-            }
-          ]
+          "given": {
+            "events": [
+              {
+                "name": "Item added",
+                "properties": [
+                  {
+                    "name": "Price",
+                    "value": "5"
+                  }
+                ]
+              },
+              {
+                "name": "Item removed"
+              }
+            ]
+          },
+          "then": {
+            "views": [
+              {
+                "name": "Cart items",
+                "properties": [
+                  {
+                    "name": "Price",
+                    "value": "0"
+                  }
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "Cleares cart",
-          "given": [
-            {
-              "name": "Item added",
-              "properties": [
-                {
-                  "name": "Price",
-                  "value": "5"
-                }
-              ]
-            },
-            {
-              "name": "Cart cleared"
-            }
-          ],
-          "then": [
-            {
-              "name": "Cart items",
-              "properties": [
-                {
-                  "name": "Price",
-                  "value": "0"
-                }
-              ]
-            }
-          ]
+          "given": {
+            "events": [
+              {
+                "name": "Item added",
+                "properties": [
+                  {
+                    "name": "Price",
+                    "value": "5"
+                  }
+                ]
+              },
+              {
+                "name": "Cart cleared"
+              }
+            ]
+          },
+          "then": {
+            "views": [
+              {
+                "name": "Cart items",
+                "properties": [
+                  {
+                    "name": "Price",
+                    "value": "0"
+                  }
+                ]
+              }
+            ]
+          }
         }
       ]
     },
@@ -336,44 +357,52 @@
       "tests": [
         {
           "name": "Item is removed",
-          "given": [
-            {
-              "name": "Cart created"
-            },
-            {
-              "name": "Item added"
-            }
-          ],
-          "when": {
-            "name": "Remove item"
+          "given": {
+            "events": [
+              {
+                "name": "Cart created"
+              },
+              {
+                "name": "Item added"
+              }
+            ]
           },
-          "then": [
-            {
-              "name": "Item removed"
+          "when": {
+            "command": {
+              "name": "Remove item"
             }
-          ]
+          },
+          "then": {
+            "events": [
+              {
+                "name": "Item removed"
+              }
+            ]
+          }
         },
         {
           "name": "Fails when item not in cart",
-          "given": [
-            {
-              "name": "Cart created"
-            },
-            {
-              "name": "Item added"
-            },
-            {
-              "name": "Item removed"
-            }
-          ],
-          "when": {
-            "name": "Remove item"
+          "given": {
+            "events": [
+              {
+                "name": "Cart created"
+              },
+              {
+                "name": "Item added"
+              },
+              {
+                "name": "Item removed"
+              }
+            ]
           },
-          "then": [
-            {
-              "error": "Item already removed"
+          "when": {
+            "command": {
+              "name": "Remove item"
             }
-          ]
+          },
+          "then": {
+            "error": "Item already removed"
+          }
         }
       ]
     },
@@ -449,22 +478,28 @@
       "tests": [
         {
           "name": "Item is removed",
-          "given": [
-            {
-              "name": "Cart created"
-            },
-            {
-              "name": "Item added"
-            }
-          ],
-          "when": {
-            "name": "Clear cart"
+          "given": {
+            "events": [
+              {
+                "name": "Cart created"
+              },
+              {
+                "name": "Item added"
+              }
+            ]
           },
-          "then": [
-            {
-              "name": "Cart cleared"
+          "when": {
+            "command": {
+              "name": "Clear cart"
             }
-          ]
+          },
+          "then": {
+            "events": [
+              {
+                "name": "Cart cleared"
+              }
+            ]
+          }
         }
       ]
     },

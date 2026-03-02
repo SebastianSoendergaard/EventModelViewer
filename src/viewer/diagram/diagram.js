@@ -1051,6 +1051,23 @@
 
         function generateTestCase(test) {
             let html = '<div class="test-case">';
+
+            const renderTestItem = (item, className) => {
+                let itemHtml = `<div class="${className}">`;
+                const itemName = item && item.name ? item.name : '(unnamed)';
+                itemHtml += `${escapeHtml(itemName)}`;
+                if (item.properties && item.properties.length > 0) {
+                    item.properties.forEach(prop => {
+                        const propLabel = prop && prop.name ? prop.name : '(property)';
+                        const propData = prop && prop.value !== undefined
+                            ? prop.value
+                            : (prop && prop.type !== undefined ? prop.type : '');
+                        itemHtml += `<div class="test-property">${escapeHtml(String(propLabel))}: ${escapeHtml(String(propData))}</div>`;
+                    });
+                }
+                itemHtml += '</div>';
+                return itemHtml;
+            };
             
             // Test name
             if (test.name) {
@@ -1058,30 +1075,35 @@
             }
             
             // Given section
-            if (test.given && test.given.length > 0) {
+            const givenEvents = test.given && Array.isArray(test.given.events) ? test.given.events : [];
+            const givenViews = test.given && Array.isArray(test.given.views) ? test.given.views : [];
+
+            if (givenEvents.length > 0 || givenViews.length > 0) {
                 html += '<div class="test-section">';
                 html += '<div class="test-section-label">Given:</div>';
-                test.given.forEach(event => {
-                    html += `<div class="test-event">`;
-                    html += `${escapeHtml(event.name)}`;
-                    if (event.properties && event.properties.length > 0) {
-                        event.properties.forEach(prop => {
-                            html += `<div class="test-property">${escapeHtml(prop.name)}: ${escapeHtml(prop.value)}</div>`;
-                        });
-                    }
-                    html += '</div>';
+                givenEvents.forEach(event => {
+                    html += renderTestItem(event, 'test-event');
+                });
+                givenViews.forEach(view => {
+                    html += renderTestItem(view, 'test-view');
                 });
                 html += '</div>';
             }
             
             // When section
-            if (test.when) {
+            const whenCommand = test.when && test.when.command ? test.when.command : null;
+            if (whenCommand) {
                 html += '<div class="test-section">';
                 html += '<div class="test-section-label">When:</div>';
-                html += `<div class="test-command">${escapeHtml(test.when.name)}`;
-                if (test.when.properties && test.when.properties.length > 0) {
-                    test.when.properties.forEach(prop => {
-                        html += `<div class="test-property">${escapeHtml(prop.name)}: ${escapeHtml(prop.value)}</div>`;
+                const commandName = whenCommand.name ? whenCommand.name : '(unnamed command)';
+                html += `<div class="test-command">${escapeHtml(commandName)}`;
+                if (whenCommand.properties && whenCommand.properties.length > 0) {
+                    whenCommand.properties.forEach(prop => {
+                        const propLabel = prop && prop.name ? prop.name : '(property)';
+                        const propData = prop && prop.value !== undefined
+                            ? prop.value
+                            : (prop && prop.type !== undefined ? prop.type : '');
+                        html += `<div class="test-property">${escapeHtml(String(propLabel))}: ${escapeHtml(String(propData))}</div>`;
                     });
                 }
                 html += '</div>';
@@ -1089,23 +1111,22 @@
             }
             
             // Then section
-            if (test.then && test.then.length > 0) {
+            const thenEvents = test.then && Array.isArray(test.then.events) ? test.then.events : [];
+            const thenViews = test.then && Array.isArray(test.then.views) ? test.then.views : [];
+            const thenError = test.then && typeof test.then.error === 'string' ? test.then.error : null;
+
+            if (thenEvents.length > 0 || thenViews.length > 0 || thenError) {
                 html += '<div class="test-section">';
                 html += '<div class="test-section-label">Then:</div>';
-                test.then.forEach(result => {
-                    if (result.error) {
-                        html += `<div class="test-error">Error: ${escapeHtml(result.error)}</div>`;
-                    } else {
-                        html += `<div class="test-event">`;
-                        html += `${escapeHtml(result.name)}`;
-                        if (result.properties && result.properties.length > 0) {
-                            result.properties.forEach(prop => {
-                                html += `<div class="test-property">${escapeHtml(prop.name)}: ${escapeHtml(prop.value)}</div>`;
-                            });
-                        }
-                        html += '</div>';
-                    }
+                thenEvents.forEach(event => {
+                    html += renderTestItem(event, 'test-event');
                 });
+                thenViews.forEach(view => {
+                    html += renderTestItem(view, 'test-view');
+                });
+                if (thenError) {
+                    html += `<div class="test-error">Error: ${escapeHtml(thenError)}</div>`;
+                }
                 html += '</div>';
             }
             

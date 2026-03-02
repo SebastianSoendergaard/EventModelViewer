@@ -373,7 +373,7 @@
             letter-spacing: 0.5px;
         }
 
-        .test-event, .test-command, .test-error {
+        .test-event, .test-view, .test-command, .test-error {
             padding: 8px 10px;
             border-radius: 8px;
             margin-bottom: 6px;
@@ -384,6 +384,12 @@
             background: #e67e22;
             color: white;
             border: 1px solid #ba4a00;
+        }
+
+        .test-view {
+            background: #2ecc71;
+            color: white;
+            border: 1px solid #1e8449;
         }
 
         .test-command {
