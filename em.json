@@ -7,7 +7,17 @@
       "border": "#4CBB17",
       "trigger": {
         "swimlane": "User",
-        "type": "input-ui",
+        "type": "ui-input",
+        "properties": [
+          {
+            "name": "Description",
+            "value": "Product 1"
+          },
+          {
+            "name": "Price",
+            "value": "5"
+          }
+        ],
         "buttons": [
           "Add"
         ]
@@ -313,7 +323,15 @@
       "border": "#000000",
       "trigger": {
         "swimlane": "User",
-        "type": "input-ui",
+        "type": "ui-table",
+        "properties": [
+          {
+            "name": "Description"
+          },
+          {
+            "name": "Price"
+          }
+        ],
         "buttons": [
           "Add",
           "Remove"
@@ -441,7 +459,15 @@
       "border": "#000000",
       "trigger": {
         "swimlane": "User",
-        "type": "input-ui",
+        "type": "ui-table",
+        "properties": [
+          {
+            "name": "Description"
+          },
+          {
+            "name": "Price"
+          }
+        ],
         "buttons": [
           "Add",
           "Remove",
@@ -508,7 +534,15 @@
       "name": "Cart items",
       "trigger": {
         "swimlane": "User",
-        "type": "input-ui",
+        "type": "ui-table",
+        "properties": [
+          {
+            "name": "Description"
+          },
+          {
+            "name": "Price"
+          }
+        ],
         "buttons": [
           "Add"
         ],
@@ -547,7 +581,8 @@
       "border": "#000000",
       "trigger": {
         "swimlane": "Bot",
-        "type": "automation",
+        "type": "translation",
+        "name": "Inventory Translator",
         "views": [
           "Changed inventory"
         ]
@@ -622,7 +657,15 @@
       "border": "#000000",
       "trigger": {
         "swimlane": "User",
-        "type": "input-ui",
+        "type": "ui-table",
+        "properties": [
+          {
+            "name": "Product"
+          },
+          {
+            "name": "Inventory"
+          }
+        ],
         "buttons": [
           "Add",
           "Clear",
@@ -654,7 +697,8 @@
       "border": "#000000",
       "trigger": {
         "swimlane": "Bot",
-        "type": "automation",
+        "type": "translation",
+        "name": "Price change Translator",
         "views": [
           "Changed prices"
         ]
@@ -774,6 +818,7 @@
       "trigger": {
         "swimlane": "Bot",
         "type": "automation",
+        "name": "Archive item Scheduler",
         "views": [
           "Carts with products",
           "Changed prices"
@@ -837,7 +882,7 @@
       "border": "#000000",
       "trigger": {
         "swimlane": "User",
-        "type": "input-ui",
+        "type": "ui-input",
         "buttons": [
           "Add",
           "Remove",
@@ -887,6 +932,7 @@
       "trigger": {
         "swimlane": "Bot",
         "type": "automation",
+        "name": "Cart publisher",
         "views": [
           "Submitted cart data"
         ]
