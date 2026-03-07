@@ -11,26 +11,15 @@
         // ----- Pure calculation helpers (copy-paste into test files) -----
 
         /**
-         * Converts a name string into a URL-style slug for use as a calculated id.
-         * Example: "Cart created" → "cart-created"
-         */
-        function slugify(name) {
-            return (name || '')
-                .trim()
-                .toLowerCase()
-                .replace(/\s+/g, '-')
-                .replace(/[^a-z0-9-]/g, '');
-        }
-
-        /**
          * Calculates a canonical id for any model element.
-         * Rule: use element.id if present → slugify element.name → ""
+         * Rule: use element.id if present → use element.name as-is → ""
          * An empty-string id means the element has no cross-referenceable identity.
+         * Note: only the id and name fields are considered — no other attributes.
          */
         function calcId(element) {
             if (!element) return '';
             if (element.id) return element.id;
-            if (element.name) return slugify(element.name);
+            if (element.name) return element.name;
             return '';
         }
 
@@ -60,22 +49,19 @@
          * Enriches an event object:
          *   - Adds calculated id
          *   - Normalises swimlane:
-         *       external with no named swimlane → "External"
-         *       external with named swimlane   → that name
-         *       non-external with swimlane     → that name
+         *       has named swimlane             → that name (including user-defined "External")
+         *       external with no named swimlane → "External"  (same lane as named "External")
          *       non-external with no swimlane  → ""
          *   - Normalises external to boolean
+         *
+         * Swimlanes are identified solely by name.  "External" (assigned here) and
+         * swimlane: "External" (user-defined) are the same lane.
          */
         function enrichEvent(event) {
-            let swimlane;
             const isExternal = !!event.external;
-            if (event.swimlane && event.swimlane.trim()) {
-                swimlane = event.swimlane;
-            } else {
-                // No named swimlane — for external events getEventLaneKey uses the
-                // external:true flag to place them in the 'External' lane.
-                swimlane = '';
-            }
+            const swimlane = (event.swimlane && event.swimlane.trim())
+                ? event.swimlane
+                : (isExternal ? 'External' : '');
             return Object.assign({}, event, {
                 id: calcId(event),
                 swimlane: swimlane,
@@ -142,8 +128,12 @@
             if (triggerLanes.length === 0) triggerLanes.push({ type: 'no-role', label: '' });
 
             // --- Event lanes ---
+            // After enrichEvent(), ALL external events have a swimlane name ("External"
+            // by default, or a user-defined name).  Swimlanes are identified by name only;
+            // "External" (default) and swimlane:"External" (user-defined) are the same lane.
+            //
+            // Ordering: no-system first → named non-external → named external (last)
             var hasNoSystemEvent = false;
-            var hasUnnamedExternal = false;
             var nonExternalSwimlanes = [];
             var externalSwimlanes = [];
             var seenNonExternal = new Set();
@@ -152,14 +142,10 @@
             slices.forEach(function(slice) {
                 (slice.events || []).forEach(function(event) {
                     if (event.external) {
-                        if (event.swimlane) {
-                            // named external swimlane
-                            if (!seenExternal.has(event.swimlane)) {
-                                seenExternal.add(event.swimlane);
-                                externalSwimlanes.push(event.swimlane);
-                            }
-                        } else {
-                            hasUnnamedExternal = true;
+                        // event.swimlane is always set by enrichEvent (defaults to "External")
+                        if (!seenExternal.has(event.swimlane)) {
+                            seenExternal.add(event.swimlane);
+                            externalSwimlanes.push(event.swimlane);
                         }
                     } else if (event.swimlane) {
                         if (!seenNonExternal.has(event.swimlane)) {
@@ -176,23 +162,116 @@
             if (hasNoSystemEvent) eventLanes.push({ type: 'no-system', label: '' });
             nonExternalSwimlanes.forEach(function(sw) { eventLanes.push({ type: 'system', system: sw, label: sw }); });
             externalSwimlanes.forEach(function(sw) { eventLanes.push({ type: 'system', system: sw, label: sw }); });
-            if (hasUnnamedExternal) eventLanes.push({ type: 'external', label: 'External' });
             if (eventLanes.length === 0) eventLanes.push({ type: 'no-system', label: '' });
 
             return { trigger: triggerLanes, event: eventLanes };
         }
 
+        // ----- Cross-reference resolution helpers -----
+
+        /**
+         * Resolves an event reference string (which may be an explicit id OR a name)
+         * to a canonical element id using the provided lookup maps.
+         *
+         * Strategy:
+         *   1. Exact id match (handles explicit ids like "Cart published - external")
+         *   2. Name match, preferring non-external when multiple events share a name
+         *   3. Returns the original ref unchanged if nothing matches
+         */
+        function resolveEventRef(ref, eventById, eventsByName) {
+            if (!ref) return ref;
+            var idMatch = eventById.get(ref);
+            if (idMatch) return idMatch.id;
+            var nameMatches = eventsByName.get(ref) || [];
+            if (nameMatches.length > 0) {
+                var preferred = null;
+                for (var i = 0; i < nameMatches.length; i++) {
+                    if (!nameMatches[i].external) { preferred = nameMatches[i]; break; }
+                }
+                preferred = preferred || nameMatches[0];
+                return preferred.id || ref;
+            }
+            return ref;
+        }
+
+        /**
+         * Resolves a view reference string (which may be an explicit id OR a name)
+         * to a canonical element id using the provided lookup maps.
+         */
+        function resolveViewRef(ref, viewById, viewsByName) {
+            if (!ref) return ref;
+            var idMatch = viewById.get(ref);
+            if (idMatch) return idMatch.id;
+            var nameMatches = viewsByName.get(ref) || [];
+            if (nameMatches.length > 0) return nameMatches[0].id || ref;
+            return ref;
+        }
+
+        /**
+         * Second-pass: resolves all cross-reference arrays within a slice to
+         * canonical element ids.  Must be called after all slices are enriched so
+         * the global lookup maps are complete.
+         *
+         *   slice.command.events   — resolved against slice-local events only
+         *   slice.view.events      — resolved against ALL events (cross-slice)
+         *   slice.trigger.views    — resolved against ALL views (cross-slice)
+         */
+        function resolveSliceRefs(slice, allEventById, allEventsByName, allViewById, allViewsByName) {
+            var result = Object.assign({}, slice);
+
+            // command.events: always same-slice — build per-slice maps for precision
+            if (slice.command && Array.isArray(slice.command.events)) {
+                var sliceEventById = new Map();
+                var sliceEventsByName = new Map();
+                (slice.events || []).forEach(function(ev) {
+                    if (ev.id) sliceEventById.set(ev.id, ev);
+                    if (ev.name) {
+                        var bucket = sliceEventsByName.get(ev.name) || [];
+                        bucket.push(ev);
+                        sliceEventsByName.set(ev.name, bucket);
+                    }
+                });
+                result.command = Object.assign({}, slice.command, {
+                    events: slice.command.events.map(function(ref) {
+                        return resolveEventRef(ref, sliceEventById, sliceEventsByName);
+                    })
+                });
+            }
+
+            // view.events: cross-slice event references
+            if (slice.view && Array.isArray(slice.view.events)) {
+                result.view = Object.assign({}, slice.view, {
+                    events: slice.view.events.map(function(ref) {
+                        return resolveEventRef(ref, allEventById, allEventsByName);
+                    })
+                });
+            }
+
+            // trigger.views: cross-slice view references
+            if (slice.trigger && Array.isArray(slice.trigger.views)) {
+                result.trigger = Object.assign({}, slice.trigger, {
+                    views: slice.trigger.views.map(function(ref) {
+                        return resolveViewRef(ref, allViewById, allViewsByName);
+                    })
+                });
+            }
+
+            return result;
+        }
+
         /**
          * Main transformation entry point.
          *
-         * Converts raw JSON (as stored in em.json / emitted by FILE_LOADED)
-         * into a fully-enriched event model.
+         * Pass 1 — Enrich every element (id, swimlane, external flag).
+         * Pass 2 — Resolve all cross-reference arrays to canonical ids:
+         *          command.events, view.events, trigger.views.
          *
          * Returns null if json is null (cleared document).
          */
         function buildEventModel(json) {
             if (!json) return null;
 
+            // --- Pass 1: Enrich element fields ---
             var slices = Array.isArray(json.slices) ? json.slices.map(function(slice) {
                 return {
                     id:      calcId(slice),
@@ -205,6 +284,35 @@
                     tests:   Array.isArray(slice.tests) ? slice.tests : []
                 };
             }) : [];
+
+            // --- Pass 2: Build global lookup maps, then resolve cross-references ---
+            var allEventById    = new Map();
+            var allEventsByName = new Map();
+            var allViewById     = new Map();
+            var allViewsByName  = new Map();
+
+            slices.forEach(function(slice) {
+                (slice.events || []).forEach(function(ev) {
+                    if (ev.id) allEventById.set(ev.id, ev);
+                    if (ev.name) {
+                        var bucket = allEventsByName.get(ev.name) || [];
+                        bucket.push(ev);
+                        allEventsByName.set(ev.name, bucket);
+                    }
+                });
+                if (slice.view) {
+                    if (slice.view.id) allViewById.set(slice.view.id, slice.view);
+                    if (slice.view.name) {
+                        var bucket = allViewsByName.get(slice.view.name) || [];
+                        bucket.push(slice.view);
+                        allViewsByName.set(slice.view.name, bucket);
+                    }
+                }
+            });
+
+            slices = slices.map(function(slice) {
+                return resolveSliceRefs(slice, allEventById, allEventsByName, allViewById, allViewsByName);
+            });
 
             return {
                 title:     json.title || '',

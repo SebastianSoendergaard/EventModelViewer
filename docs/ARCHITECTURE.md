@@ -235,10 +235,24 @@ Before the diagram renders, raw JSON is transformed into a **structured enriched
 ```
 FILE_LOADED / JSON_CHANGED (raw JSON)
          ↓
-  event-model.js: buildEventModel(json)
-    - Calculates ids for all elements (explicit id → slug(name) → "")
-    - Resolves swimlane strings (normalises absent/whitespace to "")
-    - Normalises external events: no named swimlane → swimlane = "External"
+  event-model.js: buildEventModel(json)   ← TWO-PASS PIPELINE
+
+  Pass 1 – Enrich every element:
+    - Calculates .id for ALL types: explicit id field → element.name verbatim → ""
+      (id and name fields ONLY — no transformation/slugify applied)
+    - Resolves .swimlane (normalises absent/whitespace to "")
+    - External events without a named swimlane → swimlane assigned "External"
+      (same lane as user-defined swimlane: "External" — swimlanes identified by name only)
+    - Sets .external boolean on events
+
+  Pass 2 – Resolve cross-references:
+    - Builds global lookup Maps: allEventById, allEventsByName,
+      allViewById, allViewsByName
+    - command.events  resolved slice-locally (id-first, name fallback)
+    - view.events     resolved globally (id-first, name fallback)
+    - trigger.views   resolved globally (id-first, name fallback)
+    - After Pass 2, every .events/.views array contains canonical ids only
+
     - Builds ordered model.swimlanes.trigger and model.swimlanes.event arrays
          ↓
   EventBus.emit(MODEL_CHANGED, { model })
@@ -272,8 +286,8 @@ FILE_LOADED / JSON_CHANGED (raw JSON)
       events: [
         {
           id: string,
-          swimlane: string,  // "" | named lane | "External"
-          external: boolean,
+          swimlane: string,  // "" (no lane) | named lane | "External" (default for unnamed externals)
+          external: boolean, // true when event.external===true in raw JSON
           ...original fields
         }
       ],
@@ -343,7 +357,8 @@ EventBus.emit(Events.TREE_SYNC, { json: currentJson });
 ```
 
 **Continuous sync:**
-- Diagram always updates on `JSON_CHANGED` (no source filter)
+- `event-model.js` always processes `JSON_CHANGED` and emits `MODEL_CHANGED`
+- Diagram always updates on `MODEL_CHANGED` (enriched, fully-resolved model)
 - Code/Tree skip updates from their own source
 
 **History integration:**

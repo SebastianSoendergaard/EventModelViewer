@@ -49,10 +49,23 @@ The smart arrow logic feature implements event-driven architecture visualization
 
 ## Architecture
 
+> **Updated 2026-03-07:** Cross-reference resolution (matching event ids/names in `command.events`,
+> `view.events`, and `trigger.views`) was moved out of `diagram.js` into
+> `src/event-model/event-model.js` (Pass 2 of `buildEventModel()`). By the time `diagram.js`
+> receives the enriched model on `MODEL_CHANGED`, all `.events` and `.views` arrays already contain
+> **canonical ids**. `findEventElements()` and `findViewElements()` therefore perform simple
+> id-primary, name-fallback DOM lookups — no name-preference heuristics remain in `diagram.js`.
+
 ### Data Flow
 
 ```
-JSON Model → Element Generation → Attribute Storage → Arrow Drawing
+Raw JSON
+     ↓
+event-model.js: buildEventModel(json)   ← ALL resolution rules live here
+  Pass 1: enrich elements (ids, swimlanes, external flags)
+  Pass 2: resolve command.events / view.events / trigger.views → canonical ids
+     ↓ MODEL_CHANGED
+diagram.js: generateEventModelDiagram(model)
      ↓              ↓                    ↓                   ↓
   slices[]    generateEvent()      data-event-id      findEventElements()
                                    data-event-name     selectNearest*()
@@ -170,42 +183,49 @@ Slice 2: "Cart cleared" (event)
 
 ### 3. Command → Event Arrows
 
-#### Updated Logic (line 3957) - Fixed Version
+> **Updated 2026-03-07:** `command.events` in the enriched model contains **canonical event ids**
+> (resolved by `event-model.js` Pass 2). `diagram.js` no longer performs name-based matching or
+> duplicate-name preference — it just looks up the canonical id.
+
+#### Current Logic (post-enrichment)
 
 ```javascript
-// Command -> Events (only events listed in command.events array)
-if (command) {
-    const commandEventsAttr = command.getAttribute('data-command-events');
-    if (commandEventsAttr && commandEventsAttr.trim()) {
-        // Command has explicit event list
-        const commandEventNames = commandEventsAttr.split(',').filter(n => n.trim());
-        commandEventNames.forEach(eventName => {
-            // Find matching events in this slice BY NAME ONLY
-            const matchingEvents = Array.from(events).filter(event => {
-                const eventNameAttr = event.getAttribute('data-event-name');
-                return eventNameAttr === eventName;
-            });
-            
-            // If multiple events with same name, prefer ones WITHOUT id (internal events)
-            let eventsToConnect = matchingEvents;
-            if (matchingEvents.length > 1) {
-                const eventsWithoutId = matchingEvents.filter(e => !e.getAttribute('data-event-id'));
-                if (eventsWithoutId.length > 0) {
-                    eventsToConnect = eventsWithoutId;
-                }
-            }
-            
-            // Draw arrows to selected events
-            eventsToConnect.forEach(event => {
-                drawArrow(svg, command, event, diagramDiv, 'bottom', 'top');
-            });
-        });
-    } else {
-        // Backward compatibility: no explicit list, connect to all events
-        events.forEach(event => {
+// command.events is already resolved to canonical ids by event-model.js
+// data-command-events attribute carries comma-separated canonical ids
+const commandEventsAttr = command.getAttribute('data-command-events');
+if (commandEventsAttr && commandEventsAttr.trim()) {
+    const commandEventIds = commandEventsAttr.split(',').filter(n => n.trim());
+    commandEventIds.forEach(eventId => {
+        // Find matching events in this slice BY ID (pre-resolved)
+        const matchingEvents = findEventElements(eventId)
+            .filter(m => m.sliceIndex === sliceIndex)
+            .map(m => m.element);
+
+        matchingEvents.forEach(event => {
             drawArrow(svg, command, event, diagramDiv, 'bottom', 'top');
         });
+    });
+} else {
+    // Backward compatibility: no explicit list, connect to all events
+    events.forEach(event => {
+        drawArrow(svg, command, event, diagramDiv, 'bottom', 'top');
+    });
+}
+```
+
+**Resolution strategy (in event-model.js Pass 2):**
+
+```javascript
+function resolveEventRef(ref, idMap, nameMap) {
+    // Pass 1: exact id match
+    if (idMap.has(ref)) return ref;
+    // Pass 2: name match — prefer non-external when multiple share the same name
+    const byName = nameMap.get(ref) || [];
+    if (byName.length > 0) {
+        const preferred = byName.find(e => !e.external) || byName[0];
+        return preferred.id || ref;
     }
+    return ref; // warn-safe fallback
 }
 ```
 
@@ -213,9 +233,9 @@ if (command) {
 - ✅ Explicit event list takes precedence
 - ✅ Backward compatible (no event list = connect all)
 - ✅ Searches only within same slice (commands produce local events)
-- ✅ **Matches by ID ONLY** (commands always use IDs, events can share the same name but have different IDs)
-- ✅ **Prefers events with IDs** when multiple events share the same name
+- ✅ Resolution happens in `event-model.js` — `diagram.js` only draws
 - ✅ Solves the "Inventory changed" ambiguity (external vs internal events)
+- ✅ Handles explicit id references like `"Cart published - external"`
 
 ---
 

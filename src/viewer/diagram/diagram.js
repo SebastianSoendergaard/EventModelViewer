@@ -241,27 +241,18 @@
                 if (command) {
                     const commandEventsAttr = command.getAttribute('data-command-events');
                     if (commandEventsAttr && commandEventsAttr.trim()) {
-                        // Command has explicit event list — match by ID first, name as fallback
+                        // All entries are canonical ids (pre-resolved by event-model.js)
                         const commandEventIds = commandEventsAttr.split(',').map(n => n.trim()).filter(Boolean);
-                        commandEventIds.forEach(eventIdentifier => {
-                            // Try ID match first
-                            let matchingEvents = Array.from(events).filter(event =>
-                                event.getAttribute('data-event-id') === eventIdentifier
+                        commandEventIds.forEach(eventId => {
+                            const matchingEvents = Array.from(events).filter(event =>
+                                event.getAttribute('data-event-id') === eventId
                             );
-                            // Fallback: match by name
-                            if (matchingEvents.length === 0) {
-                                matchingEvents = Array.from(events).filter(event =>
-                                    event.getAttribute('data-event-name') === eventIdentifier
-                                );
-                            }
-
-                            // Connect to all matching events — commands only reference events in the same slice
                             matchingEvents.forEach(event => {
                                 drawArrow(svg, command, event, diagramDiv, 'bottom', 'top');
                             });
                         });
                     } else if (events.length > 0) {
-                        // Backward compatibility: no explicit list, connect to all events
+                        // No explicit event list — connect to all events in slice
                         events.forEach(event => {
                             drawArrow(svg, command, event, diagramDiv, 'bottom', 'top');
                         });
@@ -621,7 +612,6 @@
         function getLaneKey(lane) {
             if (lane.type === 'role') return `role:${lane.role}`;
             if (lane.type === 'system') return `system:${lane.system}`;
-            if (lane.type === 'external') return 'external';
             if (lane.type === 'no-role') return 'no-role';
             if (lane.type === 'no-system') return 'no-system';
             if (lane.type === 'all') return 'all';
@@ -646,12 +636,8 @@
         function getEventLaneKey(event, showSwimlanes) {
             if (!showSwimlanes) return 'all';
             if (!event) return 'no-system';
-            if (event.external) {
-                if (event.swimlane && event.swimlane.trim()) {
-                    return `system:${event.swimlane}`;
-                }
-                return 'external';
-            }
+            // enrichEvent() guarantees all external events have a swimlane name.
+            // Lane placement is driven by swimlane name alone — not the external flag.
             if (event.swimlane && event.swimlane.trim()) {
                 return `system:${event.swimlane}`;
             }
@@ -742,11 +728,11 @@
                 // Collect command/view elements; view always appears before command
                 const cmdViewItems = [];
                 if (slice.view) {
-                    cmdViewItems.push(generateView(slice.view, sliceIndex, slice.view.events || []));
+                    cmdViewItems.push(generateView(slice.view, sliceIndex));
                 }
                 if (slice.command) {
-                    // Pass events in this slice for id/name resolution
-                    cmdViewItems.push(generateCommand(slice.command, sliceIndex, slice.events));
+                    // command.events are pre-resolved canonical ids (no eventsInSlice needed)
+                    cmdViewItems.push(generateCommand(slice.command, sliceIndex));
                 }
                 if (cmdViewItems.length > 1) {
                     cellContents.get(cellKey).push(`<div class="cmdview-group">${cmdViewItems.join('')}</div>`);
@@ -1011,9 +997,9 @@
         }
 
         function generateTrigger(trigger, sliceIndex) {
-            const triggerViews = trigger.views ? trigger.views.join(',') : '';
-            const triggerIdVal = trigger.id ? trigger.id : (trigger.name || '');
-            let html = `<div class="element trigger" data-slice-index="${sliceIndex}" data-trigger-views="${escapeHtml(triggerViews)}" data-trigger-id="${escapeHtml(triggerIdVal)}">`;
+            const triggerViews = (trigger.views || []).join(',');
+            // trigger.id is guaranteed by enrichment; trigger.views are pre-resolved canonical ids
+            let html = `<div class="element trigger" data-slice-index="${sliceIndex}" data-trigger-views="${escapeHtml(triggerViews)}" data-trigger-id="${escapeHtml(trigger.id)}">`;
             
             if (trigger.swimlane) {
                 html += `<div class="element-role">${escapeHtml(trigger.swimlane)}</div>`;
@@ -1043,30 +1029,9 @@
             return html;
         }
 
-        function generateCommand(command, sliceIndex, eventsInSlice) {
-    // Resolve each command.events entry to the canonical id of the target event.
-    // Two-pass strategy (enriched model has .id on every event):
-    //   Pass 1: exact id match — handles explicit IDs like "Cart published - external"
-    //   Pass 2: name match — when two events share a name, prefer the non-external one
-    let commandEvents = '';
-    if (command.events && Array.isArray(command.events)) {
-        const eventRefs = command.events.map(ref => {
-            if (eventsInSlice && Array.isArray(eventsInSlice)) {
-                // Pass 1: exact id match
-                const idMatch = eventsInSlice.find(ev => ev.id === ref);
-                if (idMatch) return idMatch.id;
-                // Pass 2: name match, preferring non-external when ambiguous
-                const nameMatches = eventsInSlice.filter(ev => ev.name === ref);
-                if (nameMatches.length > 0) {
-                    const preferred = nameMatches.find(ev => !ev.external) || nameMatches[0];
-                    return preferred.id || preferred.name;
-                }
-            }
-            // Fallback: use the reference as-is (may be an id not in this slice)
-            return ref;
-        });
-        commandEvents = eventRefs.join(',');
-    }
+        function generateCommand(command, sliceIndex) {
+    // command.events is pre-resolved to canonical ids by event-model.js
+    const commandEvents = (command.events || []).join(',');
     let html = `<div class="element command" data-command-events="${escapeHtml(commandEvents)}" data-slice-index="${sliceIndex}">`;
     html += `<div class="element-title">${escapeHtml(command.name)}</div>`;
     
@@ -1110,11 +1075,11 @@
             return html;
         }
 
-        function generateView(view, sliceIndex, eventNames) {
+        function generateView(view, sliceIndex) {
             const viewId = `view-${sliceIndex}`;
-            const viewIdVal = view.id ? view.id : (view.name || '');
-            const eventNamesAttr = eventNames ? eventNames.join(',') : '';
-            let html = `<div class="element view" id="${viewId}" data-view-id="${escapeHtml(viewIdVal)}" data-view-name="${escapeHtml(view.name || '')}" data-view-events="${escapeHtml(eventNamesAttr)}">`;
+            // view.id is guaranteed by enrichment; view.events are pre-resolved canonical ids
+            const eventNamesAttr = (view.events || []).join(',');
+            let html = `<div class="element view" id="${viewId}" data-view-id="${escapeHtml(view.id)}" data-view-name="${escapeHtml(view.name || '')}" data-view-events="${escapeHtml(eventNamesAttr)}">`;
             html += `<div class="element-title">${escapeHtml(view.name)}</div>`;
             
             if (view.properties && view.properties.length > 0) {

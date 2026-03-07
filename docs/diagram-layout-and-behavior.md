@@ -52,8 +52,13 @@ The Event Model Viewer uses a CSS Grid-based layout to display event modeling di
 
 ## Swimlane Discovery
 
+> **Note (updated 2026-03-07):** Swimlane discovery was moved to `src/event-model/event-model.js`
+> as part of the event-model enrichment pipeline. `discoverSwimlanes()` no longer exists in
+> `diagram.js`. The enriched model delivered on `MODEL_CHANGED` already contains a fully-ordered
+> `model.swimlanes` object. `diagram.js` consumes it directly — no rule logic here.
+
 ### Trigger Lanes (by role)
-Discovery order determines lane sequence:
+The enriched `model.swimlanes.trigger` array is pre-ordered by `buildSwimlanesFromSlices()`:
 
 1. **Automation triggers first** (`type === 'automation'`)
    - Ordered by first appearance in slices array
@@ -62,7 +67,7 @@ Discovery order determines lane sequence:
 3. **No-role triggers last** (when `trigger.role` is empty/missing)
 
 ### Event Lanes (by system/external)
-Discovery order:
+The enriched `model.swimlanes.event` array pre-ordered by `buildSwimlanesFromSlices()`:
 
 1. **No-system events first** (when `event.system` is empty/missing)
 2. **Unique system values** (ordered by first appearance)
@@ -85,8 +90,8 @@ Discovery order:
 ### Swimlanes Toggle Behavior
 When **"Show swimlanes" is OFF:**
 ```javascript
-discoverSwimlanes(data, false)
-// Returns:
+// diagram.js passes showSwimlanes=false to generateEventModelDiagram(model, showSwimlanes)
+// which collapses trigger and event lanes to single "all" lanes at render time:
 {
   triggerLanes: [{ type: 'all', label: 'All Triggers' }],
   eventLanes: [{ type: 'all', label: 'All Events' }]
@@ -421,17 +426,18 @@ Ensures borders appear above cells and lane headers stay on top during scroll.
 
 ### Complete Rendering Sequence
 
-1. **Parse JSON** → `renderDiagram(jsonString)`
+1. **Enrich model** → `buildEventModel(json)` in `event-model.js`
+   - Calculates canonical `.id` for every element
+   - Resolves all cross-references (`command.events`, `view.events`, `trigger.views`)
+   - Emits `MODEL_CHANGED`
 
-2. **Discover swimlanes** → `discoverSwimlanes(data, showSwimlanes)`
-   - Scan for unique roles and systems
-   - Build ordered lane arrays
+2. **Receive enriched model** → `renderDiagram(model)` in `diagram.js`
 
-3. **Build grid map** → `buildGridMap(triggerLanes, eventLanes)`
+3. **Build grid map** → `buildGridMap(triggerLanes, eventLanes)` using `model.swimlanes`
    - Assign row numbers to each lane
    - Calculate total rows
 
-4. **Generate HTML** → `generateEventModelDiagram(data)`
+4. **Generate HTML** → `generateEventModelDiagram(model)`
    - Create grid container
    - Render slice headers (row 1)
    - Render border overlays
@@ -443,7 +449,7 @@ Ensures borders appear above cells and lane headers stay on top during scroll.
 5. **Draw arrows** → `drawAllArrows()`
    - Create SVG overlay
    - Group cells by slice
-   - Draw all connection types
+   - Draw all connection types (all cross-references are pre-resolved IDs)
    - Apply zoom/scroll transformations
 
 6. **Apply toggles**
@@ -503,9 +509,9 @@ This approach:
 - `data-slice-index` - Slice number (for arrow logic)
 - `data-event-name` - Event name (for matching)
 - `data-event-id` - Event ID (for unique matching)
-- `data-command-events` - Comma-separated event names (command → event connections)
-- `data-trigger-events` - Comma-separated event names (event → trigger connections)
-- `data-view-events` - Comma-separated event names (event → view connections)
+- `data-command-events` - Comma-separated canonical event **ids** (command → event connections, pre-resolved by event-model.js)
+- `data-trigger-events` - Comma-separated canonical event **ids** (event → trigger connections, pre-resolved by event-model.js)
+- `data-view-events` - Comma-separated canonical event **ids** (event → view connections, pre-resolved by event-model.js)
 - `data-slice-border-color` - Border color value
 
 ## Performance Considerations
@@ -608,5 +614,5 @@ document.querySelectorAll('.grid-cell').forEach(cell => {
 
 ---
 
-**Last Updated:** 2026-02-13  
+**Last Updated:** 2026-03-07  
 **Contributors:** GitHub Copilot CLI

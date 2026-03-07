@@ -75,6 +75,7 @@ EventModelViewer/
 | [History & Undo/Redo](history-undo-redo.md) | Time-travel editing | State stack, keyboard shortcuts |
 | [Add Slice Button](add-slice-button-learnings.md) | Slice creation UI | Templates, context menus |
 | [Arrow Logic Implementation](arrow-logic-implementation-learnings.md) | Smart event-driven arrows | Event matching, precedence, triggers |
+| [Event Model Enrichment](event-model-enrichment-learnings.md) | ID calc, swimlane ordering, cross-ref resolution | Two-pass pipeline, bugs fixed, lessons learned |
 
 ### For Contributors
 
@@ -157,7 +158,7 @@ EventModelViewer/
 | Tree View Features | ✅ | **Tree Context Menu, Tree Inline Edit, Tree Drag & Drop** |
 | History & Undo/Redo | ✅ | **History Undo Redo** |
 | Add Slice Feature | ✅ | **Add Slice Button** |
-| Arrow Logic | ✅ | **Arrow Logic Implementation** |
+| Event Model Enrichment | ✅ | **Event Model Enrichment** |
 | Testing | ✅ | Tests README, Test Suite |
 | Contributing | ✅ | README.md, Docs README |
 | Performance | ✅ | Feature Learnings, Resizer Implementation |
@@ -251,6 +252,15 @@ start collapse-functionality.test.html
 
 ## 📅 Version History
 
+### 2026-03-07 - v3.0
+- ✨ Event model enrichment pipeline (`src/event-model/event-model.js`)
+- 🎯 Two-pass `buildEventModel()`: calculates ids, resolves all cross-references
+- 🐛 Fixed external event sentinel clash (unnamed externals no longer use "External" string)
+- 🐛 Fixed command→event arrow resolution for duplicate names and explicit ids
+- 🔄 `diagram.js` migrated to `MODEL_CHANGED`, zero resolution logic remains
+- 🔄 `discoverSwimlanes()` replaced by `model.swimlanes` from enriched model
+- 📚 Added event-model-enrichment-learnings.md
+
 ### 2026-02-13 - v2.5
 - ✨ Swimlane-based diagram layout with CSS Grid
 - 🎯 Horizontal swimlanes for roles and systems
@@ -292,8 +302,8 @@ See [Project README](../README.md#recent-updates) for detailed changelog.
 
 ---
 
-**Last Updated:** 2026-02-13  
-**Version:** 2.5  
+**Last Updated:** 2026-03-07  
+**Version:** 3.0  
 **Maintained By:** Development Team
 
 ---
