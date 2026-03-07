@@ -3,29 +3,26 @@
         const diagramWrapper = document.getElementById('diagramWrapper');
 
         // Local state — updated via EventBus
-        let _diagramJson = null;
+        // diagram.js consumes the enriched model emitted by event-model.js via MODEL_CHANGED.
+        // It no longer subscribes to FILE_LOADED / JSON_CHANGED directly.
+        let _model = null;
         const _filters = { slices: true, tests: true, types: true, swimlanes: true };
 
         // Subscribe to events
-        EventBus.on(Events.FILE_LOADED, ({ json }) => {
-            _diagramJson = json;
-            if (json) {
-                renderDiagram(JSON.stringify(json));
+        EventBus.on(Events.MODEL_CHANGED, ({ model }) => {
+            _model = model;
+            if (model) {
+                renderDiagram(model);
             } else {
                 diagramElement.innerHTML = '<div class="placeholder">Create or load an event model to visualize</div>';
             }
-        });
-
-        EventBus.on(Events.JSON_CHANGED, ({ json }) => {
-            _diagramJson = json;
-            renderDiagram(JSON.stringify(json));
         });
 
         EventBus.on(Events.FILTER_TOGGLED, ({ type, checked }) => {
             _filters[type] = checked;
             if (type === 'swimlanes') {
                 // Swimlanes require full re-render
-                if (_diagramJson) renderDiagram(JSON.stringify(_diagramJson));
+                if (_model) renderDiagram(_model);
             } else if (type === 'slices') {
                 toggleSliceBorders(checked);
             } else if (type === 'tests') {
@@ -81,10 +78,9 @@
             });
         }
 
-        function renderDiagram(jsonString) {
+        function renderDiagram(model) {
             try {
-                const data = JSON.parse(jsonString);
-                const html = generateEventModelDiagram(data);
+                const html = generateEventModelDiagram(model);
                 diagramElement.innerHTML = html;
                 drawAllArrows();
                 
@@ -97,29 +93,18 @@
             }
         }
 
-        // Helper function: Find event elements by ID or name
+        // Helper function: Find event elements by ID or name.
+        // All events from the enriched model have a data-event-id when they have a name,
+        // so ID matching is reliable. Name fallback handles references that use raw names.
         function findEventElements(eventIdentifier) {
             // First try to find by ID (exact match)
             let elements = Array.from(document.querySelectorAll('.element.event[data-event-id]'))
                 .filter(el => el.getAttribute('data-event-id') === eventIdentifier);
 
-            // If not found by ID, try by name, but only if there is no event with the same name and a different id
+            // If not found by ID, fall back to name match
             if (elements.length === 0) {
-                // Find all events with this name
-                let nameMatches = Array.from(document.querySelectorAll('.element.event[data-event-name]'))
+                elements = Array.from(document.querySelectorAll('.element.event[data-event-name]'))
                     .filter(el => el.getAttribute('data-event-name') === eventIdentifier);
-                // If there are multiple, prefer those without a data-event-id (i.e., not an alias/external)
-                if (nameMatches.length > 1) {
-                    // Filter out those with a data-event-id attribute
-                    let noIdMatches = nameMatches.filter(el => !el.hasAttribute('data-event-id'));
-                    if (noIdMatches.length > 0) {
-                        elements = noIdMatches;
-                    } else {
-                        elements = nameMatches;
-                    }
-                } else {
-                    elements = nameMatches;
-                }
             }
 
             // Return elements with their slice indices
@@ -582,122 +567,11 @@
             }
         });
 
-        // ===== SWIMLANE DISCOVERY ALGORITHM =====
+        // ===== GRID LAYOUT HELPERS =====
+        // Swimlane discovery has moved to src/event-model/event-model.js.
+        // These helpers convert the pre-computed model.swimlanes arrays into
+        // CSS grid row mappings used during rendering.
         
-        /**
-         * Discovers and organizes swimlanes from event model data
-         * @param {Object} data - Event model JSON data
-         * @param {boolean} showSwimlanes - If false, returns single-row structure
-         * @returns {Object} { triggerLanes: [], eventLanes: [] }
-         */
-        function discoverSwimlanes(data, showSwimlanes) {
-            if (!showSwimlanes) {
-                // When swimlanes are hidden, treat everything as one row
-                return {
-                    triggerLanes: [{ type: 'all', label: 'All Triggers' }],
-                    eventLanes: [{ type: 'all', label: 'All Events' }]
-                };
-            }
-
-            const triggerLanes = [];
-            const eventLanes = [];
-            const seenRoles = new Set();
-            
-            const automationRoles = [];
-            const otherRoles = [];
-            let hasNoRoleTrigger = false;
-
-            // First pass: collect trigger swimlanes
-            if (data.slices && Array.isArray(data.slices)) {
-                data.slices.forEach(slice => {
-                    if (slice.trigger) {
-                        const swimlane = slice.trigger.swimlane;
-                        const type = slice.trigger.type;
-                        
-                        if (swimlane && swimlane.trim()) {
-                            if (!seenRoles.has(swimlane)) {
-                                seenRoles.add(swimlane);
-                                if (type === 'automation') {
-                                    automationRoles.push(swimlane);
-                                } else {
-                                    otherRoles.push(swimlane);
-                                }
-                            }
-                        } else {
-                            hasNoRoleTrigger = true;
-                        }
-                    }
-                });
-
-                // Build trigger lanes in order: automation -> others -> no-role
-                automationRoles.forEach(swimlane => {
-                    triggerLanes.push({ type: 'role', role: swimlane, label: swimlane });
-                });
-                otherRoles.forEach(swimlane => {
-                    triggerLanes.push({ type: 'role', role: swimlane, label: swimlane });
-                });
-                if (hasNoRoleTrigger) {
-                    triggerLanes.push({ type: 'no-role', label: '' });
-                }
-
-                // Second pass: collect event swimlanes
-                let hasNoSystemEvent = false;
-                let hasUnnamedExternal = false;
-                const nonExternalSwimlanes = [];
-                const externalSwimlanes = [];
-                const seenNonExternal = new Set();
-                const seenExternal = new Set();
-
-                data.slices.forEach(slice => {
-                    if (slice.events && Array.isArray(slice.events)) {
-                        slice.events.forEach(event => {
-                            if (event.external) {
-                                if (event.swimlane && event.swimlane.trim()) {
-                                    if (!seenExternal.has(event.swimlane)) {
-                                        seenExternal.add(event.swimlane);
-                                        externalSwimlanes.push(event.swimlane);
-                                    }
-                                } else {
-                                    hasUnnamedExternal = true;
-                                }
-                            } else if (event.swimlane && event.swimlane.trim()) {
-                                if (!seenNonExternal.has(event.swimlane)) {
-                                    seenNonExternal.add(event.swimlane);
-                                    nonExternalSwimlanes.push(event.swimlane);
-                                }
-                            } else {
-                                hasNoSystemEvent = true;
-                            }
-                        });
-                    }
-                });
-
-                // Build event lanes: no-swimlane → non-external named → external named → External default
-                if (hasNoSystemEvent) {
-                    eventLanes.push({ type: 'no-system', label: '' });
-                }
-                nonExternalSwimlanes.forEach(swimlane => {
-                    eventLanes.push({ type: 'system', system: swimlane, label: swimlane });
-                });
-                externalSwimlanes.forEach(swimlane => {
-                    eventLanes.push({ type: 'system', system: swimlane, label: swimlane });
-                });
-                if (hasUnnamedExternal) {
-                    eventLanes.push({ type: 'external', label: 'External' });
-                }
-            }
-
-            // Fallback: if no lanes discovered, create defaults
-            if (triggerLanes.length === 0) {
-                triggerLanes.push({ type: 'no-role', label: '' });
-            }
-            if (eventLanes.length === 0) {
-                eventLanes.push({ type: 'no-system', label: '' });
-            }
-
-            return { triggerLanes, eventLanes };
-        }
-
         /**
          * Builds a grid map with row indices for each lane
          * @param {Array} triggerLanes - Array of trigger lane objects
@@ -784,26 +658,27 @@
             return 'no-system';
         }
 
-        // ===== END SWIMLANE DISCOVERY =====
+        // ===== END GRID LAYOUT HELPERS =====
 
-        function generateEventModelDiagram(data) {
-            if (!data.slices || !Array.isArray(data.slices)) {
+        function generateEventModelDiagram(model) {
+            if (!model.slices || !Array.isArray(model.slices)) {
                 return '<div class="info-message">Invalid event model: slices array is required</div>';
             }
 
             const showSwimlanes = _filters.swimlanes;
             
-            // Discover swimlanes
-            const { triggerLanes, eventLanes } = discoverSwimlanes(data, showSwimlanes);
+            // Use pre-computed swimlanes from enriched model; fall back to single-lane when hidden
+            const triggerLanes = showSwimlanes ? model.swimlanes.trigger : [{ type: 'all', label: 'All Triggers' }];
+            const eventLanes   = showSwimlanes ? model.swimlanes.event   : [{ type: 'all', label: 'All Events' }];
             const gridMap = buildGridMap(triggerLanes, eventLanes);
             
-            const numSlices = data.slices.length;
+            const numSlices = model.slices.length;
             const swimlanesClass = showSwimlanes ? '' : 'swimlanes-hidden';
             
             let html = '<div class="event-model-diagram">';
             
-            if (data.title) {
-                html += `<div class="diagram-title">${escapeHtml(data.title)}</div>`;
+            if (model.title) {
+                html += `<div class="diagram-title">${escapeHtml(model.title)}</div>`;
             }
 
             // Build CSS Grid
@@ -814,7 +689,7 @@
             
             html += `<div class="swimlane-grid ${swimlanesClass}" style="grid-template-columns: ${gridTemplateColumns};">`;
             
-            data.slices.forEach((slice, sliceIndex) => {
+            model.slices.forEach((slice, sliceIndex) => {
                 const colNum = showSwimlanes ? sliceIndex + 2 : sliceIndex + 1;
                 const hasBorder = slice.border ? 'with-border' : '';
                 const borderColor = slice.border || '';
@@ -827,7 +702,7 @@
             });
             
             // Slice border overlays (span full column including tests)
-            data.slices.forEach((slice, sliceIndex) => {
+            model.slices.forEach((slice, sliceIndex) => {
                 if (!slice.border) return;
                 const colNum = showSwimlanes ? sliceIndex + 2 : sliceIndex + 1;
                 const rowEnd = gridMap.testRow + 1; // end is exclusive
@@ -845,7 +720,7 @@
                 return cellMeta.get(key);
             }
             
-            data.slices.forEach((slice, sliceIndex) => {
+            model.slices.forEach((slice, sliceIndex) => {
                 const colNum = showSwimlanes ? sliceIndex + 2 : sliceIndex + 1;
                 
                 // Trigger
@@ -1169,19 +1044,26 @@
         }
 
         function generateCommand(command, sliceIndex, eventsInSlice) {
-    // Build event references by id if present, else by name
+    // Resolve each command.events entry to the canonical id of the target event.
+    // Two-pass strategy (enriched model has .id on every event):
+    //   Pass 1: exact id match — handles explicit IDs like "Cart published - external"
+    //   Pass 2: name match — when two events share a name, prefer the non-external one
     let commandEvents = '';
     if (command.events && Array.isArray(command.events)) {
-        const eventRefs = command.events.map(eventName => {
+        const eventRefs = command.events.map(ref => {
             if (eventsInSlice && Array.isArray(eventsInSlice)) {
-                // Find event in this slice by name
-                const match = eventsInSlice.find(ev => ev.name === eventName);
-                if (match) {
-                    return match.id ? match.id : match.name;
+                // Pass 1: exact id match
+                const idMatch = eventsInSlice.find(ev => ev.id === ref);
+                if (idMatch) return idMatch.id;
+                // Pass 2: name match, preferring non-external when ambiguous
+                const nameMatches = eventsInSlice.filter(ev => ev.name === ref);
+                if (nameMatches.length > 0) {
+                    const preferred = nameMatches.find(ev => !ev.external) || nameMatches[0];
+                    return preferred.id || preferred.name;
                 }
             }
-            // Fallback: just use the name
-            return eventName;
+            // Fallback: use the reference as-is (may be an id not in this slice)
+            return ref;
         });
         commandEvents = eventRefs.join(',');
     }
@@ -1203,6 +1085,7 @@
         function generateEvent(event, sliceIndex, eventIndex, gridColumn) {
             const eventId = `event-${sliceIndex}-${eventIndex}-${event.name.replace(/\s+/g, '-')}`;
             const externalClass = event.external === true ? ' external' : '';
+            // Always emit data-event-id — enriched model guarantees every event has a calculated id
             const eventIdAttr = event.id ? ` data-event-id="${escapeHtml(event.id)}"` : '';
             const gridColumnStyle = gridColumn ? ` style="grid-column: ${gridColumn};"` : '';
             let html = `<div class="element event${externalClass}" id="${eventId}" data-event-name="${escapeHtml(event.name)}" data-slice-index="${sliceIndex}"${eventIdAttr}${gridColumnStyle}>`;

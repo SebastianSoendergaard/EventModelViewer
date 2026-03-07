@@ -36,6 +36,9 @@ let   editorHtml = readFile('src/editor/editor.html');
 const editorCss  = readFile('src/editor/editor.css');
 const editorJs   = readFile('src/editor/editor.js');
 
+// Event model module (no HTML/CSS — JS only; must load before diagram)
+const eventModelJs = readFile('src/event-model/event-model.js');
+
 // Viewer sub-modules
 const diagramHtml = readFile('src/viewer/diagram/diagram.html');
 const diagramCss  = readFile('src/viewer/diagram/diagram.css');
@@ -67,11 +70,12 @@ const combinedEditorJs  = iife(codeViewJs) + '\n\n' + iife(treeViewJs) + '\n\n' 
 
 // Level 1c: assemble viewer sub-modules into viewer
 // IMPORTANT: diagramJs MUST come before zoomExportJs because zoom-export.js
-// calls diagramContainer.addEventListener() directly at execution time
+// calls diagramContainer.addEventListener() directly at execution time.
+// event-model MUST come before diagram so MODEL_CHANGED is wired before diagram subscribes.
 viewerHtml = viewerHtml.replace('            <!-- DIAGRAM_HTML -->', diagramHtml.trimEnd());
 viewerHtml = viewerHtml.replace('            <!-- ZOOM_EXPORT_HTML -->', zoomExportHtml.trimEnd());
 const combinedViewerCss = viewerCss.trimEnd() + '\n\n' + diagramCss.trimEnd() + '\n\n' + zoomExportCss.trimEnd();
-const combinedViewerJs  = iife(diagramJs) + '\n\n' + iife(zoomExportJs) + '\n\n' + iife(viewerJs);
+const combinedViewerJs  = iife(eventModelJs) + '\n\n' + iife(diagramJs) + '\n\n' + iife(zoomExportJs) + '\n\n' + iife(viewerJs);
 
 // Level 2: assemble editor + viewer into resizer
 resizerHtml = resizerHtml.replace('        <!-- EDITOR_HTML -->', editorHtml.trimEnd());

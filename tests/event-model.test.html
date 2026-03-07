@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Model Tests</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 20px auto; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
+        .test-section h3 { margin-top: 0; color: #333; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 3px; }
+        .test-result.pass { background: #d4edda; color: #155724; }
+        .test-result.fail { background: #f8d7da; color: #721c24; }
+        .summary { margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 4px; font-size: 18px; font-weight: bold; }
+        .summary.all-pass { background: #d4edda; color: #155724; }
+        .summary.some-fail { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Event Model Tests</h1>
+    <p>Tests for the pure calculation functions in <code>src/event-model/event-model.js</code></p>
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <script>
+        // =====================================================================
+        // Standalone copy of pure calculation functions from event-model.js
+        // (These mirror the implementations — update both if rules change)
+        // =====================================================================
+
+        function slugify(name) {
+            return (name || '')
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, '-')
+                .replace(/[^a-z0-9-]/g, '');
+        }
+
+        function calcId(element) {
+            if (!element) return '';
+            if (element.id) return element.id;
+            if (element.name) return slugify(element.name);
+            return '';
+        }
+
+        function enrichTrigger(trigger) {
+            return Object.assign({}, trigger, {
+                id: calcId(trigger),
+                swimlane: (trigger.swimlane && trigger.swimlane.trim()) ? trigger.swimlane : ''
+            });
+        }
+
+        function enrichCommand(command) {
+            return Object.assign({}, command, {
+                id: calcId(command)
+            });
+        }
+
+        function enrichEvent(event) {
+            var isExternal = !!event.external;
+            var swimlane;
+            if (isExternal && (!event.swimlane || !event.swimlane.trim())) {
+                swimlane = 'External';
+            } else if (event.swimlane && event.swimlane.trim()) {
+                swimlane = event.swimlane;
+            } else {
+                swimlane = '';
+            }
+            return Object.assign({}, event, {
+                id: calcId(event),
+                swimlane: swimlane,
+                external: isExternal
+            });
+        }
+
+        function enrichView(view) {
+            return Object.assign({}, view, {
+                id: calcId(view)
+            });
+        }
+
+        function buildSwimlanesFromSlices(slices) {
+            var automationLanes = [];
+            var otherTriggerLanes = [];
+            var hasNoRoleTrigger = false;
+            var seenTriggerLanes = new Set();
+
+            slices.forEach(function(slice) {
+                if (!slice.trigger) return;
+                var sw = slice.trigger.swimlane;
+                var type = slice.trigger.type;
+                if (sw) {
+                    if (!seenTriggerLanes.has(sw)) {
+                        seenTriggerLanes.add(sw);
+                        if (type === 'automation' || type === 'translation') {
+                            automationLanes.push(sw);
+                        } else {
+                            otherTriggerLanes.push(sw);
+                        }
+                    }
+                } else {
+                    hasNoRoleTrigger = true;
+                }
+            });
+
+            var triggerLanes = [];
+            automationLanes.forEach(function(sw) { triggerLanes.push({ type: 'role', role: sw, label: sw }); });
+            otherTriggerLanes.forEach(function(sw) { triggerLanes.push({ type: 'role', role: sw, label: sw }); });
+            if (hasNoRoleTrigger) triggerLanes.push({ type: 'no-role', label: '' });
+            if (triggerLanes.length === 0) triggerLanes.push({ type: 'no-role', label: '' });
+
+            var hasNoSystemEvent = false;
+            var hasUnnamedExternal = false;
+            var nonExternalSwimlanes = [];
+            var externalSwimlanes = [];
+            var seenNonExternal = new Set();
+            var seenExternal = new Set();
+
+            slices.forEach(function(slice) {
+                (slice.events || []).forEach(function(event) {
+                    if (event.external) {
+                        if (event.swimlane === 'External') {
+                            hasUnnamedExternal = true;
+                        } else if (event.swimlane) {
+                            if (!seenExternal.has(event.swimlane)) {
+                                seenExternal.add(event.swimlane);
+                                externalSwimlanes.push(event.swimlane);
+                            }
+                        } else {
+                            hasUnnamedExternal = true;
+                        }
+                    } else if (event.swimlane) {
+                        if (!seenNonExternal.has(event.swimlane)) {
+                            seenNonExternal.add(event.swimlane);
+                            nonExternalSwimlanes.push(event.swimlane);
+                        }
+                    } else {
+                        hasNoSystemEvent = true;
+                    }
+                });
+            });
+
+            var eventLanes = [];
+            if (hasNoSystemEvent) eventLanes.push({ type: 'no-system', label: '' });
+            nonExternalSwimlanes.forEach(function(sw) { eventLanes.push({ type: 'system', system: sw, label: sw }); });
+            externalSwimlanes.forEach(function(sw) { eventLanes.push({ type: 'system', system: sw, label: sw }); });
+            if (hasUnnamedExternal) eventLanes.push({ type: 'external', label: 'External' });
+            if (eventLanes.length === 0) eventLanes.push({ type: 'no-system', label: '' });
+
+            return { trigger: triggerLanes, event: eventLanes };
+        }
+
+        function buildEventModel(json) {
+            if (!json) return null;
+            var slices = Array.isArray(json.slices) ? json.slices.map(function(slice) {
+                return {
+                    id:      calcId(slice),
+                    name:    slice.name   || '',
+                    border:  slice.border || '',
+                    trigger: slice.trigger  ? enrichTrigger(slice.trigger)  : null,
+                    command: slice.command  ? enrichCommand(slice.command)   : null,
+                    events:  Array.isArray(slice.events) ? slice.events.map(enrichEvent) : [],
+                    view:    slice.view     ? enrichView(slice.view)         : null,
+                    tests:   Array.isArray(slice.tests) ? slice.tests : []
+                };
+            }) : [];
+            return {
+                title:     json.title || '',
+                slices:    slices,
+                swimlanes: buildSwimlanesFromSlices(slices)
+            };
+        }
+
+        // =====================================================================
+        // Test framework (same pattern as other tests/*.test.html files)
+        // =====================================================================
+        const results = [];
+        let currentSection = null;
+
+        function section(name) {
+            currentSection = name;
+        }
+
+        function test(name, fn) {
+            const fullName = currentSection ? `${currentSection}: ${name}` : name;
+            try {
+                fn();
+                results.push({ name: fullName, status: 'pass', error: null });
+            } catch (error) {
+                results.push({ name: fullName, status: 'fail', error: error.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) throw new Error(message || 'Assertion failed');
+        }
+
+        function assertEquals(actual, expected, message) {
+            if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+                throw new Error(message || `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+            }
+        }
+
+        function assertNull(actual, message) {
+            if (actual !== null && actual !== undefined) {
+                throw new Error(message || `Expected null/undefined, got ${JSON.stringify(actual)}`);
+            }
+        }
+
+        // =====================================================================
+        // Tests: slugify
+        // =====================================================================
+        section('slugify');
+
+        test('lowercases and replaces spaces with hyphens', () => {
+            assertEquals(slugify('Cart Created'), 'cart-created');
+        });
+
+        test('trims leading/trailing whitespace', () => {
+            assertEquals(slugify('  hello  '), 'hello');
+        });
+
+        test('strips non-alphanumeric characters', () => {
+            assertEquals(slugify('Order (Placed)!'), 'order-placed');
+        });
+
+        test('handles empty string', () => {
+            assertEquals(slugify(''), '');
+        });
+
+        test('handles null/undefined', () => {
+            assertEquals(slugify(null), '');
+            assertEquals(slugify(undefined), '');
+        });
+
+        test('handles multiple spaces', () => {
+            assertEquals(slugify('Item  Added'), 'item--added');
+        });
+
+        // =====================================================================
+        // Tests: calcId
+        // =====================================================================
+        section('calcId');
+
+        test('uses explicit id if present', () => {
+            assertEquals(calcId({ id: 'explicit-id', name: 'Something' }), 'explicit-id');
+        });
+
+        test('uses slugified name when id is absent', () => {
+            assertEquals(calcId({ name: 'Cart Created' }), 'cart-created');
+        });
+
+        test('returns empty string when both id and name are absent', () => {
+            assertEquals(calcId({}), '');
+        });
+
+        test('returns empty string for null element', () => {
+            assertEquals(calcId(null), '');
+        });
+
+        test('id takes priority over name even if name is set', () => {
+            assertEquals(calcId({ id: 'my-id', name: 'My Name' }), 'my-id');
+        });
+
+        // =====================================================================
+        // Tests: enrichTrigger
+        // =====================================================================
+        section('enrichTrigger');
+
+        test('adds calculated id from explicit id', () => {
+            const t = enrichTrigger({ id: 'trg-1', type: 'ui', swimlane: 'User' });
+            assertEquals(t.id, 'trg-1');
+        });
+
+        test('adds calculated id from name when id is absent', () => {
+            const t = enrichTrigger({ name: 'Open Modal', type: 'ui' });
+            assertEquals(t.id, 'open-modal');
+        });
+
+        test('preserves explicit swimlane', () => {
+            const t = enrichTrigger({ type: 'ui', swimlane: 'User' });
+            assertEquals(t.swimlane, 'User');
+        });
+
+        test('normalises absent swimlane to empty string', () => {
+            const t = enrichTrigger({ type: 'automation' });
+            assertEquals(t.swimlane, '');
+        });
+
+        test('normalises whitespace-only swimlane to empty string', () => {
+            const t = enrichTrigger({ type: 'ui', swimlane: '   ' });
+            assertEquals(t.swimlane, '');
+        });
+
+        test('preserves all original fields', () => {
+            const t = enrichTrigger({ type: 'ui', swimlane: 'User', buttons: ['Submit'] });
+            assertEquals(t.buttons, ['Submit']);
+            assertEquals(t.type, 'ui');
+        });
+
+        // =====================================================================
+        // Tests: enrichEvent
+        // =====================================================================
+        section('enrichEvent');
+
+        test('adds calculated id from name', () => {
+            const e = enrichEvent({ name: 'Item Added', swimlane: 'Cart' });
+            assertEquals(e.id, 'item-added');
+        });
+
+        test('uses explicit id when present', () => {
+            const e = enrichEvent({ id: 'evt-42', name: 'Item Added' });
+            assertEquals(e.id, 'evt-42');
+        });
+
+        test('external event with no swimlane gets "External" swimlane', () => {
+            const e = enrichEvent({ name: 'Payment Received', external: true });
+            assertEquals(e.swimlane, 'External');
+        });
+
+        test('external event with named swimlane keeps its swimlane', () => {
+            const e = enrichEvent({ name: 'Payment Received', external: true, swimlane: 'PaymentGW' });
+            assertEquals(e.swimlane, 'PaymentGW');
+        });
+
+        test('external event with whitespace swimlane gets "External"', () => {
+            const e = enrichEvent({ name: 'Payment Received', external: true, swimlane: '  ' });
+            assertEquals(e.swimlane, 'External');
+        });
+
+        test('non-external event with swimlane keeps it', () => {
+            const e = enrichEvent({ name: 'Cart Created', swimlane: 'Cart' });
+            assertEquals(e.swimlane, 'Cart');
+            assertEquals(e.external, false);
+        });
+
+        test('non-external event with no swimlane gets empty string', () => {
+            const e = enrichEvent({ name: 'Cart Created' });
+            assertEquals(e.swimlane, '');
+        });
+
+        test('external flag is normalised to boolean', () => {
+            assertEquals(enrichEvent({ name: 'x', external: true }).external, true);
+            assertEquals(enrichEvent({ name: 'x' }).external, false);
+            assertEquals(enrichEvent({ name: 'x', external: 1 }).external, true);
+        });
+
+        // =====================================================================
+        // Tests: enrichView
+        // =====================================================================
+        section('enrichView');
+
+        test('adds calculated id from explicit id', () => {
+            const v = enrichView({ id: 'v1', name: 'Cart Items' });
+            assertEquals(v.id, 'v1');
+        });
+
+        test('adds calculated id from name when id is absent', () => {
+            const v = enrichView({ name: 'Cart Items' });
+            assertEquals(v.id, 'cart-items');
+        });
+
+        test('preserves original fields', () => {
+            const v = enrichView({ name: 'Cart Items', events: ['Item added'] });
+            assertEquals(v.events, ['Item added']);
+        });
+
+        // =====================================================================
+        // Tests: enrichCommand
+        // =====================================================================
+        section('enrichCommand');
+
+        test('adds calculated id from name', () => {
+            const c = enrichCommand({ name: 'Add Item' });
+            assertEquals(c.id, 'add-item');
+        });
+
+        test('uses explicit id when present', () => {
+            const c = enrichCommand({ id: 'cmd-1', name: 'Add Item' });
+            assertEquals(c.id, 'cmd-1');
+        });
+
+        // =====================================================================
+        // Tests: buildSwimlanesFromSlices — trigger lane ordering
+        // =====================================================================
+        section('buildSwimlanesFromSlices — trigger ordering');
+
+        test('automation triggers come before UI triggers regardless of model order', () => {
+            const slices = [
+                { trigger: enrichTrigger({ type: 'ui', swimlane: 'User' }), events: [] },
+                { trigger: enrichTrigger({ type: 'automation', swimlane: 'Worker' }), events: [] }
+            ];
+            const sw = buildSwimlanesFromSlices(slices);
+            assertEquals(sw.trigger[0].label, 'Worker', 'automation should be first');
+            assertEquals(sw.trigger[1].label, 'User',   'ui should be second');
+        });
+
+        test('translation triggers come before UI triggers', () => {
+            const slices = [
+                { trigger: enrichTrigger({ type: 'ui', swimlane: 'User' }), events: [] },
+                { trigger: enrichTrigger({ type: 'translation', swimlane: 'Adapter' }), events: [] }
+            ];
+            const sw = buildSwimlanesFromSlices(slices);
+            assertEquals(sw.trigger[0].label, 'Adapter', 'translation should be first');
+            assertEquals(sw.trigger[1].label, 'User',    'ui should be second');
+        });
+
+        test('automation and translation both come before UI triggers', () => {
+            const slices = [
+                { trigger: enrichTrigger({ type: 'ui', swimlane: 'User' }), events: [] },
+                { trigger: enrichTrigger({ type: 'automation', swimlane: 'Worker' }), events: [] },
+                { trigger: enrichTrigger({ type: 'translation', swimlane: 'Adapter' }), events: [] }
+            ];
+            const sw = buildSwimlanesFromSlices(slices);
+            const labels = sw.trigger.map(l => l.label);
+            assert(labels.indexOf('Worker') < labels.indexOf('User'), 'automation before ui');
+            assert(labels.indexOf('Adapter') < labels.indexOf('User'), 'translation before ui');
+        });
+
+        test('triggers without swimlane produce a single no-role lane at the end', () => {
+            const slices = [
+                { trigger: enrichTrigger({ type: 'ui', swimlane: 'User' }), events: [] },
+                { trigger: enrichTrigger({ type: 'automation' }), events: [] }  // no swimlane
+            ];
+            const sw = buildSwimlanesFromSlices(slices);
+            const last = sw.trigger[sw.trigger.length - 1];
+            assertEquals(last.type, 'no-role', 'no-role lane should be last');
+        });
+
+        test('duplicate trigger swimlanes are deduplicated', () => {
+            const slices = [
+                { trigger: enrichTrigger({ type: 'ui', swimlane: 'User' }), events: [] },
+                { trigger: enrichTrigger({ type: 'ui', swimlane: 'User' }), events: [] }
+            ];
+            const sw = buildSwimlanesFromSlices(slices);
+            assertEquals(sw.trigger.length, 1, 'should deduplicate User lane');
+        });
+
+        test('empty slices produce a default no-role trigger lane', () => {
+            const sw = buildSwimlanesFromSlices([]);
+            assertEquals(sw.trigger.length, 1);
+            assertEquals(sw.trigger[0].type, 'no-role');
+        });
+
+        // =====================================================================
+        // Tests: buildSwimlanesFromSlices — event lane ordering
+        // =====================================================================
+        section('buildSwimlanesFromSlices — event ordering');
+
+        test('external events land in External lane when no swimlane', () => {
+            const slices = [{
+                trigger: null,
+                events: [ enrichEvent({ name: 'Msg', external: true }) ]
+            }];
+            const sw = buildSwimlanesFromSlices(slices);
+            assert(sw.event.some(l => l.type === 'external'), 'external lane should exist');
+        });
+
+        test('external lane comes last after non-external lanes', () => {
+            const slices = [{
+                trigger: null,
+                events: [
+                    enrichEvent({ name: 'Internal', swimlane: 'System' }),
+                    enrichEvent({ name: 'External Msg', external: true })
+                ]
+            }];
+            const sw = buildSwimlanesFromSlices(slices);
+            const last = sw.event[sw.event.length - 1];
+            assertEquals(last.type, 'external', 'External lane should be last');
+        });
+
+        test('external events come after internal named swimlanes regardless of model order', () => {
+            const slices = [{
+                trigger: null,
+                events: [
+                    enrichEvent({ name: 'Payment Done', external: true }),
+                    enrichEvent({ name: 'Cart Created', swimlane: 'Cart' })
+                ]
+            }];
+            const sw = buildSwimlanesFromSlices(slices);
+            const cartIdx = sw.event.findIndex(l => l.label === 'Cart');
+            const extIdx  = sw.event.findIndex(l => l.type === 'external');
+            assert(cartIdx < extIdx, 'Cart lane should come before External lane');
+        });
+
+        test('events with no swimlane produce no-system lane first', () => {
+            const slices = [{
+                trigger: null,
+                events: [
+                    enrichEvent({ name: 'Unlaned' }),
+                    enrichEvent({ name: 'Laned', swimlane: 'Cart' })
+                ]
+            }];
+            const sw = buildSwimlanesFromSlices(slices);
+            assertEquals(sw.event[0].type, 'no-system', 'no-system should be first');
+        });
+
+        test('named external swimlane appears as system lane in external position', () => {
+            const slices = [{
+                trigger: null,
+                events: [
+                    enrichEvent({ name: 'Internal', swimlane: 'Cart' }),
+                    enrichEvent({ name: 'External Named', external: true, swimlane: 'PayGW' })
+                ]
+            }];
+            const sw = buildSwimlanesFromSlices(slices);
+            const labels = sw.event.map(l => l.label);
+            assert(labels.indexOf('Cart') < labels.indexOf('PayGW'), 'internal before named external');
+        });
+
+        test('duplicate event swimlanes are deduplicated', () => {
+            const slices = [
+                { trigger: null, events: [ enrichEvent({ name: 'E1', swimlane: 'Cart' }) ] },
+                { trigger: null, events: [ enrichEvent({ name: 'E2', swimlane: 'Cart' }) ] }
+            ];
+            const sw = buildSwimlanesFromSlices(slices);
+            assertEquals(sw.event.filter(l => l.label === 'Cart').length, 1);
+        });
+
+        test('empty slices produce a default no-system event lane', () => {
+            const sw = buildSwimlanesFromSlices([]);
+            assertEquals(sw.event.length, 1);
+            assertEquals(sw.event[0].type, 'no-system');
+        });
+
+        // =====================================================================
+        // Tests: buildEventModel
+        // =====================================================================
+        section('buildEventModel');
+
+        test('returns null for null input', () => {
+            assertNull(buildEventModel(null));
+        });
+
+        test('returns null for undefined input', () => {
+            assertNull(buildEventModel(undefined));
+        });
+
+        test('returns model with title and empty slices for empty json', () => {
+            const m = buildEventModel({ title: 'My Model', slices: [] });
+            assertEquals(m.title, 'My Model');
+            assertEquals(m.slices.length, 0);
+        });
+
+        test('enriches events with calculated ids', () => {
+            const m = buildEventModel({
+                slices: [{ events: [{ name: 'Cart Created', swimlane: 'Cart' }] }]
+            });
+            assertEquals(m.slices[0].events[0].id, 'cart-created');
+        });
+
+        test('enriches trigger with id and normalised swimlane', () => {
+            const m = buildEventModel({
+                slices: [{ trigger: { type: 'ui', swimlane: 'User' }, events: [] }]
+            });
+            assertEquals(m.slices[0].trigger.swimlane, 'User');
+            assert(m.slices[0].trigger.id !== undefined, 'trigger should have id');
+        });
+
+        test('enriches command with id', () => {
+            const m = buildEventModel({
+                slices: [{ command: { name: 'Add Item' }, events: [] }]
+            });
+            assertEquals(m.slices[0].command.id, 'add-item');
+        });
+
+        test('enriches view with id', () => {
+            const m = buildEventModel({
+                slices: [{ view: { name: 'Cart Items' }, events: [] }]
+            });
+            assertEquals(m.slices[0].view.id, 'cart-items');
+        });
+
+        test('slice id comes from explicit slice.id', () => {
+            const m = buildEventModel({ slices: [{ id: 'slice-1', name: 'Add item', events: [] }] });
+            assertEquals(m.slices[0].id, 'slice-1');
+        });
+
+        test('slice id falls back to slug of name when no explicit id', () => {
+            const m = buildEventModel({ slices: [{ name: 'Add item', events: [] }] });
+            assertEquals(m.slices[0].id, 'add-item');
+        });
+
+        test('produces swimlanes object with trigger and event arrays', () => {
+            const m = buildEventModel({
+                slices: [{
+                    trigger: { type: 'ui', swimlane: 'User' },
+                    events: [{ name: 'E1', swimlane: 'System' }]
+                }]
+            });
+            assert(Array.isArray(m.swimlanes.trigger), 'swimlanes.trigger should be array');
+            assert(Array.isArray(m.swimlanes.event), 'swimlanes.event should be array');
+        });
+
+        test('external event with no swimlane produces External event lane', () => {
+            const m = buildEventModel({
+                slices: [{
+                    events: [{ name: 'Incoming', external: true }]
+                }]
+            });
+            assert(m.swimlanes.event.some(l => l.type === 'external'),
+                'should have external event lane');
+        });
+
+        test('handles missing slices gracefully', () => {
+            const m = buildEventModel({ title: 'No Slices' });
+            assertEquals(m.slices.length, 0);
+        });
+
+        test('handles null trigger/command/view inside a slice', () => {
+            const m = buildEventModel({ slices: [{ events: [] }] });
+            assertNull(m.slices[0].trigger);
+            assertNull(m.slices[0].command);
+            assertNull(m.slices[0].view);
+        });
+
+        // =====================================================================
+        // Render results
+        // =====================================================================
+        const container = document.getElementById('results');
+        let sectionMap = {};
+        results.forEach(r => {
+            const sectionName = r.name.includes(':') ? r.name.split(':')[0].trim() : 'General';
+            if (!sectionMap[sectionName]) {
+                const sectionDiv = document.createElement('div');
+                sectionDiv.className = 'test-section';
+                sectionDiv.innerHTML = `<h3>${sectionName}</h3>`;
+                container.appendChild(sectionDiv);
+                sectionMap[sectionName] = sectionDiv;
+            }
+            const div = document.createElement('div');
+            div.className = `test-result ${r.status}`;
+            div.textContent = `${r.status === 'pass' ? '✅' : '❌'} ${r.name.includes(':') ? r.name.split(':').slice(1).join(':').trim() : r.name}${r.error ? ': ' + r.error : ''}`;
+            sectionMap[sectionName].appendChild(div);
+        });
+
+        const passed = results.filter(r => r.status === 'pass').length;
+        const failed = results.filter(r => r.status === 'fail').length;
+        const summary = document.getElementById('summary');
+        summary.className = `summary ${failed === 0 ? 'all-pass' : 'some-fail'}`;
+        summary.textContent = `${passed} passed, ${failed} failed out of ${results.length} tests`;
+    </script>
+</body>
+</html>

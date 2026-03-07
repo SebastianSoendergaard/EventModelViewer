@@ -39,6 +39,7 @@ Event Model Viewer is built as a **modular single-page application** that compil
 ```
 app.html (shell)
 ├── event-bus/           # GLOBAL - not wrapped in IIFE
+├── event-model/         # Enriches raw JSON → structured model (MODEL_CHANGED)
 ├── toolbar/
 │   ├── file-buttons/    # Open, Save, Export
 │   └── filter-toggles/  # View filtering
@@ -68,6 +69,7 @@ app.html (shell)
 | `APP_INIT` | `{}` | Application initialized | `app.html` |
 | `FILE_LOADED` | `{ json, fileName }` | JSON file loaded | `file-buttons` |
 | `JSON_CHANGED` | `{ json, source }` | JSON modified | `code-view`, `tree-view`, `editor` |
+| `MODEL_CHANGED` | `{ model }` | Enriched event model ready | `event-model` |
 | `FILTER_TOGGLED` | `{ type, checked }` | View filter changed | `filter-toggles` |
 | `EDITOR_RESIZED` | `{}` | Panel resized | `resizer` |
 | `TREE_SYNC` | `{}` | Request tree view to re-render | `editor` (on tab switch) |
@@ -222,7 +224,71 @@ window.codeEditorView = ace.edit('code-editor');
 - `codeEditorView.getValue()` - ACE method
 - `codeEditorView.session.setMode('ace/mode/json')` - ACE API
 
-### 6. Diagram Rendering
+### 6. Event Model Enrichment
+
+**Location:** `src/event-model/event-model.js`
+
+Before the diagram renders, raw JSON is transformed into a **structured enriched model** by the event-model module.
+
+#### What it does
+
+```
+FILE_LOADED / JSON_CHANGED (raw JSON)
+         ↓
+  event-model.js: buildEventModel(json)
+    - Calculates ids for all elements (explicit id → slug(name) → "")
+    - Resolves swimlane strings (normalises absent/whitespace to "")
+    - Normalises external events: no named swimlane → swimlane = "External"
+    - Builds ordered model.swimlanes.trigger and model.swimlanes.event arrays
+         ↓
+  EventBus.emit(MODEL_CHANGED, { model })
+         ↓
+  diagram.js subscribes to MODEL_CHANGED
+```
+
+#### Why this matters
+
+- **Single source of truth for business rules**: ID calculation and swimlane ordering rules live only here.
+- **Testable in isolation**: `buildEventModel()` is a pure function — no DOM, no EventBus needed for testing.
+- **Swimlane ordering guarantees**: automation/translation trigger lanes always appear before UI lanes; external event lanes always appear last.
+
+#### Enriched Model Shape
+
+```js
+{
+  title: string,
+  slices: [
+    {
+      id: string,          // explicit id, or slug(name), or ""
+      name: string,
+      border: string,
+      trigger: {
+        id: string,
+        swimlane: string,  // normalised: "" if absent
+        type: string,
+        ...original fields
+      } | null,
+      command: { id: string, ...original fields } | null,
+      events: [
+        {
+          id: string,
+          swimlane: string,  // "" | named lane | "External"
+          external: boolean,
+          ...original fields
+        }
+      ],
+      view: { id: string, ...original fields } | null,
+      tests: [ ...unchanged ]
+    }
+  ],
+  swimlanes: {
+    trigger: [ { type: 'role'|'no-role', role?: string, label: string } ],
+    event:   [ { type: 'no-system'|'system'|'external', system?: string, label: string } ]
+  }
+}
+```
+
+### 7. Diagram Rendering
 
 **Custom HTML/CSS Grid + SVG** (not Mermaid.js or canvas)
 
@@ -231,10 +297,11 @@ window.codeEditorView = ace.edit('code-editor');
 #### Rendering Pipeline
 
 ```
-JSON Data
+MODEL_CHANGED (enriched model from event-model.js)
     ↓
-generateEventModelDiagram(json)
+generateEventModelDiagram(model)
     ↓
+├─ Use model.swimlanes for grid lane layout (no rule logic here)
 ├─ Generate HTML elements (slices, triggers, commands, events, views, tests)
 │  └─ generateTrigger/Command/Event/View/Tests()
 ├─ Position in CSS Grid
@@ -257,7 +324,7 @@ Event Model diagrams require:
 
 Mermaid.js couldn't handle this complexity, so we built custom rendering.
 
-### 7. View Synchronization
+### 8. View Synchronization
 
 **Three views** must stay synchronized:
 1. **Code View** (ACE Editor)
@@ -282,7 +349,7 @@ EventBus.emit(Events.TREE_SYNC, { json: currentJson });
 **History integration:**
 - Undo/redo uses `source: 'history'` to avoid double-pushing to history stack
 
-### 8. History Management
+### 9. History Management
 
 **Unified undo/redo** across both editors.
 
@@ -338,6 +405,7 @@ historyManager = {
 **Location:** `tests/`
 
 **Test files:**
+- `event-model.test.html` - Enrichment rules: ID calculation, swimlane resolution, lane ordering
 - `arrow-logic.test.html` - Arrow rendering and matching logic
 - `collapse-functionality.test.html` - Code editor collapse
 - `tree-view.test.html` - Tree view operations

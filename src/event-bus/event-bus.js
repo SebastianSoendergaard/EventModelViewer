@@ -42,4 +42,8 @@
             // Request the code editor to sync its content with current JSON (e.g. on tab switch).
             // Payload: { json }
             CODE_SYNC:      'code:sync',
+
+            // The event model has been built from raw JSON (on FILE_LOADED or JSON_CHANGED).
+            // Payload: { model }  — fully-enriched event model object, or { model: null } for cleared document
+            MODEL_CHANGED:  'model:changed',
         };
