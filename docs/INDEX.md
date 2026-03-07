@@ -24,49 +24,57 @@ EventModelViewer/
 
 ### New to the Project?
 1. Read: [Project README](../README.md)
-2. Run: Open `index.html` in browser
-3. Try: Load `em.json` and explore collapse feature
+2. Read: [Architecture Guide](ARCHITECTURE.md) - **Understand the system design**
+3. Build: Run `node build.js` to generate `event-model-viewer.html`
+4. Try: Open `event-model-viewer.html` and load `em.json`
 
-### Want to Use the Collapse Feature?
-1. Read: [Quick Reference](collapse-quick-reference.md)
-2. Try: Upload a JSON file
-3. Click: ▼ and ▶ icons to collapse/expand
+### Want to Use the Application?
+1. Read: [Project README](../README.md) for user guide
+2. Read: [Quick References](collapse-quick-reference.md) and [Tree View Quick Reference](tree-view-quick-reference.md)
+3. Try: Upload a JSON file and explore features
 
 ### Want to Develop or Contribute?
-1. Read: [Feature Learnings](collapse-feature-learnings.md)
-2. Run: [Test Suite](../tests/collapse-functionality.test.html)
-3. Review: [Test Documentation](../tests/README.md)
+1. Read: [Architecture Guide](ARCHITECTURE.md) - **Start here for system understanding**
+2. Read: [Modular Architecture](modular-architecture-learnings.md) - Build system details
+3. Run: Tests in `tests/` folder
+4. Review: Feature-specific learnings docs below
 
 ---
 
 ## 📖 Documentation by Topic
+
+### System Architecture (Start Here for Development)
+
+| Document | Purpose | Key Topics |
+|----------|---------|------------|
+| **[Architecture Guide](ARCHITECTURE.md)** | **System design & patterns** | **EventBus, build system, state mgmt, module communication** |
+| [Modular Architecture](modular-architecture-learnings.md) | Build system details | Module hierarchy, IIFE wrapping, build.js |
 
 ### For Users
 
 | Document | Purpose | Key Topics |
 |----------|---------|------------|
 | [Project README](../README.md) | Overview and quick start | Features, setup, basic usage |
-| [Quick Reference](collapse-quick-reference.md) | How-to guide | Using collapse, shortcuts, examples |
+| [Collapse Quick Reference](collapse-quick-reference.md) | Code editor collapse | Using collapse, shortcuts, examples |
+| [Tree View Quick Reference](tree-view-quick-reference.md) | Tree editor guide | Drag-drop, inline edit, context menu |
 
 ### For Developers
 
 | Document | Purpose | Key Topics |
 |----------|---------|------------|
-| [Modular Architecture](modular-architecture-learnings.md) | **Build system & modules** | **Module hierarchy, build script, TDZ, cross-module refs** |
-| [Code Editor Selection](code-editor-selection-learnings.md) | **Editor implementation** | **CodeMirror vs ACE, CDN issues, module loading** |
-| [Resizer Implementation](resizer-implementation-learnings.md) | **Resizable panels** | **Drag resize, collapse panels, state persistence** |
-| [Persistence Implementation](persistence-implementation-learnings.md) | **LocalStorage & file ops** | **Auto-save, New/Save buttons, resizer persistence** |
-| [Diagram Layout and Behavior](diagram-layout-and-behavior.md) | **Swimlane grid system** | **CSS Grid, swimlanes, discovery, arrows, styling** |
-| [Hierarchical Collapse Behavior](hierarchical-collapse-behavior.md) | **One-level-at-a-time expand** | **ACE folding API, recursive prevention, state tracking** |
-| [Tree Context Menu](tree-context-menu-learnings.md) | **Right-click copy/delete** | **Context menu positioning, item operations** |
-| [Tree Inline Edit](tree-inline-edit-learnings.md) | **Double-click editing** | **Inline value editing, type conversion** |
-| [Tree Drag & Drop](tree-drag-drop-learnings.md) | **Drag to reorder** | **Visual feedback, drop zones, state updates** |
-| [History & Undo/Redo](history-undo-redo.md) | **Time-travel editing** | **State management, keyboard shortcuts** |
-| [Add Slice Button](add-slice-button-learnings.md) | **Slice creation UI** | **Context menus, templates, multi-system updates** |
-| [Arrow Logic Implementation](arrow-logic-implementation-learnings.md) | **Smart event-driven arrows** | **Event matching, precedence, dashed arrows, automation triggers** |
-| [Feature Learnings](collapse-feature-learnings.md) | Technical implementation | Regex, algorithms, performance |
-| [Quick Reference](collapse-quick-reference.md) | API and patterns | Functions, detection patterns |
-| [Test Suite](../tests/collapse-functionality.test.html) | Automated tests | Run in browser |
+| [Code Editor Selection](code-editor-selection-learnings.md) | Editor implementation | CodeMirror vs ACE, why ACE was chosen |
+| [Code Editor Sync](code-editor-sync-learnings.md) | View synchronization | Code ↔ Tree ↔ Diagram sync |
+| [Resizer Implementation](resizer-implementation-learnings.md) | Resizable panels | Drag resize, collapse, persistence |
+| [Persistence Implementation](persistence-implementation-learnings.md) | LocalStorage & file ops | Auto-save, file buttons, state restoration |
+| [Diagram Layout and Behavior](diagram-layout-and-behavior.md) | Swimlane grid system | CSS Grid, swimlanes, positioning |
+| [Hierarchical Collapse Behavior](hierarchical-collapse-behavior.md) | One-level-at-a-time expand | ACE folding API, recursive prevention |
+| [Collapsed Label Improvements](collapsed-label-improvements.md) | Smart collapse labels | Property names, array counts |
+| [Tree Context Menu](tree-context-menu-learnings.md) | Right-click operations | Copy/delete, positioning |
+| [Tree Inline Edit](tree-inline-edit-learnings.md) | Double-click editing | Value editing, type conversion |
+| [Tree Drag & Drop](tree-drag-drop-learnings.md) | Drag to reorder | Visual feedback, drop zones |
+| [History & Undo/Redo](history-undo-redo.md) | Time-travel editing | State stack, keyboard shortcuts |
+| [Add Slice Button](add-slice-button-learnings.md) | Slice creation UI | Templates, context menus |
+| [Arrow Logic Implementation](arrow-logic-implementation-learnings.md) | Smart event-driven arrows | Event matching, precedence, triggers |
 
 ### For Contributors
 

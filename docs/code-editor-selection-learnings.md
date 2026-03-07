@@ -108,6 +108,23 @@ breaking instanceof checks.
 - Comprehensive feature set built-in
 - Easy API
 
+### Variable Naming Note
+
+**Important:** The global variable is named `codeMirrorView` but contains an **ACE Editor** instance:
+
+```javascript
+window.codeMirrorView = ace.edit('code-editor');
+```
+
+**Why the misleading name?** Historical artifact from the failed CodeMirror 6 attempt (documented above). The variable name was kept to avoid updating all references throughout the codebase.
+
+**Actual API used:**
+- `codeMirrorView.setValue()` - ACE method, not CodeMirror
+- `codeMirrorView.getValue()` - ACE method
+- `codeMirrorView.session.setFoldStyle()` - ACE folding API
+
+When reading code that references `codeMirrorView`, remember it's an ACE Editor instance with ACE's API, not CodeMirror's API.
+
 ### Implementation
 ```html
 <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.32.2/src-min-noconflict/ace.js"></script>
