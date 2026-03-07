@@ -3924,7 +3924,7 @@
                     if (sameSliceEvents.length > 0) {
                         // Use first same-slice event
                         selectedMatch = sameSliceEvents[0];
-                        isDashed = true; // Always dashed for same-slice event->view
+                        isDashed = false; // Same-slice event->view should be solid (not past)
                     } else {
                         // Try to find nearest preceding event
                         selectedMatch = selectNearestPrecedingEvent(eventMatches, viewSliceIndex);
@@ -3937,9 +3937,9 @@
                     }
 
                     if (selectedMatch) {
-                        // For same-slice, always exit from top and use dashed arrow
+                        // For same-slice, always exit from top
                         if (sameSliceEvents.length > 0) {
-                            drawArrow(svg, selectedMatch.element, view, diagramDiv, 'top', 'bottom', true);
+                            drawArrow(svg, selectedMatch.element, view, diagramDiv, 'top', 'bottom', isDashed);
                         } else if (isDashed) {
                             // Event is after the view — exit from the side closest to the view
                             const eventRect = selectedMatch.element.getBoundingClientRect();

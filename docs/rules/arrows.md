@@ -46,7 +46,6 @@ defined in the model immediately after the command
 5. arrows should enter and exit in the top of the event to improve readability
 6. if an event points to a view in the past, meaning the view is defined in the model before the event, the arrow should be dashed
 7. if an event points to a view in the past, the arrow should exit on the side to improve readability
-8. if an event points to a view within the same slice, the view is in the past and the arrow should be dashed 
 9. if an event points to a view within the same slice, the arrow should exit the event from the top to improve readability
 
 ## Important note on element references

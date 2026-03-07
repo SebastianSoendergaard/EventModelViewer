@@ -1,3 +1,5 @@
+# Rules for diagram swimlanes 
+
 ## Rules for trigger swimlanes
 1. triggers should be devided into swimlanes depending on the swimlane attribute of the trigger.
 2. automation and translation swimlanes should appear before ui swimlanes
