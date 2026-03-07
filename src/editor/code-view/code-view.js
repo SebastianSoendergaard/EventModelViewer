@@ -6,7 +6,7 @@
         let jsonLines = [];
         let debounceTimer;
         // CodeMirror editor instance
-        let codeMirrorView = null;
+        let codeEditorView = null;
 
         // Local JSON state
         let _codeViewJson = null;
@@ -15,22 +15,22 @@
         EventBus.on(Events.FILE_LOADED, ({ json }) => {
             _codeViewJson = json;
             collapsedLines.clear();
-            if (codeMirrorView && codeMirrorView.setValue) {
-                codeMirrorView.setValue(json ? JSON.stringify(json, null, 2) : '', -1);
+            if (codeEditorView && codeEditorView.setValue) {
+                codeEditorView.setValue(json ? JSON.stringify(json, null, 2) : '', -1);
             }
         });
 
         EventBus.on(Events.JSON_CHANGED, ({ json, source }) => {
             if (source === 'code') return; // Don't update from our own edits
             _codeViewJson = json;
-            if (codeMirrorView && codeMirrorView.setValue) {
-                codeMirrorView.setValue(JSON.stringify(json, null, 2), -1);
+            if (codeEditorView && codeEditorView.setValue) {
+                codeEditorView.setValue(JSON.stringify(json, null, 2), -1);
             }
         });
 
         EventBus.on(Events.EDITOR_RESIZED, () => {
-            if (codeMirrorView && codeMirrorView.resize) {
-                codeMirrorView.resize();
+            if (codeEditorView && codeEditorView.resize) {
+                codeEditorView.resize();
             }
         });
 
@@ -39,11 +39,11 @@
         });
 
         EventBus.on(Events.CODE_SYNC, ({ json }) => {
-            if (!codeMirrorView) return;
+            if (!codeEditorView) return;
             if (json === undefined) return;
             const expected = JSON.stringify(json, null, 2);
-            if (codeMirrorView.getValue() !== expected) {
-                codeMirrorView.setValue(expected, -1);
+            if (codeEditorView.getValue() !== expected) {
+                codeEditorView.setValue(expected, -1);
             }
         });
 
@@ -435,7 +435,7 @@
                 });
                 
                 // Store editor instance globally
-                codeMirrorView = editor;
+                codeEditorView = editor;
                 
                 // Add change listener with debouncing
                 editor.session.on('change', function() {
@@ -454,11 +454,11 @@
         
         // Update JSON from ACE Editor content
         function updateJsonFromCodeMirror() {
-            if (!codeMirrorView) return;
+            if (!codeEditorView) return;
             
             try {
                 // ACE uses getValue() instead of state.doc.toString()
-                const content = codeMirrorView.getValue();
+                const content = codeEditorView.getValue();
                 const parsed = JSON.parse(content);
                 _codeViewJson = parsed;
                 
@@ -488,7 +488,7 @@
             // This function is now deprecated for the Code tab (CodeMirror is used instead)
             // It's only kept for backward compatibility if needed elsewhere
             // Do not render to codeEditor div if CodeMirror is active
-            if (codeMirrorView) {
+            if (codeEditorView) {
                 return; // CodeMirror handles the Code tab now
             }
             
@@ -585,9 +585,9 @@
             // Check which tab is active
             const codeTabActive = codeView.classList.contains('active');
             
-            if (codeTabActive && codeMirrorView) {
+            if (codeTabActive && codeEditorView) {
                 // Use ACE folding API
-                const session = codeMirrorView.session;
+                const session = codeEditorView.session;
                 const foldWidgets = session.foldWidgets;
                 if (foldWidgets) {
                     for (let row = 0; row < session.getLength(); row++) {
@@ -612,9 +612,9 @@
             // Check which tab is active
             const codeTabActive = codeView.classList.contains('active');
             
-            if (codeTabActive && codeMirrorView) {
+            if (codeTabActive && codeEditorView) {
                 // Use ACE folding API
-                const session = codeMirrorView.session;
+                const session = codeEditorView.session;
                 session.unfold();
             } else {
                 // Use old custom editor for tree tab

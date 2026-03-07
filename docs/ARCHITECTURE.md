@@ -208,19 +208,19 @@ Most modules are wrapped in **Immediately Invoked Function Expressions** for sco
 
 #### Variable Naming Legacy
 
-The global variable is named `codeMirrorView` but uses **ACE Editor**:
+The global variable is now named `codeEditorView` and uses **ACE Editor**:
 
 ```javascript
 // In code-view.js
-window.codeMirrorView = ace.edit('code-editor');
+window.codeEditorView = ace.edit('code-editor');
 ```
 
 **Why the confusing name?** Historical artifact from the failed CodeMirror attempt. Kept for backward compatibility with existing code references.
 
 **Actual API:**
-- `codeMirrorView.setValue(text, -1)` - ACE method
-- `codeMirrorView.getValue()` - ACE method
-- `codeMirrorView.session.setMode('ace/mode/json')` - ACE API
+- `codeEditorView.setValue(text, -1)` - ACE method
+- `codeEditorView.getValue()` - ACE method
+- `codeEditorView.session.setMode('ace/mode/json')` - ACE API
 
 ### 6. Diagram Rendering
 

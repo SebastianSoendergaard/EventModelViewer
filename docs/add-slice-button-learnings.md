@@ -191,8 +191,8 @@ function addSliceToModel(sliceTemplate) {
     currentJson.slices.push(sliceTemplate);
 
     // 3. Update code editor
-    if (codeMirrorView && codeMirrorView.setValue) {
-        codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
+    if (codeEditorView && codeEditorView.setValue) {
+        codeEditorView.setValue(JSON.stringify(currentJson, null, 2), -1);
     }
 
     // 4. Update tree view

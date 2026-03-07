@@ -246,7 +246,7 @@ function updatePanelLayout() {
     viewerCollapseBtn.textContent = viewerCollapsed ? '▶' : '◀';
     
     // Resize ACE editor if exists
-    if (codeMirrorView && codeMirrorView.resize) {
+    if (codeEditorView && codeEditorView.resize) {
         setTimeout(() => codeMirrorView.resize(), 0);
     }
 }

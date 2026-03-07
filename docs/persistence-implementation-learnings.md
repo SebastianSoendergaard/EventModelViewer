@@ -135,7 +135,7 @@ function loadJsonFromLocalStorage() {
             
             // Update editor, tree view, and diagram
             if (codeMirrorView && codeMirrorView.setValue) {
-                codeMirrorView.setValue(JSON.stringify(currentJson, null, 2), -1);
+                codeEditorView.setValue(JSON.stringify(currentJson, null, 2), -1);
             }
             renderTreeView();
             renderDiagram(JSON.stringify(currentJson));
@@ -178,7 +178,7 @@ function createNew() {
     
     // Clear editors
     if (codeMirrorView && codeMirrorView.setValue) {
-        codeMirrorView.setValue('', -1);
+        codeEditorView.setValue('', -1);
     }
     renderTreeView();
     
@@ -265,7 +265,7 @@ console.log('Editor initialized');
 loadJsonFromLocalStorage();
 ```
 
-Called AFTER editor is initialized so `codeMirrorView` is available.
+Called AFTER editor is initialized so `codeEditorView` is available.
 
 ### 7. File Upload Handler Update
 

@@ -110,20 +110,20 @@ breaking instanceof checks.
 
 ### Variable Naming Note
 
-**Important:** The global variable is named `codeMirrorView` but contains an **ACE Editor** instance:
+**Important:** The global variable is now named `codeEditorView` and contains an **ACE Editor** instance:
 
 ```javascript
-window.codeMirrorView = ace.edit('code-editor');
+window.codeEditorView = ace.edit('code-editor');
 ```
 
 **Why the misleading name?** Historical artifact from the failed CodeMirror 6 attempt (documented above). The variable name was kept to avoid updating all references throughout the codebase.
 
 **Actual API used:**
-- `codeMirrorView.setValue()` - ACE method, not CodeMirror
-- `codeMirrorView.getValue()` - ACE method
-- `codeMirrorView.session.setFoldStyle()` - ACE folding API
+- `codeEditorView.setValue()` - ACE method
+- `codeEditorView.getValue()` - ACE method
+- `codeEditorView.session.setFoldStyle()` - ACE folding API
 
-When reading code that references `codeMirrorView`, remember it's an ACE Editor instance with ACE's API, not CodeMirror's API.
+When reading code that references `codeEditorView`, remember it's an ACE Editor instance with ACE's API, not CodeMirror's API.
 
 ### Implementation
 ```html

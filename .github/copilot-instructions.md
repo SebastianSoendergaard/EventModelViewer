@@ -162,7 +162,7 @@ The project uses a **custom build script** (`build.js`) that:
 ### Code Editor
 The application uses **ACE Editor** (not CodeMirror). Key files:
 - `src/editor/code-view/code-view.js` - ACE integration
-- Global variable: `codeMirrorView` (legacy name from failed CodeMirror attempt)
+- Global variable: `codeEditorView` (ACE Editor instance, previously `codeMirrorView`)
 - Actual API: ACE Editor methods (`editor.setValue()`, `editor.getValue()`)
 
 ## Customization

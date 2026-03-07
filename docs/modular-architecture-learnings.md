@@ -167,7 +167,7 @@ EventBus.emit(Events.APP_INIT, {});
 
 ### TREE_SYNC and CODE_SYNC: replacing tab-switch calls
 
-Editor tab switching previously called `renderTreeView()` (from tree-view.js) and `codeMirrorView.setValue()` (from code-view.js) directly. After IIFE isolation those are inaccessible.
+Editor tab switching previously called `renderTreeView()` (from tree-view.js) and `codeEditorView.setValue()` (from code-view.js) directly. After IIFE isolation those are inaccessible.
 
 ```javascript
 // editor.js — tab switching
@@ -182,8 +182,8 @@ EventBus.on(Events.TREE_SYNC, () => renderTreeView());
 
 // code-view.js — responds to tab switch
 EventBus.on(Events.CODE_SYNC, ({ json }) => {
-    if (codeMirrorView.getValue() !== JSON.stringify(json, null, 2))
-        codeMirrorView.setValue(JSON.stringify(json, null, 2), -1);
+    if (codeEditorView.getValue() !== JSON.stringify(json, null, 2))
+        codeEditorView.setValue(JSON.stringify(json, null, 2), -1);
 });
 ```
 
@@ -278,7 +278,7 @@ Having the same DOM element looked up in two modules is fine — both get the sa
 | `filter-toggles` | Checkbox UI; emits `FILTER_TOGGLED` |
 | `resizer` | `panelState`, layout functions, panel collapse handlers, drag-resize; subscribes `APP_INIT` |
 | `editor` | `historyManager`, tab switching, add-slice; emits `CODE_SYNC`/`TREE_SYNC` on tab change |
-| `code-view` | `codeMirrorView`; subscribes `APP_INIT` → `initCodeMirror()`, `CODE_SYNC`, `EDITOR_RESIZED` |
+| `code-view` | `codeEditorView`; subscribes `APP_INIT` → `initCodeMirror()`, `CODE_SYNC`, `EDITOR_RESIZED` |
 | `tree-view` | `treeData`, all tree render/edit functions; subscribes `TREE_SYNC` |
 | `diagram` | All diagram render logic, `_diagramJson`, `_filters`; subscribes `FILE_LOADED`, `JSON_CHANGED`, `FILTER_TOGGLED` |
 | `zoom-export` | `currentZoom`, pan/drag state, zoom buttons, export; subscribes nothing (stateless re: JSON) |
@@ -469,7 +469,7 @@ code-view.js → tree-view.js → editor.js → viewer.js → resizer.js
 
 **Why this order matters**: `resizer.js` defines `updatePanelLayout()` which is called by `editor.js` and `viewer.js` collapse handlers. Since `editor.js` and `viewer.js` are event handlers (not immediate calls), `updatePanelLayout` doesn't need to be declared before them — the handlers only run when a button is clicked, by which time all JS has executed.
 
-However, `resizer.js` is placed last to ensure `codeMirrorView` (from `code-view.js`) is available when the `updatePanelLayout` / `mouseup` handlers call `codeMirrorView.resize()`.
+However, `resizer.js` is placed last to ensure `codeEditorView` (from `code-view.js`) is available when the `updatePanelLayout` / `mouseup` handlers call `codeEditorView.resize()`.
 
 ---
 
@@ -563,7 +563,7 @@ Also removed `.editor-panel.collapsed .resizer { display: none }` from `editor.c
 | `app` | Page shell: header, upload, checkboxes, context menu HTML; shared vars (`currentJson`, `currentFileName`); shared functions (`updateDiagram`, `saveJsonToLocalStorage`, `createNew`, `saveToFile`) |
 | `resizer` | Panel layout: `panelState`, `loadLayoutState`, `saveLayoutState`, `updatePanelLayout`; resize drag handlers; both panel collapse button handlers; panel transition CSS; resizer element |
 | `editor` | Editor shell: tabs, tab-switching; `historyManager` (shared between code/tree); undo/redo button handlers; add-slice functions; keyboard shortcuts; checkbox handlers |
-| `code-view` | ACE editor: `codeEditor`, `codeMirrorView`, `collapsedLines`; `initCodeMirror`, `renderCodeEditor`, `parseJsonToLines`; code toolbar handlers |
+| `code-view` | ACE editor: `codeEditor`, `codeEditorView`, `collapsedLines`; `initCodeMirror`, `renderCodeEditor`, `parseJsonToLines`; code toolbar handlers |
 | `tree-view` | Tree editor: `treeData`, `treeCollapsedNodes`; all tree render/edit functions; drag-drop; context menu handlers; tree toolbar handlers |
 | `viewer` | Diagram: `currentZoom`, `isDragging`; `renderDiagram`, `setZoom`; zoom/pan/export handlers; all swimlane layout functions |
 
