@@ -26,7 +26,8 @@
             } else if (type === 'slices') {
                 toggleSliceBorders(checked);
             } else if (type === 'tests') {
-                toggleTests(checked);
+                // Always re-render diagram when toggling tests to ensure arrows and layout are correct
+                if (_model) renderDiagram(_model);
             } else if (type === 'types') {
                 toggleTypes(checked);
             }
@@ -181,6 +182,14 @@
             const diagramDiv = document.querySelector('.event-model-diagram');
             if (!diagramDiv) return;
 
+            // If tests are hidden, temporarily hide test rows for arrow calculations
+            const testsHidden = !_filters.tests;
+            let hiddenTestCells = [];
+            if (testsHidden) {
+                hiddenTestCells = Array.from(document.querySelectorAll('.grid-cell.test-cell'));
+                hiddenTestCells.forEach(cell => cell.style.display = 'none');
+            }
+
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             svg.setAttribute('id', 'arrow-svg');
             svg.style.position = 'absolute';
@@ -201,6 +210,13 @@
 
             // Draw all connections
             const sliceElements = document.querySelectorAll('.grid-cell[data-slice-index]');
+
+            // Restore test cell display after drawing arrows
+            if (testsHidden) {
+                setTimeout(() => {
+                    hiddenTestCells.forEach(cell => cell.style.display = '');
+                }, 0);
+            }
             const slicesByIndex = new Map();
             
             // Group cells by slice index
