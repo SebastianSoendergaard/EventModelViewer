@@ -5311,7 +5311,7 @@
             const triggerType = normalizeTriggerType(trigger.type);
             const isGear = triggerType === 'automation' || triggerType === 'translation';
             const variantClass = isGear ? `trigger-${triggerType}` : 'trigger-ui';
-            const displayName = trigger.name || trigger.type || '';
+            const displayName = trigger.name || '';
 
             // Outer layout wrapper — NOT the arrow anchor
             let html = '<div class="trigger-slot">';
