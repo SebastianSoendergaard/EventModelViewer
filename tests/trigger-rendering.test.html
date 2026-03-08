@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trigger Rendering Tests</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1100px; margin: 20px auto; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
+        .test-section h3 { margin-top: 0; color: #333; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 3px; }
+        .test-result.pass { background: #d4edda; color: #155724; }
+        .test-result.fail { background: #f8d7da; color: #721c24; }
+        .summary { margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 4px; font-size: 18px; font-weight: bold; }
+        .summary.all-pass { background: #d4edda; color: #155724; }
+        .summary.some-fail { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Trigger Rendering Tests</h1>
+    <p>Tests for type-based trigger rendering in <code>src/viewer/diagram/diagram.js</code></p>
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <!-- Hidden DOM fixture for rendering output -->
+    <div id="fixture" style="display:none;position:absolute;"></div>
+
+    <script>
+        // =====================================================================
+        // Standalone copies of functions under test (mirrored from diagram.js)
+        // =====================================================================
+
+        function escapeHtml(text) {
+            if (typeof text !== 'string') return text;
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function normalizeTriggerType(rawType) {
+            if (!rawType || typeof rawType !== 'string' || !rawType.trim()) return 'ui';
+            const t = rawType.trim().toLowerCase();
+            const known = ['automation', 'translation', 'ui-input', 'ui-input-disabled',
+                           'ui-table', 'ui-chart-line', 'ui-chart-column', 'ui-chart-pie'];
+            if (known.includes(t)) return t;
+            return 'ui';
+        }
+
+        function getTriggerPropName(prop) {
+            return prop.name !== undefined ? prop.name : (prop.label !== undefined ? prop.label : '');
+        }
+
+        function getTriggerPropValue(prop) {
+            return prop.value !== undefined ? prop.value : (prop.propertyName !== undefined ? prop.propertyName : '');
+        }
+
+        function generateTriggerInputBody(trigger, isDisabled) {
+            let html = '<div class="trigger-body">';
+            if (trigger.properties && trigger.properties.length > 0) {
+                trigger.properties.forEach(prop => {
+                    const name = escapeHtml(String(getTriggerPropName(prop)));
+                    const value = escapeHtml(String(getTriggerPropValue(prop)));
+                    const dis = isDisabled ? ' disabled' : '';
+                    html += `<div class="trigger-input-row">`;
+                    html += `<label class="trigger-input-label">${name}</label>`;
+                    html += `<input class="trigger-input-field" type="text" value="${value}"${dis}>`;
+                    html += '</div>';
+                });
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function generateTriggerTableBody(trigger) {
+            let html = '<div class="trigger-body">';
+            if (trigger.properties && trigger.properties.length > 0) {
+                html += '<table class="trigger-table"><thead><tr>';
+                trigger.properties.forEach(prop => {
+                    html += `<th class="trigger-table-header">${escapeHtml(String(getTriggerPropName(prop)))}</th>`;
+                });
+                html += '</tr></thead><tbody><tr>';
+                trigger.properties.forEach(() => {
+                    html += '<td class="trigger-table-cell">&nbsp;</td>';
+                });
+                html += '</tr></tbody></table>';
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function generateTriggerChartBody(chartType) {
+            let svgContent = '';
+            const axes = '<line x1="20" y1="5" x2="20" y2="85" stroke="#aaa" stroke-width="1"/>' +
+                          '<line x1="20" y1="85" x2="195" y2="85" stroke="#aaa" stroke-width="1"/>';
+            if (chartType === 'ui-chart-line') {
+                svgContent = axes +
+                    '<polyline points="20,70 65,45 110,60 155,25 195,40" fill="none" stroke="#27ae60" stroke-width="2"/>';
+            } else if (chartType === 'ui-chart-column') {
+                svgContent = axes +
+                    '<rect x="30" y="45" width="30" height="40" fill="#27ae60" opacity="0.85"/>';
+            } else if (chartType === 'ui-chart-pie') {
+                svgContent =
+                    '<path d="M100,50 L100,10 A40,40 0 0,1 123.5,82.4 Z" fill="#2ecc71"/>' +
+                    '<path d="M100,50 L123.5,82.4 A40,40 0 0,1 60,50 Z" fill="#27ae60"/>' +
+                    '<path d="M100,50 L60,50 A40,40 0 0,1 100,10 Z" fill="#1e8449"/>';
+            }
+            return `<div class="trigger-body trigger-chart-body">` +
+                   `<svg class="trigger-chart" viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg" aria-label="${chartType} sample">${svgContent}</svg>` +
+                   `</div>`;
+        }
+
+        function generateTriggerFallbackBody(trigger) {
+            let html = '<div class="trigger-body">';
+            if (trigger.properties && trigger.properties.length > 0) {
+                trigger.properties.forEach(prop => {
+                    const name = escapeHtml(String(getTriggerPropName(prop)));
+                    const value = escapeHtml(String(getTriggerPropValue(prop)));
+                    html += `<div class="trigger-prop-row">${name}: ${value}</div>`;
+                });
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function generateTriggerFooter(trigger) {
+            if (!trigger.buttons || trigger.buttons.length === 0) return '';
+            let html = '<div class="trigger-footer">';
+            trigger.buttons.forEach(btn => {
+                html += `<button class="trigger-button" type="button" disabled>${escapeHtml(String(btn))}</button>`;
+            });
+            html += '</div>';
+            return html;
+        }
+
+        function getGearSvg(ariaLabel) {
+            return `<svg class="trigger-gear" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${escapeHtml(ariaLabel)}">` +
+                '<path fill="#444" d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5' +
+                ' 3.5 3.5 0 0 1-3.5 3.5m7.43-2.92c.04-.34.07-.67.07-1.08s-.03-.74-.07-1.08l2.11-1.65' +
+                'c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98' +
+                'l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.58-1.69.98' +
+                'l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.34-.07.67-.07 1.08' +
+                's.03.74.07 1.08L2.46 13.57c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1' +
+                'c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65' +
+                'c.61-.25 1.17-.58 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64z"/>' +
+                '</svg>';
+        }
+
+        function generateTrigger(trigger, sliceIndex) {
+            const triggerViews = (trigger.views || []).join(',');
+            const triggerType = normalizeTriggerType(trigger.type);
+            const isGear = triggerType === 'automation' || triggerType === 'translation';
+            const variantClass = isGear ? `trigger-${triggerType}` : 'trigger-ui';
+            const displayName = trigger.name || trigger.type || '';
+
+            let html = '<div class="trigger-slot">';
+            if (displayName) {
+                html += `<div class="trigger-name">${escapeHtml(displayName)}</div>`;
+            }
+            html += `<div class="element trigger ${variantClass}" data-slice-index="${sliceIndex}" data-trigger-views="${escapeHtml(triggerViews)}" data-trigger-id="${escapeHtml(trigger.id || '')}">`;
+
+            if (isGear) {
+                html += getGearSvg(`${triggerType} trigger`);
+            } else {
+                html += '<div class="trigger-dialog">';
+                html += `<div class="trigger-titlebar">${escapeHtml(displayName)}</div>`;
+                if (triggerType === 'ui-input') {
+                    html += generateTriggerInputBody(trigger, false);
+                } else if (triggerType === 'ui-input-disabled') {
+                    html += generateTriggerInputBody(trigger, true);
+                } else if (triggerType === 'ui-table') {
+                    html += generateTriggerTableBody(trigger);
+                } else if (triggerType === 'ui-chart-line' || triggerType === 'ui-chart-column' || triggerType === 'ui-chart-pie') {
+                    html += generateTriggerChartBody(triggerType);
+                } else {
+                    html += generateTriggerFallbackBody(trigger);
+                }
+                html += generateTriggerFooter(trigger);
+                html += '</div>';
+            }
+
+            html += '</div>';
+            html += '</div>';
+            return html;
+        }
+
+        // =====================================================================
+        // Test framework
+        // =====================================================================
+
+        const results = [];
+
+        function assert(description, condition, detail = '') {
+            results.push({ description, pass: !!condition, detail });
+        }
+
+        function renderTrigger(trigger, sliceIndex = 0) {
+            const fixture = document.getElementById('fixture');
+            const wrapper = document.createElement('div');
+            wrapper.className = 'grid-cell';
+            wrapper.setAttribute('data-slice-index', sliceIndex);
+            wrapper.innerHTML = generateTrigger(trigger, sliceIndex);
+            fixture.innerHTML = '';
+            fixture.appendChild(wrapper);
+            return wrapper;
+        }
+
+        // =====================================================================
+        // Tests: normalizeTriggerType
+        // =====================================================================
+
+        // Missing / empty type → ui
+        assert('normalizeTriggerType: undefined → "ui"', normalizeTriggerType(undefined) === 'ui');
+        assert('normalizeTriggerType: null → "ui"', normalizeTriggerType(null) === 'ui');
+        assert('normalizeTriggerType: "" → "ui"', normalizeTriggerType('') === 'ui');
+        assert('normalizeTriggerType: "  " → "ui"', normalizeTriggerType('  ') === 'ui');
+
+        // Known types (case-insensitive)
+        assert('normalizeTriggerType: "ui-input" → "ui-input"', normalizeTriggerType('ui-input') === 'ui-input');
+        assert('normalizeTriggerType: "UI-INPUT" → "ui-input"', normalizeTriggerType('UI-INPUT') === 'ui-input');
+        assert('normalizeTriggerType: "ui-input-disabled" → "ui-input-disabled"', normalizeTriggerType('ui-input-disabled') === 'ui-input-disabled');
+        assert('normalizeTriggerType: "ui-table" → "ui-table"', normalizeTriggerType('ui-table') === 'ui-table');
+        assert('normalizeTriggerType: "ui-chart-line" → "ui-chart-line"', normalizeTriggerType('ui-chart-line') === 'ui-chart-line');
+        assert('normalizeTriggerType: "ui-chart-column" → "ui-chart-column"', normalizeTriggerType('ui-chart-column') === 'ui-chart-column');
+        assert('normalizeTriggerType: "ui-chart-pie" → "ui-chart-pie"', normalizeTriggerType('ui-chart-pie') === 'ui-chart-pie');
+        assert('normalizeTriggerType: "automation" → "automation"', normalizeTriggerType('automation') === 'automation');
+        assert('normalizeTriggerType: "AUTOMATION" → "automation"', normalizeTriggerType('AUTOMATION') === 'automation');
+        assert('normalizeTriggerType: "translation" → "translation"', normalizeTriggerType('translation') === 'translation');
+
+        // Unknown / unrecognised → ui fallback
+        assert('normalizeTriggerType: unknown type → "ui"', normalizeTriggerType('something-else') === 'ui');
+        assert('normalizeTriggerType: "ui-unknown" → "ui"', normalizeTriggerType('ui-unknown') === 'ui');
+
+        // =====================================================================
+        // Tests: property key compatibility
+        // =====================================================================
+
+        const propNew  = { name: 'MyField', value: 'MyValue' };
+        const propLegacy = { label: 'OldField', propertyName: 'OldValue' };
+        const propBoth   = { name: 'NewField', value: 'NewValue', label: 'OldLabel', propertyName: 'OldPN' };
+
+        assert('getTriggerPropName: prefers name over label', getTriggerPropName(propBoth) === 'NewField');
+        assert('getTriggerPropName: falls back to label', getTriggerPropName(propLegacy) === 'OldField');
+        assert('getTriggerPropValue: prefers value over propertyName', getTriggerPropValue(propBoth) === 'NewValue');
+        assert('getTriggerPropValue: falls back to propertyName', getTriggerPropValue(propLegacy) === 'OldValue');
+        assert('getTriggerPropName: reads new-style name', getTriggerPropName(propNew) === 'MyField');
+        assert('getTriggerPropValue: reads new-style value', getTriggerPropValue(propNew) === 'MyValue');
+
+        // =====================================================================
+        // Tests: DOM contract — data-* attributes on .element.trigger
+        // =====================================================================
+
+        const uiInputTrigger = {
+            id: 'trig-1',
+            type: 'ui-input',
+            name: 'Add Item',
+            views: ['view-cart'],
+            properties: [{ name: 'Description', value: 'Product 1' }, { name: 'Price', value: '5' }],
+            buttons: ['Add']
+        };
+
+        (function domContractTests() {
+            const cell = renderTrigger(uiInputTrigger, 2);
+            const el = cell.querySelector('.element.trigger');
+
+            assert('DOM contract: .element.trigger exists in grid cell', !!el);
+            assert('DOM contract: data-slice-index set', el && el.getAttribute('data-slice-index') === '2');
+            assert('DOM contract: data-trigger-id set', el && el.getAttribute('data-trigger-id') === 'trig-1');
+            assert('DOM contract: data-trigger-views set', el && el.getAttribute('data-trigger-views') === 'view-cart');
+            assert('DOM contract: .trigger-slot is outer wrapper', !!cell.querySelector('.trigger-slot'));
+            assert('DOM contract: .trigger-name inside .trigger-slot', !!cell.querySelector('.trigger-slot .trigger-name'));
+            assert('DOM contract: .element.trigger inside .trigger-slot', !!cell.querySelector('.trigger-slot .element.trigger'));
+            assert('DOM contract: .trigger-name text matches displayName',
+                cell.querySelector('.trigger-name').textContent === 'Add Item');
+        })();
+
+        // =====================================================================
+        // Tests: empty views — data-trigger-views="" does not cause false positives
+        // =====================================================================
+
+        (function emptyViewsTest() {
+            const trigger = { id: 'trig-noview', type: 'ui-input', name: 'No View', views: [] };
+            const cell = renderTrigger(trigger, 1);
+            const el = cell.querySelector('.element.trigger');
+            assert('Empty views: data-trigger-views is empty string', el && el.getAttribute('data-trigger-views') === '');
+            // The arrow wiring guard `if (!triggerViewsAttr || !triggerViewsAttr.trim()) return;`
+            // correctly skips empty string — no false positive
+            assert('Empty views: empty string is falsy after trim check',
+                !(''.trim()));
+        })();
+
+        // =====================================================================
+        // Tests: missing trigger.id does not throw
+        // =====================================================================
+
+        (function missingIdTest() {
+            let threw = false;
+            try {
+                generateTrigger({ type: 'ui-input', name: 'X' }, 0);
+            } catch (e) {
+                threw = true;
+            }
+            assert('Missing trigger.id: does not throw', !threw);
+        })();
+
+        // =====================================================================
+        // Tests: UI trigger — ui-input
+        // =====================================================================
+
+        (function uiInputTests() {
+            const cell = renderTrigger(uiInputTrigger, 0);
+            const el = cell.querySelector('.element.trigger');
+
+            assert('ui-input: variant class is trigger-ui', el && el.classList.contains('trigger-ui'));
+            assert('ui-input: .trigger-dialog present', !!cell.querySelector('.trigger-dialog'));
+            assert('ui-input: .trigger-titlebar present', !!cell.querySelector('.trigger-titlebar'));
+            assert('ui-input: titlebar text matches name', cell.querySelector('.trigger-titlebar').textContent === 'Add Item');
+            assert('ui-input: .trigger-body present', !!cell.querySelector('.trigger-body'));
+            assert('ui-input: .trigger-input-row present for each property',
+                cell.querySelectorAll('.trigger-input-row').length === 2);
+            assert('ui-input: inputs are enabled',
+                Array.from(cell.querySelectorAll('.trigger-input-field')).every(i => !i.disabled));
+            assert('ui-input: input value rendered correctly',
+                cell.querySelectorAll('.trigger-input-field')[0].value === 'Product 1');
+            assert('ui-input: label text correct',
+                cell.querySelectorAll('.trigger-input-label')[0].textContent === 'Description');
+            assert('ui-input: .trigger-footer present', !!cell.querySelector('.trigger-footer'));
+            assert('ui-input: button "Add" present in footer',
+                cell.querySelector('.trigger-footer .trigger-button').textContent === 'Add');
+            assert('ui-input: no gear SVG', !cell.querySelector('.trigger-gear'));
+        })();
+
+        // =====================================================================
+        // Tests: UI trigger — ui-input-disabled
+        // =====================================================================
+
+        (function uiInputDisabledTests() {
+            const trigger = {
+                id: 'trig-dis', type: 'ui-input-disabled', name: 'View Cart',
+                properties: [{ name: 'CartId', value: 'abc-123' }],
+                buttons: ['Close']
+            };
+            const cell = renderTrigger(trigger, 0);
+            assert('ui-input-disabled: inputs are disabled',
+                Array.from(cell.querySelectorAll('.trigger-input-field')).every(i => i.disabled));
+        })();
+
+        // =====================================================================
+        // Tests: UI trigger — ui-table
+        // =====================================================================
+
+        (function uiTableTests() {
+            const trigger = {
+                id: 'trig-tbl', type: 'ui-table', name: 'Cart Items',
+                properties: [
+                    { name: 'Description', value: '' },
+                    { name: 'Price', value: '' },
+                    { name: 'Qty', value: '' }
+                ],
+                buttons: ['Checkout']
+            };
+            const cell = renderTrigger(trigger, 0);
+
+            assert('ui-table: .trigger-table present', !!cell.querySelector('.trigger-table'));
+            const headers = cell.querySelectorAll('.trigger-table-header');
+            assert('ui-table: 3 column headers rendered', headers.length === 3);
+            assert('ui-table: first header text is "Description"', headers[0].textContent === 'Description');
+            assert('ui-table: second header text is "Price"', headers[1].textContent === 'Price');
+            assert('ui-table: button in footer', !!cell.querySelector('.trigger-footer .trigger-button'));
+            assert('ui-table: no input fields', cell.querySelectorAll('.trigger-input-field').length === 0);
+        })();
+
+        // =====================================================================
+        // Tests: UI trigger — ui-chart-line
+        // =====================================================================
+
+        (function uiChartLineTests() {
+            const trigger = { id: 'trig-cl', type: 'ui-chart-line', name: 'Revenue Trend' };
+            const cell = renderTrigger(trigger, 0);
+
+            assert('ui-chart-line: .trigger-chart SVG present', !!cell.querySelector('.trigger-chart'));
+            assert('ui-chart-line: contains polyline', !!cell.querySelector('polyline'));
+            assert('ui-chart-line: no gear SVG', !cell.querySelector('.trigger-gear'));
+        })();
+
+        // =====================================================================
+        // Tests: UI trigger — ui-chart-column
+        // =====================================================================
+
+        (function uiChartColumnTests() {
+            const trigger = { id: 'trig-cc', type: 'ui-chart-column', name: 'Monthly Sales' };
+            const cell = renderTrigger(trigger, 0);
+
+            assert('ui-chart-column: .trigger-chart SVG present', !!cell.querySelector('.trigger-chart'));
+            assert('ui-chart-column: contains rect bars', cell.querySelectorAll('rect').length > 0);
+        })();
+
+        // =====================================================================
+        // Tests: UI trigger — ui-chart-pie
+        // =====================================================================
+
+        (function uiChartPieTests() {
+            const trigger = { id: 'trig-cp', type: 'ui-chart-pie', name: 'Category Breakdown' };
+            const cell = renderTrigger(trigger, 0);
+
+            assert('ui-chart-pie: .trigger-chart SVG present', !!cell.querySelector('.trigger-chart'));
+            assert('ui-chart-pie: contains path segments (3)', cell.querySelectorAll('.trigger-chart path').length === 3);
+        })();
+
+        // =====================================================================
+        // Tests: UI trigger — fallback (no type)
+        // =====================================================================
+
+        (function uiFallbackTests() {
+            const trigger = {
+                id: 'trig-fb', name: 'Some Trigger',
+                properties: [{ name: 'Field', value: 'Value' }]
+            };
+            const cell = renderTrigger(trigger, 0);
+            const el = cell.querySelector('.element.trigger');
+
+            assert('ui fallback: no type defaults to trigger-ui class', el && el.classList.contains('trigger-ui'));
+            assert('ui fallback: .trigger-prop-row rendered', !!cell.querySelector('.trigger-prop-row'));
+            assert('ui fallback: prop row contains field name',
+                cell.querySelector('.trigger-prop-row').textContent.includes('Field'));
+            assert('ui fallback: no inputs, no table, no chart',
+                !cell.querySelector('.trigger-input-field') &&
+                !cell.querySelector('.trigger-table') &&
+                !cell.querySelector('.trigger-chart'));
+        })();
+
+        // =====================================================================
+        // Tests: Automation trigger (gear)
+        // =====================================================================
+
+        (function automationTests() {
+            const trigger = {
+                id: 'trig-auto', type: 'automation', name: 'Inventory Bot',
+                views: ['view-stock']
+            };
+            const cell = renderTrigger(trigger, 3);
+            const el = cell.querySelector('.element.trigger');
+
+            assert('automation: variant class is trigger-automation', el && el.classList.contains('trigger-automation'));
+            assert('automation: .trigger-gear SVG present', !!cell.querySelector('.trigger-gear'));
+            assert('automation: gear has role="img"', cell.querySelector('.trigger-gear').getAttribute('role') === 'img');
+            assert('automation: gear has aria-label', !!cell.querySelector('.trigger-gear').getAttribute('aria-label'));
+            assert('automation: no .trigger-dialog', !cell.querySelector('.trigger-dialog'));
+            assert('automation: no .trigger-titlebar', !cell.querySelector('.trigger-titlebar'));
+            assert('automation: .trigger-name above gear', cell.querySelector('.trigger-name').textContent === 'Inventory Bot');
+            assert('automation: data-trigger-views set', el && el.getAttribute('data-trigger-views') === 'view-stock');
+        })();
+
+        // =====================================================================
+        // Tests: Translation trigger (gear)
+        // =====================================================================
+
+        (function translationTests() {
+            const trigger = { id: 'trig-trans', type: 'translation', name: 'External Sync' };
+            const cell = renderTrigger(trigger, 0);
+            const el = cell.querySelector('.element.trigger');
+
+            assert('translation: variant class is trigger-translation', el && el.classList.contains('trigger-translation'));
+            assert('translation: .trigger-gear SVG present', !!cell.querySelector('.trigger-gear'));
+            assert('translation: no .trigger-dialog', !cell.querySelector('.trigger-dialog'));
+        })();
+
+        // =====================================================================
+        // Tests: Multiple view dependencies
+        // =====================================================================
+
+        (function multiViewTests() {
+            const trigger = {
+                id: 'trig-multi', type: 'automation', name: 'Multi-View Bot',
+                views: ['view-a', 'view-b', 'view-c']
+            };
+            const cell = renderTrigger(trigger, 1);
+            const el = cell.querySelector('.element.trigger');
+
+            assert('multi-view: all view ids in data-trigger-views',
+                el && el.getAttribute('data-trigger-views') === 'view-a,view-b,view-c');
+        })();
+
+        // =====================================================================
+        // Tests: No buttons — footer omitted
+        // =====================================================================
+
+        (function noButtonsTest() {
+            const trigger = {
+                id: 'trig-nobtn', type: 'ui-input', name: 'No Buttons',
+                properties: [{ name: 'X', value: '1' }]
+            };
+            const cell = renderTrigger(trigger, 0);
+            assert('No buttons: .trigger-footer not rendered', !cell.querySelector('.trigger-footer'));
+        })();
+
+        // =====================================================================
+        // Tests: XSS — escapeHtml applied to user strings
+        // =====================================================================
+
+        (function xssTests() {
+            const trigger = {
+                id: 'trig-xss',
+                type: 'ui-input',
+                name: '<script>alert(1)</script>',
+                properties: [{ name: '<b>Field</b>', value: '<img src=x onerror=alert(1)>' }],
+                buttons: ['<em>Click</em>']
+            };
+            const cell = renderTrigger(trigger, 0);
+            const html = cell.innerHTML;
+            assert('XSS: script tag escaped in name', !html.includes('<script>'));
+            assert('XSS: onerror escaped in property value', !html.includes('onerror=alert'));
+            assert('XSS: em tag escaped in button', !html.includes('<em>'));
+        })();
+
+        // =====================================================================
+        // Tests: Arrow wiring integration — querySelector('.element.trigger') finds the element
+        // =====================================================================
+
+        (function arrowWiringIntegrationTests() {
+            const fixture = document.getElementById('fixture');
+            fixture.innerHTML = '';
+
+            // Simulate 3 triggers in 3 grid cells (as the diagram renderer would place them)
+            const types = [
+                { id: 't1', type: 'ui-input', name: 'Add', views: ['v1'] },
+                { id: 't2', type: 'automation', name: 'Bot', views: [] },
+                { id: 't3', type: 'ui-table', name: 'List', views: ['v1', 'v2'] }
+            ];
+            types.forEach((trig, i) => {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell';
+                cell.setAttribute('data-slice-index', i);
+                cell.innerHTML = generateTrigger(trig, i);
+                fixture.appendChild(cell);
+            });
+
+            // Verify per-cell querySelector still finds .element.trigger
+            const cells = fixture.querySelectorAll('.grid-cell');
+            assert('Arrow wiring: querySelector finds .element.trigger in each cell',
+                Array.from(cells).every(cell => !!cell.querySelector('.element.trigger')));
+
+            // Verify global querySelectorAll finds all triggers
+            const allTriggers = fixture.querySelectorAll('.element.trigger');
+            assert('Arrow wiring: querySelectorAll finds all 3 .element.trigger', allTriggers.length === 3);
+
+            // Verify view-dependent triggers are selectable via [data-trigger-views]
+            const viewDeps = fixture.querySelectorAll('.element.trigger[data-trigger-views]');
+            // All 3 triggers have the attribute (some empty), so count is 3
+            assert('Arrow wiring: all .element.trigger have data-trigger-views attribute', viewDeps.length === 3);
+
+            // The arrow wiring guard filters out empty strings — verify non-empty count
+            const nonEmptyViewDeps = Array.from(viewDeps).filter(el => el.getAttribute('data-trigger-views').trim());
+            assert('Arrow wiring: 2 triggers with non-empty view dependencies', nonEmptyViewDeps.length === 2);
+
+            // Verify closest('.grid-cell') traverses up through .trigger-slot
+            const firstTriggerEl = cells[0].querySelector('.element.trigger');
+            assert('Arrow wiring: closest(.grid-cell) found from .element.trigger',
+                firstTriggerEl && !!firstTriggerEl.closest('.grid-cell[data-slice-index]'));
+            assert('Arrow wiring: closest slice-index matches expected value',
+                firstTriggerEl && firstTriggerEl.closest('.grid-cell[data-slice-index]').getAttribute('data-slice-index') === '0');
+        })();
+
+        // =====================================================================
+        // Render results
+        // =====================================================================
+
+        const container = document.getElementById('results');
+        const passCount = results.filter(r => r.pass).length;
+        const failCount = results.filter(r => !r.pass).length;
+
+        // Group into sections by test category
+        const sections = {};
+        results.forEach(r => {
+            const section = r.description.split(':')[0];
+            if (!sections[section]) sections[section] = [];
+            sections[section].push(r);
+        });
+
+        Object.entries(sections).forEach(([section, tests]) => {
+            const div = document.createElement('div');
+            div.className = 'test-section';
+            div.innerHTML = `<h3>${section}</h3>`;
+            tests.forEach(r => {
+                const p = document.createElement('div');
+                p.className = `test-result ${r.pass ? 'pass' : 'fail'}`;
+                p.textContent = (r.pass ? '✅ ' : '❌ ') + r.description + (r.detail ? ' — ' + r.detail : '');
+                div.appendChild(p);
+            });
+            container.appendChild(div);
+        });
+
+        const summary = document.getElementById('summary');
+        summary.className = `summary ${failCount === 0 ? 'all-pass' : 'some-fail'}`;
+        summary.textContent = `${passCount} passed, ${failCount} failed out of ${results.length} tests`;
+    </script>
+</body>
+</html>

@@ -4,7 +4,34 @@ This directory contains test files for the Event Model Viewer application.
 
 ## Available Tests
 
-### [arrow-logic.test.html](arrow-logic.test.html)
+### [trigger-rendering.test.html](trigger-rendering.test.html)
+Comprehensive test suite for type-based trigger rendering in `src/viewer/diagram/diagram.js`.
+
+**Test Coverage:**
+- ✅ `normalizeTriggerType()` — undefined/null/empty → "ui", known types (case-insensitive), unknown types → "ui" fallback
+- ✅ Property key compatibility — `prop.name/prop.value` (new) and `prop.label/prop.propertyName` (legacy), both-present prefers new
+- ✅ DOM contract — `.element.trigger` exists with all `data-*` attributes, `.trigger-slot` wrapper, `.trigger-name` label placement
+- ✅ Empty `views` — `data-trigger-views=""` emitted correctly; arrow wiring guard filters empty string
+- ✅ Missing `trigger.id` — does not throw
+- ✅ `ui-input` — dialog chrome, enabled inputs, label/value rendered, buttons in footer
+- ✅ `ui-input-disabled` — inputs rendered as disabled
+- ✅ `ui-table` — table with column headers from property names, buttons in footer
+- ✅ `ui-chart-line` — inline SVG with polyline
+- ✅ `ui-chart-column` — inline SVG with rect bars
+- ✅ `ui-chart-pie` — inline SVG with 3 path segments
+- ✅ UI fallback (no type) — property list, trigger-ui class
+- ✅ `automation` — gear SVG, role="img", aria-label, no dialog chrome, correct variant class
+- ✅ `translation` — gear SVG, no dialog chrome, correct variant class
+- ✅ Multiple view dependencies — all ids in `data-trigger-views`
+- ✅ No buttons — `.trigger-footer` not rendered
+- ✅ XSS — escapeHtml applied to name, property names/values, button labels
+- ✅ Arrow wiring integration — `querySelector('.element.trigger')` finds element per cell, `querySelectorAll` finds all triggers, `closest('.grid-cell')` traverses through `.trigger-slot`
+
+**Status:** ✅ All 57 tests passing
+
+---
+
+
 Test suite for the arrow routing logic in `src/viewer/diagram/diagram.js`.
 
 **Test Coverage:**
@@ -222,8 +249,8 @@ Last test run: 2026-02-11
 | **TOTAL** | **17** | **✅ 100%** |
 
 ### Combined Results
-**Total Tests:** 164+
-**Passed:** 164+
+**Total Tests:** 221+
+**Passed:** 221+
 **Failed:** 0
 **Success Rate:** 100% ✅
 

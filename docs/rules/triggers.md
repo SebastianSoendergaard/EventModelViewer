@@ -33,7 +33,17 @@
 3. "ui-chart-column" triggers should be rendered as column charts with hardcoded example data.
 4. "ui-chart-pie" triggers should be rendered as pie charts with hardcoded example data.
 
-## Rules for automation and translation triggers
+## Type normalization behaviour
+
+When `trigger.type` is processed:
+- `undefined`, `null`, or empty string → defaults to `"ui"` (generic UI fallback)
+- Type matching is **case-insensitive** (e.g. `"UI-INPUT"` → `"ui-input"`)
+- Any unrecognised type that **starts with "ui"** (case-insensitive) → `"ui"` fallback
+- Any completely unrecognised type (e.g. `"webhook"`) → `"ui"` fallback
+
+Canonical trigger types: `automation`, `translation`, `ui-input`, `ui-input-disabled`, `ui-table`, `ui-chart-line`, `ui-chart-column`, `ui-chart-pie`, `ui` (fallback).
+
+
 1. automation and translation triggers should be rendered as a gear icon to visually distinguish them from ui
 triggers. 
 2. the name of the trigger should be displayed just above the gear icon to clearly identify the trigger

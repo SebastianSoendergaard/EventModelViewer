@@ -1232,6 +1232,213 @@
             display: none;
         }
 
+        /* ===== TRIGGER VARIANTS ===== */
+
+        /* Outer wrapper that holds the name label + .element.trigger visual */
+        .trigger-slot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Name label displayed above the dialog or gear */
+        .trigger-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a1a1a;
+            text-align: center;
+            max-width: 240px;
+            word-break: break-word;
+            line-height: 1.3;
+        }
+
+        /* UI trigger: reset generic .element box so the .trigger-dialog provides the visual */
+        .element.trigger.trigger-ui {
+            background: transparent;
+            border: none;
+            padding: 0;
+            min-height: unset;
+            width: auto;
+            box-shadow: none;
+        }
+
+        .element.trigger.trigger-ui:hover {
+            transform: translateY(-4px);
+            box-shadow: none;
+        }
+
+        /* Dialog/window chrome */
+        .trigger-dialog {
+            background: #f9f9f9;
+            border: 1px solid #999;
+            border-radius: 6px;
+            overflow: hidden;
+            min-width: 180px;
+            max-width: 250px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+        }
+
+        /* Green title bar mimicking a window chrome */
+        .trigger-titlebar {
+            background: #999;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 5px 8px;
+            letter-spacing: 0.2px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .trigger-titlebar::before {
+            content: '● ● ●';
+            font-size: 6px;
+            opacity: 0.7;
+            letter-spacing: 2px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        /* Dialog body */
+        .trigger-body {
+            padding: 8px;
+            background: white;
+        }
+
+        /* Buttons footer */
+        .trigger-footer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 6px 8px;
+            border-top: 1px solid #e7e7e7;
+            background: #f4f4f4;
+            justify-content: flex-end;
+        }
+
+        .trigger-button {
+            background: #999;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: default;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        /* Input rows (ui-input / ui-input-disabled) */
+        .trigger-input-row {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+
+        .trigger-input-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .trigger-input-label {
+            font-size: 11px;
+            color: #555;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .trigger-input-field {
+            font-size: 11px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            padding: 2px 5px;
+            width: 80px;
+            background: white;
+            color: #333;
+            box-sizing: border-box;
+        }
+
+        .trigger-input-field:disabled {
+            background: #f0f0f0;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        /* Table (ui-table) */
+        .trigger-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .trigger-table-header {
+            background: #f0f0f0;
+            color: #2c3e50;
+            font-weight: 600;
+            padding: 4px 7px;
+            border: 1px solid #e0e0e0;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .trigger-table-cell {
+            padding: 4px 7px;
+            border: 1px solid #e0e0e0;
+            color: #bbb;
+        }
+
+        /* Chart (ui-chart-*) */
+        .trigger-chart-body {
+            display: flex;
+            justify-content: center;
+            padding: 4px 0;
+        }
+
+        .trigger-chart {
+            width: 190px;
+            height: 95px;
+            display: block;
+        }
+
+        /* Fallback UI property list */
+        .trigger-prop-row {
+            font-size: 11px;
+            color: #555;
+            margin-bottom: 3px;
+            line-height: 1.4;
+        }
+
+        /* Automation / Translation trigger: gear, no box */
+        .element.trigger.trigger-automation,
+        .element.trigger.trigger-translation {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            padding: 0;
+            min-height: unset;
+            width: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .element.trigger.trigger-automation:hover,
+        .element.trigger.trigger-translation:hover {
+            transform: translateY(-4px);
+            box-shadow: none;
+        }
+
+        .trigger-gear {
+            width: 72px;
+            height: 72px;
+            display: block;
+        }
+
+        /* ===== END TRIGGER VARIANTS ===== */
+
         .zoom-controls {
             position: absolute;
             bottom: 20px;
@@ -4949,36 +5156,184 @@
             return html;
         }
 
+        /**
+         * Normalises trigger.type to a canonical string.
+         * Unknown or missing types default to the generic "ui" fallback.
+         */
+        function normalizeTriggerType(rawType) {
+            if (!rawType || typeof rawType !== 'string' || !rawType.trim()) return 'ui';
+            const t = rawType.trim().toLowerCase();
+            const known = ['automation', 'translation', 'ui-input', 'ui-input-disabled',
+                           'ui-table', 'ui-chart-line', 'ui-chart-column', 'ui-chart-pie'];
+            if (known.includes(t)) return t;
+            // Any other type starting with "ui" → generic UI fallback
+            // Completely unknown types → UI fallback (documented behaviour)
+            return 'ui';
+        }
+
+        /** Read property name from both new (name) and legacy (label) key shapes. */
+        function getTriggerPropName(prop) {
+            return prop.name !== undefined ? prop.name : (prop.label !== undefined ? prop.label : '');
+        }
+
+        /** Read property value from both new (value) and legacy (propertyName) key shapes. */
+        function getTriggerPropValue(prop) {
+            return prop.value !== undefined ? prop.value : (prop.propertyName !== undefined ? prop.propertyName : '');
+        }
+
+        /** Render label/input pairs for ui-input and ui-input-disabled. */
+        function generateTriggerInputBody(trigger, isDisabled) {
+            let html = '<div class="trigger-body">';
+            if (trigger.properties && trigger.properties.length > 0) {
+                trigger.properties.forEach(prop => {
+                    const name = escapeHtml(String(getTriggerPropName(prop)));
+                    const value = escapeHtml(String(getTriggerPropValue(prop)));
+                    const dis = isDisabled ? ' disabled' : '';
+                    html += `<div class="trigger-input-row">`;
+                    html += `<label class="trigger-input-label">${name}</label>`;
+                    html += `<input class="trigger-input-field" type="text" value="${value}"${dis}>`;
+                    html += '</div>';
+                });
+            }
+            html += '</div>';
+            return html;
+        }
+
+        /** Render property names as table column headers for ui-table. */
+        function generateTriggerTableBody(trigger) {
+            let html = '<div class="trigger-body">';
+            if (trigger.properties && trigger.properties.length > 0) {
+                html += '<table class="trigger-table"><thead><tr>';
+                trigger.properties.forEach(prop => {
+                    html += `<th class="trigger-table-header">${escapeHtml(String(getTriggerPropName(prop)))}</th>`;
+                });
+                html += '</tr></thead><tbody><tr>';
+                trigger.properties.forEach(() => {
+                    html += '<td class="trigger-table-cell">&nbsp;</td>';
+                });
+                html += '</tr></tbody></table>';
+            }
+            html += '</div>';
+            return html;
+        }
+
+        /** Render a minimal inline SVG chart (line, column, or pie) with hardcoded sample data. */
+        function generateTriggerChartBody(chartType) {
+            let svgContent = '';
+            const axes = '<line x1="20" y1="5" x2="20" y2="85" stroke="#aaa" stroke-width="1"/>' +
+                          '<line x1="20" y1="85" x2="195" y2="85" stroke="#aaa" stroke-width="1"/>';
+
+            if (chartType === 'ui-chart-line') {
+                svgContent = axes +
+                    '<polyline points="20,70 65,45 110,60 155,25 195,40" fill="none" stroke="#27ae60" stroke-width="2"/>' +
+                    '<circle cx="20" cy="70" r="3" fill="#27ae60"/>' +
+                    '<circle cx="65" cy="45" r="3" fill="#27ae60"/>' +
+                    '<circle cx="110" cy="60" r="3" fill="#27ae60"/>' +
+                    '<circle cx="155" cy="25" r="3" fill="#27ae60"/>' +
+                    '<circle cx="195" cy="40" r="3" fill="#27ae60"/>';
+            } else if (chartType === 'ui-chart-column') {
+                svgContent = axes +
+                    '<rect x="30" y="45" width="30" height="40" fill="#27ae60" opacity="0.85"/>' +
+                    '<rect x="75" y="25" width="30" height="60" fill="#27ae60" opacity="0.85"/>' +
+                    '<rect x="120" y="55" width="30" height="30" fill="#27ae60" opacity="0.85"/>' +
+                    '<rect x="165" y="35" width="30" height="50" fill="#27ae60" opacity="0.85"/>';
+            } else if (chartType === 'ui-chart-pie') {
+                // 3 slices: 40% (144°), 35% (126°), 25% (90°), center (100,50), radius 40
+                svgContent =
+                    '<path d="M100,50 L100,10 A40,40 0 0,1 123.5,82.4 Z" fill="#2ecc71"/>' +
+                    '<path d="M100,50 L123.5,82.4 A40,40 0 0,1 60,50 Z" fill="#27ae60"/>' +
+                    '<path d="M100,50 L60,50 A40,40 0 0,1 100,10 Z" fill="#1e8449"/>';
+            }
+
+            return `<div class="trigger-body trigger-chart-body">` +
+                   `<svg class="trigger-chart" viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg" aria-label="${chartType} sample">${svgContent}</svg>` +
+                   `</div>`;
+        }
+
+        /** Render a simple property list as a UI fallback. */
+        function generateTriggerFallbackBody(trigger) {
+            let html = '<div class="trigger-body">';
+            if (trigger.properties && trigger.properties.length > 0) {
+                trigger.properties.forEach(prop => {
+                    const name = escapeHtml(String(getTriggerPropName(prop)));
+                    const value = escapeHtml(String(getTriggerPropValue(prop)));
+                    html += `<div class="trigger-prop-row">${name}: ${value}</div>`;
+                });
+            }
+            html += '</div>';
+            return html;
+        }
+
+        /** Render the buttons footer section for UI triggers. */
+        function generateTriggerFooter(trigger) {
+            if (!trigger.buttons || trigger.buttons.length === 0) return '';
+            let html = '<div class="trigger-footer">';
+            trigger.buttons.forEach(btn => {
+                html += `<button class="trigger-button" type="button" disabled>${escapeHtml(String(btn))}</button>`;
+            });
+            html += '</div>';
+            return html;
+        }
+
+        /** Inline SVG gear icon used for automation and translation triggers. */
+        function getGearSvg(ariaLabel) {
+            return `<svg class="trigger-gear" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${escapeHtml(ariaLabel)}">` +
+                '<path fill="#444" d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5' +
+                ' 3.5 3.5 0 0 1-3.5 3.5m7.43-2.92c.04-.34.07-.67.07-1.08s-.03-.74-.07-1.08l2.11-1.65' +
+                'c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98' +
+                'l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.58-1.69.98' +
+                'l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.34-.07.67-.07 1.08' +
+                's.03.74.07 1.08L2.46 13.57c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1' +
+                'c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65' +
+                'c.61-.25 1.17-.58 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64z"/>' +
+                '</svg>';
+        }
+
         function generateTrigger(trigger, sliceIndex) {
             const triggerViews = (trigger.views || []).join(',');
             // trigger.id is guaranteed by enrichment; trigger.views are pre-resolved canonical ids
-            let html = `<div class="element trigger" data-slice-index="${sliceIndex}" data-trigger-views="${escapeHtml(triggerViews)}" data-trigger-id="${escapeHtml(trigger.id)}">`;
-            
-            if (trigger.swimlane) {
-                html += `<div class="element-role">${escapeHtml(trigger.swimlane)}</div>`;
+            const triggerType = normalizeTriggerType(trigger.type);
+            const isGear = triggerType === 'automation' || triggerType === 'translation';
+            const variantClass = isGear ? `trigger-${triggerType}` : 'trigger-ui';
+            const displayName = trigger.name || trigger.type || '';
+
+            // Outer layout wrapper — NOT the arrow anchor
+            let html = '<div class="trigger-slot">';
+
+            // Name label sits above the visual trigger
+            if (displayName) {
+                html += `<div class="trigger-name">${escapeHtml(displayName)}</div>`;
             }
-            
-            if (trigger.name) {
-                html += `<div class="element-subtitle">${escapeHtml(trigger.name)}</div>`;
+
+            // .element.trigger is the stable arrow anchor — all data-* attributes live here
+            html += `<div class="element trigger ${variantClass}" data-slice-index="${sliceIndex}" data-trigger-views="${escapeHtml(triggerViews)}" data-trigger-id="${escapeHtml(trigger.id || '')}">`;
+
+            if (isGear) {
+                // Automation / translation: gear icon only, no dialog chrome
+                html += getGearSvg(`${triggerType} trigger`);
+            } else {
+                // UI trigger: dialog/window visual
+                html += '<div class="trigger-dialog">';
+                html += `<div class="trigger-titlebar"></div>`;
+
+                if (triggerType === 'ui-input') {
+                    html += generateTriggerInputBody(trigger, false);
+                } else if (triggerType === 'ui-input-disabled') {
+                    html += generateTriggerInputBody(trigger, true);
+                } else if (triggerType === 'ui-table') {
+                    html += generateTriggerTableBody(trigger);
+                } else if (triggerType === 'ui-chart-line' || triggerType === 'ui-chart-column' || triggerType === 'ui-chart-pie') {
+                    html += generateTriggerChartBody(triggerType);
+                } else {
+                    html += generateTriggerFallbackBody(trigger);
+                }
+
+                html += generateTriggerFooter(trigger);
+                html += '</div>'; // .trigger-dialog
             }
-            
-            html += `<div class="element-title">Trigger: ${escapeHtml(trigger.type)}</div>`;
-            
-            if (trigger.buttons && trigger.buttons.length > 0) {
-                html += '<div class="element-properties">';
-                html += `Buttons: ${trigger.buttons.map(b => escapeHtml(b)).join(', ')}`;
-                html += '</div>';
-            }
-            
-            if (trigger.properties && trigger.properties.length > 0) {
-                html += '<div class="element-properties">';
-                trigger.properties.forEach(prop => {
-                    html += `<div class="element-property" data-trigger-property="true">${escapeHtml(prop.label)}: ${escapeHtml(prop.propertyName)}</div>`;
-                });
-                html += '</div>';
-            }
-            
-            html += '</div>';
+
+            html += '</div>'; // .element.trigger
+            html += '</div>'; // .trigger-slot
             return html;
         }
 
