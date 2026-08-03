@@ -448,8 +448,7 @@
           }
         ],
         "events": [
-          "Item removed",
-          "Item archived"
+          "Item removed"
         ]
       }
     },
@@ -876,6 +875,52 @@
           ]
         }
       ]
+    },
+    {
+      "id": "2",
+      "name": "Cart items",
+      "trigger": {
+        "swimlane": "User",
+        "type": "ui-table",
+        "properties": [
+          {
+            "name": "Description"
+          },
+          {
+            "name": "Price"
+          }
+        ],
+        "buttons": [
+          "Add"
+        ],
+        "views": [
+          "Cart items"
+        ]
+      },
+      "view": {
+        "name": "Cart items",
+        "properties": [
+          {
+            "name": "Description",
+            "type": "string"
+          },
+          {
+            "name": "Image",
+            "type": "string"
+          },
+          {
+            "name": "Price",
+            "type": "decimal"
+          },
+          {
+            "name": "TotalPrice",
+            "type": "decimal"
+          }
+        ],
+        "events": [
+          "Item archived"
+        ]
+      }
     },
     {
       "name": "Submit cart",
