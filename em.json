@@ -4,7 +4,7 @@
     {
       "id": "1",
       "name": "Add item",
-      "border": "#4CBB17",
+      "border": "green",
       "trigger": {
         "swimlane": "User",
         "type": "ui-input",
@@ -181,7 +181,7 @@
     {
       "id": "2",
       "name": "Cart items",
-      "border": "#FF0000",
+      "border": "red",
       "view": {
         "name": "Cart items",
         "properties": [
@@ -250,77 +250,13 @@
           "then": {
             "error": "Cart not found"
           }
-        },
-        {
-          "name": "Subtracts from total when item removed",
-          "given": {
-            "events": [
-              {
-                "name": "Item added",
-                "properties": [
-                  {
-                    "name": "Price",
-                    "value": "5"
-                  }
-                ]
-              },
-              {
-                "name": "Item removed"
-              }
-            ]
-          },
-          "then": {
-            "views": [
-              {
-                "name": "Cart items",
-                "properties": [
-                  {
-                    "name": "Price",
-                    "value": "0"
-                  }
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "Cleares cart",
-          "given": {
-            "events": [
-              {
-                "name": "Item added",
-                "properties": [
-                  {
-                    "name": "Price",
-                    "value": "5"
-                  }
-                ]
-              },
-              {
-                "name": "Cart cleared"
-              }
-            ]
-          },
-          "then": {
-            "views": [
-              {
-                "name": "Cart items",
-                "properties": [
-                  {
-                    "name": "Price",
-                    "value": "0"
-                  }
-                ]
-              }
-            ]
-          }
         }
       ]
     },
     {
       "id": "3",
       "name": "Remove item",
-      "border": "#000000",
+      "border": "black",
       "trigger": {
         "swimlane": "User",
         "type": "ui-table",
@@ -450,12 +386,46 @@
         "events": [
           "Item removed"
         ]
-      }
+      },
+      "tests": [
+        {
+          "name": "Subtracts from total when item removed",
+          "given": {
+            "events": [
+              {
+                "name": "Item added",
+                "properties": [
+                  {
+                    "name": "Price",
+                    "value": "5"
+                  }
+                ]
+              },
+              {
+                "name": "Item removed"
+              }
+            ]
+          },
+          "then": {
+            "views": [
+              {
+                "name": "Cart items",
+                "properties": [
+                  {
+                    "name": "Price",
+                    "value": "0"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "4",
       "name": "Clear cart",
-      "border": "#000000",
+      "border": "#black",
       "trigger": {
         "swimlane": "User",
         "type": "ui-table",
@@ -572,12 +542,46 @@
         "events": [
           "Cart cleared"
         ]
-      }
+      },
+      "tests": [
+        {
+          "name": "Cleares cart",
+          "given": {
+            "events": [
+              {
+                "name": "Item added",
+                "properties": [
+                  {
+                    "name": "Price",
+                    "value": "5"
+                  }
+                ]
+              },
+              {
+                "name": "Cart cleared"
+              }
+            ]
+          },
+          "then": {
+            "views": [
+              {
+                "name": "Cart items",
+                "properties": [
+                  {
+                    "name": "Price",
+                    "value": "0"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "5",
       "name": "Inventory changed",
-      "border": "#000000",
+      "border": "#black",
       "trigger": {
         "swimlane": "Bot",
         "type": "translation",
@@ -653,7 +657,7 @@
     },
     {
       "name": "Inventories",
-      "border": "#000000",
+      "border": "#black",
       "trigger": {
         "swimlane": "User",
         "type": "ui-table",
@@ -693,7 +697,7 @@
     },
     {
       "name": "Price changed",
-      "border": "#000000",
+      "border": "#black",
       "trigger": {
         "swimlane": "Bot",
         "type": "translation",
@@ -785,7 +789,7 @@
     },
     {
       "name": "Carts with products",
-      "border": "#000000",
+      "border": "#black",
       "view": {
         "name": "Carts with products",
         "properties": [
@@ -813,7 +817,7 @@
     },
     {
       "name": "Archive item",
-      "border": "#000000",
+      "border": "#black",
       "trigger": {
         "swimlane": "Bot",
         "type": "automation",
@@ -920,11 +924,45 @@
         "events": [
           "Item archived"
         ]
-      }
+      },
+      "tests": [
+        {
+          "name": "Subtracts from total when item archived",
+          "given": {
+            "events": [
+              {
+                "name": "Item added",
+                "properties": [
+                  {
+                    "name": "Price",
+                    "value": "5"
+                  }
+                ]
+              },
+              {
+                "name": "Item archived"
+              }
+            ]
+          },
+          "then": {
+            "views": [
+              {
+                "name": "Cart items",
+                "properties": [
+                  {
+                    "name": "Price",
+                    "value": "0"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "Submit cart",
-      "border": "#000000",
+      "border": "#black",
       "trigger": {
         "swimlane": "User",
         "type": "ui-input",
@@ -973,7 +1011,7 @@
     },
     {
       "name": "Publish cart",
-      "border": "#000000",
+      "border": "#black",
       "trigger": {
         "swimlane": "Bot",
         "type": "automation",
