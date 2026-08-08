@@ -114,11 +114,11 @@
             return JSON.stringify(_currentJson, null, 2) !== _lastSavedContent;
         }
 
-        // ── Auto-save (10 s debounce, only on actual change) ──────────────────
+        // ── Auto-save (1 s debounce, only on actual change) ──────────────────
 
         function scheduleAutoSave() {
             if (_saveTimer) clearTimeout(_saveTimer);
-            _saveTimer = setTimeout(trySaveToServer, 10000);
+            _saveTimer = setTimeout(trySaveToServer, 1000);
         }
 
         async function trySaveToServer() {
@@ -206,8 +206,10 @@
 
         EventBus.on(Events.JSON_CHANGED, ({ json }) => {
             _currentJson = json;
-            setSaveStatus('unsaved');
-            scheduleAutoSave();
+            if (hasUnsavedChanges()) {
+                setSaveStatus('unsaved');
+                scheduleAutoSave();
+            }
         });
 
         EventBus.on(Events.APP_INIT, async () => {
