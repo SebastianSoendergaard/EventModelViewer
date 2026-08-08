@@ -38,6 +38,13 @@
             gap: 0.75rem;
         }
 
+        .build-number {
+            margin-left: auto;
+            font-size: 0.75rem;
+            font-variant-numeric: tabular-nums;
+            opacity: 0.8;
+        }
+
         .logo-blocks {
             display: flex;
             gap: 3px;
@@ -1533,12 +1540,13 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
+        <span class="build-number" title="Build number">Build 2026080901</span>
     </header>
 
     <div class="upload-section">
         <button class="file-label" id="newBtn" title="Create new event model">📄 New</button>
         <div class="file-input-wrapper">
-            <input type="file" id="fileInput" accept=".json">
+            <input type="file" id="fileInput" accept=".emj">
             <label for="fileInput" class="file-label">📁 Open</label>
         </div>
         <button class="file-label" id="saveBtn" title="Save to file">💾 Save</button>
@@ -1838,12 +1846,12 @@
             }
             
             // Determine filename
-            let fname = 'event-model.json';
+            let fname = 'event-model.emj';
             
             if (_currentFileName) {
                 fname = _currentFileName;
             } else if (_currentJson.title) {
-                fname = sanitizeFilename(_currentJson.title) + '.json';
+                fname = sanitizeFilename(_currentJson.title) + '.emj';
             }
             
             // Create blob and download

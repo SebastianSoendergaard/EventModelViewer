@@ -18,4 +18,19 @@
     <EmbeddedResource Include="..\..\event-model-viewer-for-server.html" LogicalName="event-model-viewer.html" />
   </ItemGroup>
 
+  <Target Name="GenerateStaticFileVersion" BeforeTargets="BeforeCompile">
+    <GetFileHash Files="..\..\event-model-viewer-for-server.html" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="StaticFileHash" />
+    </GetFileHash>
+
+    <WriteLinesToFile
+      File="$(IntermediateOutputPath)GeneratedStaticFileVersion.g.cs"
+      Lines="internal static class StaticFileVersion %7B public const string Value = &quot;$(StaticFileHash)&quot;%3B %7D"
+      Overwrite="true" />
+
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)GeneratedStaticFileVersion.g.cs" />
+    </ItemGroup>
+  </Target>
+
 </Project>

@@ -38,6 +38,13 @@
             gap: 0.75rem;
         }
 
+        .build-number {
+            margin-left: auto;
+            font-size: 0.75rem;
+            font-variant-numeric: tabular-nums;
+            opacity: 0.8;
+        }
+
         .logo-blocks {
             display: flex;
             gap: 3px;
@@ -1588,6 +1595,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
+        <span class="build-number" title="Build number">Build 2026080901</span>
     </header>
 
     <div class="upload-section">
@@ -2016,7 +2024,7 @@
             const input = prompt('Enter filename for new event model:');
             if (!input) return;
 
-            const name = input.endsWith('.json') ? input : input + '.json';
+            const name = input.endsWith('.emj') ? input : input + '.emj';
 
             try {
                 const createRes = await fetch(`${window.location.origin}/files`, {

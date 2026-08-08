@@ -5,6 +5,13 @@ function readFile(filePath) {
     return fs.readFileSync(path.join(__dirname, filePath), 'utf8');
 }
 
+function createBuildNumber(date = new Date()) {
+    const pad = value => String(value).padStart(2, '0');
+    return String(date.getFullYear()) + pad(date.getMonth() + 1) + pad(date.getDate()) + pad(date.getHours());
+}
+
+const buildNumber = createBuildNumber();
+
 // Wrap JS content in an IIFE for scope isolation.
 // event-bus.js is intentionally NOT wrapped — it must be global.
 function iife(js) {
@@ -88,6 +95,7 @@ function assembleResizer(editorParts, viewerParts) {
 
 function assembleApp(toolbarParts, resizerParts) {
     let result = appTemplate;
+    result = result.replace('<!-- BUILD_NUMBER -->', buildNumber);
     result = result.replace('    <!-- TOOLBAR_HTML -->', toolbarParts.html.trimEnd());
     result = result.replace('        <!-- RESIZER_HTML -->', resizerParts.html.trimEnd());
     result = result.replace('        /* TOOLBAR_CSS */', toolbarParts.css);

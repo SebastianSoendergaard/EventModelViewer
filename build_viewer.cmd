@@ -14,5 +14,9 @@ echo Copying outputs to root...
 copy /Y "%SCRIPT_DIR%viewer\event-model-viewer.html" "%SCRIPT_DIR%event-model-viewer.html"
 copy /Y "%SCRIPT_DIR%viewer\event-model-viewer-for-server.html" "%SCRIPT_DIR%event-model-viewer-for-server.html"
 
+echo Cleaning up build outputs from viewer folder...
+del "%SCRIPT_DIR%viewer\event-model-viewer.html"
+del "%SCRIPT_DIR%viewer\event-model-viewer-for-server.html"
+
 echo Done.
 endlocal
