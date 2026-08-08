@@ -14,8 +14,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Embed the viewer HTML at build time -->
-    <EmbeddedResource Include="..\..\event-model-viewer.html" LogicalName="event-model-viewer.html" />
+    <!-- Embed the server-integrated viewer HTML at build time -->
+    <EmbeddedResource Include="..\..\event-model-viewer-for-server.html" LogicalName="event-model-viewer.html" />
   </ItemGroup>
 
 </Project>

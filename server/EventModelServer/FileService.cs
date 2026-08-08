@@ -86,6 +86,34 @@ public class FileService : IDisposable
         return true;
     }
 
+    public bool TryCreateFile(string name, out string error)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            error = "File name cannot be empty";
+            return false;
+        }
+
+        if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+            || name.Contains('/')
+            || name.Contains('\\'))
+        {
+            error = "File name contains invalid characters or path separators";
+            return false;
+        }
+
+        var full = FullPath(name);
+        if (File.Exists(full))
+        {
+            error = $"File already exists: {name}";
+            return false;
+        }
+
+        File.WriteAllText(full, "{}");
+        error = string.Empty;
+        return true;
+    }
+
     public string? SelectedRelative => _selectedRelative;
 
     private string FullPath(string relative) =>

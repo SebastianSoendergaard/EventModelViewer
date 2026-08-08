@@ -52,6 +52,25 @@ Returns a JSON array of all `.json` files found under the root folder (recursive
 
 ---
 
+### `POST /files`
+
+Creates a new `.json` file in the root folder with content `{}`.
+
+**Request body:**
+
+```json
+{ "name": "my-model.json" }
+```
+
+**Responses:**
+
+| Status | Meaning |
+|--------|---------|
+| `201 Created` | File created — `{ "path": "my-model.json" }` |
+| `400 Bad Request` | `name` missing, empty, contains invalid characters or path separators, or file already exists |
+
+---
+
 ### `POST /select`
 
 Selects a file to work with. Subsequent calls to `/selected` operate on this file. A `FileSystemWatcher` is attached to it immediately, so external editor saves trigger a `file-changed` SSE event.
@@ -168,14 +187,14 @@ EventModelServer/
 
 ### Single-file publish
 
-The project is configured for `PublishSingleFile=true`, `SelfContained=true`, `RuntimeIdentifier=win-x64`. The `event-model-viewer.html` file from the repo root is embedded as a managed resource at build time via:
+The project is configured for `PublishSingleFile=true`, `SelfContained=true`, `RuntimeIdentifier=win-x64`. The `event-model-viewer-for-server.html` file from the repo root is embedded as a managed resource at build time via:
 
 ```xml
-<EmbeddedResource Include="..\..\event-model-viewer.html"
+<EmbeddedResource Include="..\..\event-model-viewer-for-server.html"
                   LogicalName="event-model-viewer.html" />
 ```
 
-It is served by reading the embedded stream at runtime — no file on disk is needed.
+It is served by reading the embedded stream at runtime — no file on disk is needed. Run `node viewer/build.js` from the repo root (or `build_server.cmd`) to regenerate both HTML files before publishing.
 
 ## Tests
 

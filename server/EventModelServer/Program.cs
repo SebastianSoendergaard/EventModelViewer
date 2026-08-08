@@ -79,6 +79,20 @@ app.MapPut("/selected", async (HttpRequest request) =>
     return Results.Ok();
 });
 
+// POST /files — create a new JSON file in root folder
+app.MapPost("/files", async (HttpRequest request) =>
+{
+    using var doc = await JsonDocument.ParseAsync(request.Body);
+    if (!doc.RootElement.TryGetProperty("name", out var nameEl))
+        return Results.BadRequest("Missing 'name'");
+
+    var name = nameEl.GetString() ?? string.Empty;
+    if (!fileService.TryCreateFile(name, out var error))
+        return Results.BadRequest(error);
+
+    return Results.Created($"/files/{Uri.EscapeDataString(name)}", new { path = name });
+});
+
 // GET /events — SSE stream
 app.MapGet("/events", async (HttpContext ctx, CancellationToken ct) =>
 {

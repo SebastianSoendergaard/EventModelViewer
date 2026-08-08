@@ -1,0 +1,65 @@
+        .server-integration {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        #serverFileDropdown {
+            padding: 0.4rem 0.6rem;
+            border-radius: 6px;
+            border: 1px solid #bdc3c7;
+            background: white;
+            font-size: 0.9rem;
+            min-width: 220px;
+            cursor: pointer;
+        }
+
+        #serverFileDropdown:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        .server-save-status {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            min-width: 110px;
+        }
+
+        .server-save-status.saved {
+            color: #27ae60;
+        }
+
+        .server-save-status.unsaved {
+            color: #e67e22;
+        }
+
+        .server-conflict-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #c0392b;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            z-index: 9999;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .server-conflict-banner button {
+            padding: 0.3rem 0.9rem;
+            border: 2px solid white;
+            background: transparent;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .server-conflict-banner button:hover {
+            background: rgba(255,255,255,0.2);
+        }

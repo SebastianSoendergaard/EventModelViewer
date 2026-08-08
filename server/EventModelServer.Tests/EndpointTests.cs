@@ -194,6 +194,47 @@ public class EndpointTests : IDisposable
         }
     }
 
+    // ── POST /files ──────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task PostFiles_Creates_File_In_Root()
+    {
+        var response = await _client.PostAsJsonAsync("/files", new { name = "new.json" });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.True(File.Exists(Path.Combine(_tempRoot, "new.json")));
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("new.json", body);
+    }
+
+    [Fact]
+    public async Task PostFiles_Returns_BadRequest_For_Duplicate()
+    {
+        File.WriteAllText(Path.Combine(_tempRoot, "exists.json"), "{}");
+        var response = await _client.PostAsJsonAsync("/files", new { name = "exists.json" });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostFiles_Returns_BadRequest_For_Empty_Name()
+    {
+        var response = await _client.PostAsJsonAsync("/files", new { name = "" });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostFiles_Returns_BadRequest_For_Path_Traversal()
+    {
+        var response = await _client.PostAsJsonAsync("/files", new { name = "../escape.json" });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostFiles_Returns_BadRequest_When_Name_Missing()
+    {
+        var response = await _client.PostAsJsonAsync("/files", new { });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     public void Dispose()
     {
         _client.Dispose();
