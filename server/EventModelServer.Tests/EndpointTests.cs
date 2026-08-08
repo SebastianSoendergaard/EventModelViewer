@@ -63,14 +63,14 @@ public class EndpointTests : IDisposable
     [Fact]
     public async Task GetFiles_Returns_JsonFiles()
     {
-        File.WriteAllText(Path.Combine(_tempRoot, "a.json"), "{}");
-        File.WriteAllText(Path.Combine(_tempRoot, "b.json"), "{}");
+        File.WriteAllText(Path.Combine(_tempRoot, "a.emj"), "{}");
+        File.WriteAllText(Path.Combine(_tempRoot, "b.emj"), "{}");
 
         var response = await _client.GetAsync("/files");
         var files = await response.Content.ReadFromJsonAsync<List<string>>();
         Assert.NotNull(files);
-        Assert.Contains("a.json", files);
-        Assert.Contains("b.json", files);
+        Assert.Contains("a.emj", files);
+        Assert.Contains("b.emj", files);
     }
 
     [Fact]
@@ -78,12 +78,12 @@ public class EndpointTests : IDisposable
     {
         var sub = Path.Combine(_tempRoot, "sub");
         Directory.CreateDirectory(sub);
-        File.WriteAllText(Path.Combine(sub, "nested.json"), "{}");
+        File.WriteAllText(Path.Combine(sub, "nested.emj"), "{}");
 
         var response = await _client.GetAsync("/files");
         var files = await response.Content.ReadFromJsonAsync<List<string>>();
         Assert.NotNull(files);
-        Assert.Contains("sub/nested.json", files);
+        Assert.Contains("sub/nested.emj", files);
     }
 
     // ── POST /select ─────────────────────────────────────────────────────────
@@ -91,16 +91,16 @@ public class EndpointTests : IDisposable
     [Fact]
     public async Task Select_Returns_BadRequest_For_Nonexistent_File()
     {
-        var response = await _client.PostAsJsonAsync("/select", new { path = "nope.json" });
+        var response = await _client.PostAsJsonAsync("/select", new { path = "nope.emj" });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
     public async Task Select_Returns_Ok_For_Existing_File()
     {
-        File.WriteAllText(Path.Combine(_tempRoot, "test.json"), "{}");
+        File.WriteAllText(Path.Combine(_tempRoot, "test.emj"), "{}");
 
-        var response = await _client.PostAsJsonAsync("/select", new { path = "test.json" });
+        var response = await _client.PostAsJsonAsync("/select", new { path = "test.emj" });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -124,8 +124,8 @@ public class EndpointTests : IDisposable
     public async Task GetSelected_Returns_File_Content()
     {
         var content = """{"key":"value"}""";
-        File.WriteAllText(Path.Combine(_tempRoot, "data.json"), content);
-        await _client.PostAsJsonAsync("/select", new { path = "data.json" });
+        File.WriteAllText(Path.Combine(_tempRoot, "data.emj"), content);
+        await _client.PostAsJsonAsync("/select", new { path = "data.emj" });
 
         var response = await _client.GetAsync("/selected");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -146,15 +146,15 @@ public class EndpointTests : IDisposable
     [Fact]
     public async Task PutSelected_Updates_File_Content()
     {
-        File.WriteAllText(Path.Combine(_tempRoot, "edit.json"), "{}");
-        await _client.PostAsJsonAsync("/select", new { path = "edit.json" });
+        File.WriteAllText(Path.Combine(_tempRoot, "edit.emj"), "{}");
+        await _client.PostAsJsonAsync("/select", new { path = "edit.emj" });
 
         var newContent = """{"updated":true}""";
         var put = await _client.PutAsync("/selected",
             new StringContent(newContent, Encoding.UTF8, "application/json"));
         Assert.Equal(HttpStatusCode.OK, put.StatusCode);
 
-        var disk = File.ReadAllText(Path.Combine(_tempRoot, "edit.json"));
+        var disk = File.ReadAllText(Path.Combine(_tempRoot, "edit.emj"));
         Assert.Equal(newContent, disk);
     }
 
@@ -199,18 +199,18 @@ public class EndpointTests : IDisposable
     [Fact]
     public async Task PostFiles_Creates_File_In_Root()
     {
-        var response = await _client.PostAsJsonAsync("/files", new { name = "new.json" });
+        var response = await _client.PostAsJsonAsync("/files", new { name = "new.emj" });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        Assert.True(File.Exists(Path.Combine(_tempRoot, "new.json")));
+        Assert.True(File.Exists(Path.Combine(_tempRoot, "new.emj")));
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("new.json", body);
+        Assert.Contains("new.emj", body);
     }
 
     [Fact]
     public async Task PostFiles_Returns_BadRequest_For_Duplicate()
     {
-        File.WriteAllText(Path.Combine(_tempRoot, "exists.json"), "{}");
-        var response = await _client.PostAsJsonAsync("/files", new { name = "exists.json" });
+        File.WriteAllText(Path.Combine(_tempRoot, "exists.emj"), "{}");
+        var response = await _client.PostAsJsonAsync("/files", new { name = "exists.emj" });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
@@ -224,7 +224,7 @@ public class EndpointTests : IDisposable
     [Fact]
     public async Task PostFiles_Returns_BadRequest_For_Path_Traversal()
     {
-        var response = await _client.PostAsJsonAsync("/files", new { name = "../escape.json" });
+        var response = await _client.PostAsJsonAsync("/files", new { name = "../escape.emj" });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 

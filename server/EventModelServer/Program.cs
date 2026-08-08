@@ -38,14 +38,14 @@ app.MapGet("/", () =>
     return Results.Content(reader.ReadToEnd(), "text/html");
 });
 
-// GET /files — list all .json files under root (relative paths)
+// GET /files — list all .emj files under root (relative paths)
 app.MapGet("/files", () =>
 {
     var files = fileService.GetFiles();
     return Results.Json(files);
 });
 
-// POST /select — body: { "path": "relative/path.json" }
+// POST /select — body: { "path": "relative/path.emj" }
 app.MapPost("/select", async (HttpRequest request) =>
 {
     using var doc = await JsonDocument.ParseAsync(request.Body);

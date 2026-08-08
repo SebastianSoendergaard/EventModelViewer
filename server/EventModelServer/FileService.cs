@@ -18,7 +18,7 @@ public class FileService : IDisposable
 
         _folderWatcher = new FileSystemWatcher(_root)
         {
-            Filter = "*.json",
+            Filter = "*.emj",
             IncludeSubdirectories = true,
             EnableRaisingEvents = true,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName
@@ -28,13 +28,13 @@ public class FileService : IDisposable
         _folderWatcher.Renamed += (_, _) => OnFolderContentsChanged?.Invoke();
     }
 
-    /// <summary>Returns relative paths of all .json files under root.</summary>
+    /// <summary>Returns relative paths of all .emj files under root.</summary>
     public IReadOnlyList<string> GetFiles()
     {
         if (!Directory.Exists(_root)) return [];
 
         return Directory
-            .EnumerateFiles(_root, "*.json", SearchOption.AllDirectories)
+            .EnumerateFiles(_root, "*.emj", SearchOption.AllDirectories)
             .Select(f => Path.GetRelativePath(_root, f).Replace('\\', '/'))
             .OrderBy(f => f)
             .ToList();

@@ -4,7 +4,7 @@
             const input = prompt('Enter filename for new event model:');
             if (!input) return;
 
-            const name = input.endsWith('.json') ? input : input + '.json';
+            const name = input.endsWith('.emj') ? input : input + '.emj';
 
             try {
                 const createRes = await fetch(`${window.location.origin}/files`, {

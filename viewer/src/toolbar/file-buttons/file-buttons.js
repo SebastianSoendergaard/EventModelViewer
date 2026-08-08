@@ -102,12 +102,12 @@
             }
             
             // Determine filename
-            let fname = 'event-model.json';
+            let fname = 'event-model.emj';
             
             if (_currentFileName) {
                 fname = _currentFileName;
             } else if (_currentJson.title) {
-                fname = sanitizeFilename(_currentJson.title) + '.json';
+                fname = sanitizeFilename(_currentJson.title) + '.emj';
             }
             
             // Create blob and download
