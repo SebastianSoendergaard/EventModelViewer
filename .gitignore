@@ -3,3 +3,6 @@
 # dependencies
 /node_modules
 **node_modules
+
+# Built server executable
+EventModelServer.exe
