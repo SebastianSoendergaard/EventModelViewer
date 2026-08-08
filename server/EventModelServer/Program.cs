@@ -13,7 +13,10 @@ var rootFolder = rootArg is not null
     ? Path.GetFullPath(rootArg)
     : AppContext.BaseDirectory;
 
-builder.WebHost.ConfigureKestrel(o => o.ListenLocalhost(0)); // port 0 = OS picks free port
+builder.WebHost.ConfigureKestrel(o =>
+{
+    o.Listen(System.Net.IPAddress.Loopback, 0); // port 0 = OS picks free port
+});
 builder.Services.AddSingleton<FileService>(_ => new FileService(rootFolder));
 builder.Services.AddSingleton<SseService>();
 
