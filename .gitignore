@@ -6,3 +6,7 @@
 
 # Built server executable
 EventModelServer.exe
+
+# IDE artefacts
+server/.vs/
+server/**/*.user
