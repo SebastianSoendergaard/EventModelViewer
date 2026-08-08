@@ -9,6 +9,9 @@ Complete guide to all documentation for the Event Model Viewer project.
 ```
 EventModelViewer/
 ├── README.md                           # Start here: Project overview
+├── build_server.cmd                    # Build script for server .exe
+├── server/
+│   └── docs/README.md                  # Server API reference & architecture
 ├── docs/
 │   ├── README.md                       # Documentation guide
 │   ├── collapse-feature-learnings.md   # Technical deep dive
@@ -49,6 +52,7 @@ EventModelViewer/
 |----------|---------|------------|
 | **[Architecture Guide](ARCHITECTURE.md)** | **System design & patterns** | **EventBus, build system, state mgmt, module communication** |
 | [Modular Architecture](modular-architecture-learnings.md) | Build system details | Module hierarchy, IIFE wrapping, build.js |
+| **[Server README](../../server/docs/README.md)** | **C# server app** | **Endpoints, SSE events, FileSystemWatcher, build/deploy** |
 
 ### For Users
 

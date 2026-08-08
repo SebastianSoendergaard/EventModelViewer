@@ -459,17 +459,34 @@ See `tests/README.md` for detailed test documentation and coverage summary.
 
 ## Deployment Model
 
-**Self-contained HTML file** (with CDN dependencies) that can be:
+**Two supported modes:**
+
+### 1. Self-contained HTML file (default)
+
+The built `event-model-viewer.html` (with CDN dependencies) can be:
 - Checked into git with event model JSON files
 - Served from any static file server
-- Opened directly from filesystem (file://)
+- Opened directly from filesystem (`file://`)
 - Emailed or shared
 
 **Runtime dependencies** (loaded from CDN):
 - ACE Editor (always loaded)
 - html2canvas (loaded only during PNG export)
 
-**Why this model?** Event Model diagrams should live with the code. A single-file viewer ensures version compatibility - no "viewer too old for diagram format" issues.
+**Why this model?** Event Model diagrams should live with the code. A single-file viewer ensures version compatibility — no "viewer too old for diagram format" issues.
+
+### 2. EventModelServer (Windows desktop app)
+
+A self-contained `.NET 9` minimal-API server (`server/EventModelServer`) that:
+- Embeds `event-model-viewer.html` as a managed resource at build time
+- Starts on a free OS-assigned port and opens the browser automatically
+- Exposes a file-system API (`GET /files`, `POST /select`, `GET /selected`, `PUT /selected`)
+- Pushes `file-changed` and `files-changed` events via **Server-Sent Events** (`GET /events`) so the viewer reacts to external editor saves in real time
+
+**Build:** `build_server.cmd` → `EventModelServer.exe` in repo root  
+**API reference:** `server/docs/README.md`
+
+**Why this mode?** When you want to keep your JSON files in any folder on disk and have them live-sync into the viewer without manually opening/saving files.
 
 ## Future Architecture Considerations
 
@@ -520,6 +537,7 @@ See `tests/README.md` for detailed test documentation and coverage summary.
 - **Module Details:** Individual `docs/*-learnings.md` files
 - **Testing:** `tests/README.md`
 - **Navigation:** `docs/INDEX.md`
+- **Server App:** `server/docs/README.md`
 
 ## Contributing
 

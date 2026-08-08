@@ -2,13 +2,33 @@
 
 A web-based application for visualizing event-driven architecture models using Event Modeling defined in a JSON format. Features an interactive JSON editor with collapsable objects, a drag-and-drop tree view, and a diagram viewer.
 
+# Event Model Viewer
+
+A web-based application for visualizing event-driven architecture models using Event Modeling defined in a JSON format. Features an interactive JSON editor with collapsable objects, a drag-and-drop tree view, and a diagram viewer.
+
 ## Usage
 
-On build the file **event-model-viewer.html** is created as a single file application. The file can easily be commited to your git repository together with the event model json files. This way the viewer lives next to the event model and can be used by anyone. 
+### Standalone (single HTML file)
+
+On build the file **event-model-viewer.html** is created as a single file application. The file can easily be commited to your git repository together with the event model json files. This way the viewer lives next to the event model and can be used by anyone.
 
 By having the viewer as a single file application next to the diagram json files, you will always have a viewer that can handle your diagrams without the fear for compatibility issues or version mismatches. The viewer can be used for any event model defined in the supported json format, making it a versatile tool for visualizing and sharing event-driven architecture models.
 
 To see a diagram simply open **event-model-viewer.html** in a web browser and load the json file. You can then edit the json file in the code view or tree view and see the changes reflected in the diagram in real-time. After edits the updated diagram can be saved back to a json file or exported as an image.
+
+### Server mode (EventModelServer)
+
+For a more integrated local experience, the project ships a self-contained Windows desktop application (`EventModelServer.exe`) that hosts the viewer and exposes a file-system API. This removes the need to manually open/save files — the server watches your JSON files and pushes live updates to the browser.
+
+**Quick start:**
+
+```cmd
+build_server.cmd          # build the .exe (requires .NET 9 SDK)
+EventModelServer.exe      # opens browser automatically
+EventModelServer.exe --root "C:\my-models"   # scan a specific folder
+```
+
+See [`server/docs/README.md`](server/docs/README.md) for the full API reference and architecture overview.
 
 ## Event Model Format
 
@@ -155,8 +175,9 @@ slices: list of slices on the diagram
 1. **Open the viewer**
    ```bash
    # Open in your default browser
-   start index.html
+   start event-model-viewer.html
    ```
+   *Or use server mode for integrated file access — see [Server Mode](#usage) above.*
 
 2. **Load an event model**
    - Click "Open"
