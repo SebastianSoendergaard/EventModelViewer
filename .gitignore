@@ -5,7 +5,7 @@
 **node_modules
 
 # Built server executable
-EventModelServer.exe
+event-model-viewer.exe
 
 # IDE artefacts
 server/.vs/

@@ -14,7 +14,7 @@ if errorlevel 1 (
 )
 
 echo Copying EventModelServer.exe to root...
-copy /Y "%PUBLISH_DIR%\EventModelServer.exe" "%SCRIPT_DIR%EventModelServer.exe"
+copy /Y "%PUBLISH_DIR%\EventModelServer.exe" "%SCRIPT_DIR%event-model-viewer.exe"
 
 echo Done. EventModelServer.exe is ready in the root folder.
 endlocal
