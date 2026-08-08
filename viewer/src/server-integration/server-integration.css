@@ -20,7 +20,14 @@
             box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
         }
 
-        .server-save-status {
+        .server-save-status.disconnected {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #c0392b;
+            letter-spacing: 0.04em;
+        }
+
+        
             font-size: 0.85rem;
             color: #7f8c8d;
             min-width: 110px;

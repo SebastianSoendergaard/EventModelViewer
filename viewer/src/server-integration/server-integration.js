@@ -7,9 +7,28 @@
         let _saveTimer = null;
         let _eventSource = null;
         let _conflictBanner = null;
+        let _connected = false;
 
         function baseUrl() {
             return window.location.origin;
+        }
+
+        // ── Connection status ─────────────────────────────────────────────────
+
+        function setConnected(connected) {
+            if (_connected === connected) return;
+            _connected = connected;
+            const newServerBtn = document.getElementById('newServerBtn');
+            if (connected) {
+                setSaveStatus('clear');
+                dropdown.disabled = false;
+                if (newServerBtn) newServerBtn.disabled = false;
+            } else {
+                saveStatus.textContent = 'NO CONNECTION';
+                saveStatus.className = 'server-save-status disconnected';
+                dropdown.disabled = true;
+                if (newServerBtn) newServerBtn.disabled = true;
+            }
         }
 
         // ── File list ─────────────────────────────────────────────────────────
@@ -18,9 +37,11 @@
             try {
                 const res = await fetch(`${baseUrl()}/files`);
                 if (!res.ok) return [];
+                setConnected(true);
                 return await res.json();
             } catch (e) {
                 console.warn('[server] Failed to fetch file list:', e);
+                setConnected(false);
                 return [];
             }
         }
@@ -179,6 +200,7 @@
             _eventSource = new EventSource(`${baseUrl()}/events`);
 
             _eventSource.addEventListener('file-changed', async () => {
+                setConnected(true);
                 if (hasUnsavedChanges()) {
                     showConflictBanner();
                 } else {
@@ -187,10 +209,16 @@
             });
 
             _eventSource.addEventListener('files-changed', async () => {
+                setConnected(true);
                 await populateDropdown(true);
             });
 
+            _eventSource.onopen = () => {
+                setConnected(true);
+            };
+
             _eventSource.onerror = () => {
+                setConnected(false);
                 // EventSource reconnects automatically
             };
         }
@@ -213,6 +241,7 @@
         });
 
         EventBus.on(Events.APP_INIT, async () => {
+            setConnected(false);
             await populateDropdown(false);
             const path = dropdown.value;
             if (path) await selectFile(path);
