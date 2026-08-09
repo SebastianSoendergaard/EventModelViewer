@@ -130,7 +130,14 @@
             box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
         }
 
-        .server-save-status {
+        .server-save-status.disconnected {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #c0392b;
+            letter-spacing: 0.04em;
+        }
+
+        
             font-size: 0.85rem;
             color: #7f8c8d;
             min-width: 110px;
@@ -1007,7 +1014,10 @@
         /* Extra padding for commands and views */
         .element.command,
         .element.view {
-            margin: 100px 25px;
+            margin-top: 40px;
+            margin-right: 25px;
+            margin-bottom: 70px;
+            margin-left: 25px;
         }
 
         .grid-cell.slice-header {
@@ -1595,7 +1605,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026080901</span>
+        <span class="build-number" title="Build number">Build 2026080902</span>
     </header>
 
     <div class="upload-section">
@@ -1806,9 +1816,28 @@
         let _saveTimer = null;
         let _eventSource = null;
         let _conflictBanner = null;
+        let _connected = false;
 
         function baseUrl() {
             return window.location.origin;
+        }
+
+        // ── Connection status ─────────────────────────────────────────────────
+
+        function setConnected(connected) {
+            if (_connected === connected) return;
+            _connected = connected;
+            const newServerBtn = document.getElementById('newServerBtn');
+            if (connected) {
+                setSaveStatus('clear');
+                dropdown.disabled = false;
+                if (newServerBtn) newServerBtn.disabled = false;
+            } else {
+                saveStatus.textContent = 'NO CONNECTION';
+                saveStatus.className = 'server-save-status disconnected';
+                dropdown.disabled = true;
+                if (newServerBtn) newServerBtn.disabled = true;
+            }
         }
 
         // ── File list ─────────────────────────────────────────────────────────
@@ -1817,9 +1846,11 @@
             try {
                 const res = await fetch(`${baseUrl()}/files`);
                 if (!res.ok) return [];
+                setConnected(true);
                 return await res.json();
             } catch (e) {
                 console.warn('[server] Failed to fetch file list:', e);
+                setConnected(false);
                 return [];
             }
         }
@@ -1913,11 +1944,11 @@
             return JSON.stringify(_currentJson, null, 2) !== _lastSavedContent;
         }
 
-        // ── Auto-save (10 s debounce, only on actual change) ──────────────────
+        // ── Auto-save (1 s debounce, only on actual change) ──────────────────
 
         function scheduleAutoSave() {
             if (_saveTimer) clearTimeout(_saveTimer);
-            _saveTimer = setTimeout(trySaveToServer, 10000);
+            _saveTimer = setTimeout(trySaveToServer, 1000);
         }
 
         async function trySaveToServer() {
@@ -1978,6 +2009,7 @@
             _eventSource = new EventSource(`${baseUrl()}/events`);
 
             _eventSource.addEventListener('file-changed', async () => {
+                setConnected(true);
                 if (hasUnsavedChanges()) {
                     showConflictBanner();
                 } else {
@@ -1986,10 +2018,16 @@
             });
 
             _eventSource.addEventListener('files-changed', async () => {
+                setConnected(true);
                 await populateDropdown(true);
             });
 
+            _eventSource.onopen = () => {
+                setConnected(true);
+            };
+
             _eventSource.onerror = () => {
+                setConnected(false);
                 // EventSource reconnects automatically
             };
         }
@@ -2005,11 +2043,14 @@
 
         EventBus.on(Events.JSON_CHANGED, ({ json }) => {
             _currentJson = json;
-            setSaveStatus('unsaved');
-            scheduleAutoSave();
+            if (hasUnsavedChanges()) {
+                setSaveStatus('unsaved');
+                scheduleAutoSave();
+            }
         });
 
         EventBus.on(Events.APP_INIT, async () => {
+            setConnected(false);
             await populateDropdown(false);
             const path = dropdown.value;
             if (path) await selectFile(path);
