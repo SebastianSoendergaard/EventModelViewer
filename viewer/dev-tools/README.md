@@ -1,10 +1,10 @@
 # Event Model Viewer
 
-An interactive web-based application for visualizing event-driven architecture models defined in JSON format. Features a JSON editor and Mermaid.js diagram viewer for Event Modeling notation.
+An interactive web-based application for visualizing event-driven architecture models defined in the emj format. Features a JSON editor and diagram viewer for Event Modeling notation.
 
 ## Features
 
-- **JSON File Upload**: Load event model JSON files
+- **EMJ File Upload**: Load event model emj files
 - **Live JSON Editor**: Edit models with syntax highlighting and auto-formatting
 - **Real-time Diagram**: Visualize event models with automatic rendering
 - **Interactive Controls**: Zoom, pan, collapse editor, toggle features
@@ -15,9 +15,9 @@ An interactive web-based application for visualizing event-driven architecture m
 ## Quick Start
 
 1. Open `index.html` in a web browser
-2. Click "Choose JSON File" to load an event model
+2. Click "Open" to load an emj file
 3. View the generated diagram on the right panel
-4. Edit JSON in the left panel to see live updates
+4. Edit the emj content in the left panel to see live updates
 
 ## Development
 
@@ -65,9 +65,9 @@ EventModelViewer/
 └── playwright.config.js   # E2E test configuration
 ```
 
-## Event Model JSON Format
+## EMJ Format (Event Model JSON)
 
-The viewer supports Event Modeling notation with the following structure:
+The viewer supports Event Modeling notation defined in the emj format with the following structure:
 
 ```json
 {

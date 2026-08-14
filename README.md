@@ -1,24 +1,24 @@
 # Event Model Viewer
 
-A web-based application for visualizing event-driven architecture models using Event Modeling defined in a JSON format. Features an interactive JSON editor with collapsable objects, a drag-and-drop tree view, and a diagram viewer.
+A web-based application for visualizing event-driven architecture models using Event Modeling defined in the emj format. Features an interactive JSON editor with collapsable objects, a drag-and-drop tree view, and a diagram viewer.
 
 # Event Model Viewer
 
-A web-based application for visualizing event-driven architecture models using Event Modeling defined in a JSON format. Features an interactive JSON editor with collapsable objects, a drag-and-drop tree view, and a diagram viewer.
+A web-based application for visualizing event-driven architecture models using Event Modeling defined in the emj format. Features an interactive JSON editor with collapsable objects, a drag-and-drop tree view, and a diagram viewer.
 
 ## Usage
 
 ### Standalone (single HTML file)
 
-On build the file **event-model-viewer.html** is created as a single file application. The file can easily be commited to your git repository together with the event model json files. This way the viewer lives next to the event model and can be used by anyone.
+On build the file **event-model-viewer.html** is created as a single file application. The file can easily be commited to your git repository together with the emj files. This way the viewer lives next to the event model and can be used by anyone.
 
-By having the viewer as a single file application next to the diagram json files, you will always have a viewer that can handle your diagrams without the fear for compatibility issues or version mismatches. The viewer can be used for any event model defined in the supported json format, making it a versatile tool for visualizing and sharing event-driven architecture models.
+By having the viewer as a single file application next to the emj files, you will always have a viewer that can handle your diagrams without the fear for compatibility issues or version mismatches. The viewer can be used for any event model defined in the emj format, making it a versatile tool for visualizing and sharing event-driven architecture models.
 
-To see a diagram simply open **event-model-viewer.html** in a web browser and load the json file. You can then edit the json file in the code view or tree view and see the changes reflected in the diagram in real-time. After edits the updated diagram can be saved back to a json file or exported as an image.
+To see a diagram simply open **event-model-viewer.html** in a web browser and load the emj file. You can then edit the emj file in the code view or tree view and see the changes reflected in the diagram in real-time. After edits the updated diagram can be saved back to an emj file or exported as an image.
 
 ### Server mode (EventModelServer)
 
-For a more integrated local experience, the project ships a self-contained Windows desktop application (`EventModelServer.exe`) that hosts the viewer and exposes a file-system API. This removes the need to manually open/save files — the server watches your JSON files and pushes live updates to the browser.
+For a more integrated local experience, the project ships a self-contained Windows desktop application (`EventModelServer.exe`) that hosts the viewer and exposes a file-system API. This removes the need to manually open/save files — the server watches your emj files and pushes live updates to the browser.
 
 **Quick start:**
 
@@ -30,9 +30,9 @@ EventModelServer.exe --root "C:\my-models"   # scan a specific folder
 
 See [`server/docs/README.md`](server/docs/README.md) for the full API reference and architecture overview.
 
-## Event Model Format
+## EMJ Format (Event Model JSON)
 
-The viewer supports event models defined with:
+The viewer supports event models defined in the `.emj` format (Event Model JSON) with:
 
 ### Building Blocks
 - **Trigger** - What initiates a use case (user, automation, external system)
@@ -68,7 +68,7 @@ The viewer supports event models defined with:
 
 See `em.json` for a complete example.
 
-## Diagram JSON specification
+## EMJ format specification
 
 ```
 title: the title of the work flow
@@ -126,14 +126,14 @@ slices: list of slices on the diagram
 ## Features
 
 ### 📝 JSON Editor (Code View)
-- **Collapsable objects and arrays** - Navigate large JSON files easily
+- **Collapsable objects and arrays** - Navigate large emj files easily
 - **Smart labels** - See property names and item counts when collapsed
 - **Live editing** - Changes update the diagram in real-time
 - **Syntax highlighting** - Clear visual distinction
 - **Collapse/Expand All** - Quick navigation controls
 
 ### 🌳 Tree View (NEW)
-- **Hierarchical visualization** - See JSON structure as a tree
+- **Hierarchical visualization** - See emj structure as a tree
 - **Drag-and-drop reordering** - Move items by dragging between elements
 - **Context menu for parent items** - Right-click on objects/arrays (not leaf values) to copy or delete
 - **Inline editing** - Double-click on leaf values to edit them in place

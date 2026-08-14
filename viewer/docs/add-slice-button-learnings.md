@@ -183,7 +183,7 @@ When adding a slice, must update ALL synchronized views:
 function addSliceToModel(sliceTemplate) {
     // 1. Validate model loaded
     if (!currentJson || !currentJson.slices) {
-        alert('No event model loaded. Please load a JSON file first.');
+        alert('No event model loaded. Please load an emj file first.');
         return;
     }
 

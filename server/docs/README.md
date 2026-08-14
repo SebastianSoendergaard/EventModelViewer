@@ -10,7 +10,7 @@ EventModelServer.exe
 
 Opens `http://127.0.0.1:<port>` in your default browser. The port is chosen automatically by the OS.
 
-To scan a specific folder for JSON files instead of the folder the exe lives in:
+To scan a specific folder for emj files instead of the folder the exe lives in:
 
 ```cmd
 EventModelServer.exe --root "C:\my-event-models"
@@ -42,31 +42,31 @@ Serves the embedded `event-model-viewer.html` application.
 
 ### `GET /files`
 
-Returns a JSON array of all `.json` files found under the root folder (recursive), as relative paths with forward slashes.
+Returns a JSON array of all `.emj` files found under the root folder (recursive), as relative paths with forward slashes.
 
 **Response:** `200 OK`
 
 ```json
-["em.json", "examples/shopping-cart.json"]
+["em.emj", "examples/shopping-cart.emj"]
 ```
 
 ---
 
 ### `POST /files`
 
-Creates a new `.json` file in the root folder with content `{}`.
+Creates a new `.emj` file in the root folder with content `{}`.
 
 **Request body:**
 
 ```json
-{ "name": "my-model.json" }
+{ "name": "my-model.emj" }
 ```
 
 **Responses:**
 
 | Status | Meaning |
 |--------|---------|
-| `201 Created` | File created — `{ "path": "my-model.json" }` |
+| `201 Created` | File created — `{ "path": "my-model.emj" }` |
 | `400 Bad Request` | `name` missing, empty, contains invalid characters or path separators, or file already exists |
 
 ---
@@ -78,14 +78,14 @@ Selects a file to work with. Subsequent calls to `/selected` operate on this fil
 **Request body:**
 
 ```json
-{ "path": "em.json" }
+{ "path": "em.emj" }
 ```
 
 **Responses:**
 
 | Status | Meaning |
 |--------|---------|
-| `200 OK` | File selected — `{ "selected": "em.json" }` |
+| `200 OK` | File selected — `{ "selected": "em.emj" }` |
 | `400 Bad Request` | `path` missing or file does not exist |
 
 ---
@@ -134,7 +134,7 @@ Cache-Control: no-cache
 | Event name | When fired | Data |
 |------------|-----------|------|
 | `file-changed` | The selected file was modified by an external editor | `{}` |
-| `files-changed` | A `.json` file was added, removed, or renamed anywhere under the root folder | `{}` |
+| `files-changed` | An `.emj` file was added, removed, or renamed anywhere under the root folder | `{}` |
 
 **Example stream:**
 
@@ -173,10 +173,10 @@ EventModelServer/
 
 ### FileService
 
-- Scans the root folder recursively for `*.json` files.
+- Scans the root folder recursively for `*.emj` files.
 - Tracks one selected file at a time.
 - Owns a `FileSystemWatcher` on the selected file (rewired on each `TrySelect` call).
-- Owns a second `FileSystemWatcher` on the root folder to detect added/removed `.json` files.
+- Owns a second `FileSystemWatcher` on the root folder to detect added/removed `.emj` files.
 - Pauses the file watcher during `TryUpdateSelected` writes to avoid self-triggered events.
 
 ### SseService

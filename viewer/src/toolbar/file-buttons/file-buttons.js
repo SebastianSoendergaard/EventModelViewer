@@ -159,7 +159,7 @@
                         console.error('Error loading file:', error);
                         EventBus.emit(Events.FILE_LOADED, { json: null, fileName: null });
                         document.getElementById('diagram').innerHTML =
-                            `<div class="error-message">Invalid JSON file: ${error.message}</div>`;
+                            `<div class="error-message">Invalid emj file: ${error.message}</div>`;
                     }
                 };
                 reader.onerror = (e) => {

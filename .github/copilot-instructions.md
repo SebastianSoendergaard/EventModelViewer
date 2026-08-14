@@ -1,7 +1,7 @@
 # Event Model Viewer - Instructions
 
 ## Overview
-Event Model Viewer is a web-based application that visualizes event-driven architecture models defined in JSON format. It provides an interactive interface with a JSON editor (ACE Editor) and a custom HTML/SVG diagram viewer.
+Event Model Viewer is a web-based application that visualizes event-driven architecture models defined in the emj format. It provides an interactive interface with a JSON editor (ACE Editor) and a custom HTML/SVG diagram viewer.
 
 ### Event Modeling
 The viewer can edit and present Event Model diagrams as defined Adam Dymitruk and Martin Dilger. E.g. on https://eventmodeling.org/ and https://leanpub.com/eventmodeling-and-eventsourcing
@@ -61,9 +61,9 @@ EventModelViewer/
 
 ## Features
 
-### 1. **JSON File Upload**
-- Click "Choose JSON File" to load a JSON file
-- Accepts `.json` files only
+### 1. **EMJ File Upload**
+- Click "Open" to load an emj file
+- Accepts `.emj` files only
 - Displays selected filename
 - Automatically populates the editor and renders the diagram
 
@@ -77,12 +77,12 @@ EventModelViewer/
 ### 3. **Diagram Viewer**
 - Real-time diagram rendering
 - Supports Event Modeling visualization
-- Displays helpful error messages for invalid JSON
+- Displays helpful error messages for invalid emj content
 - Centered and scrollable display area
 
-## Supported JSON Formats
+## Supported EMJ Format
 
-### Event Model Structure (em.json)
+### Event Model Structure (em.emj)
 The included `em.json` demonstrates a domain-driven design event model with:
 - **Slices**: Logical groupings of functionality
 - **Triggers**: UI interactions (buttons, lists)
@@ -98,14 +98,14 @@ The included `em.json` demonstrates a domain-driven design event model with:
 ### Basic Usage
 1. Build the application: `node build.js` (generates `event-model-viewer.html`)
 2. Open `event-model-viewer.html` in a web browser
-3. Upload a JSON file or paste JSON directly into the editor
+3. Open an emj file or paste emj content directly into the editor
 4. View the generated diagram in real-time
 
-### Editing JSON
-1. Type or paste JSON into the editor panel
+### Editing emj content
+1. Type or paste emj content into the editor panel
 2. Wait 1 second after stopping typing
-3. The diagram updates automatically if JSON is valid
-4. Invalid JSON won't show errors while typing (better UX)
+3. The diagram updates automatically if the content is valid
+4. Invalid content won't show errors while typing (better UX)
 
 ### Collapsing the Editor
 1. Click the ◀ button in the editor panel header
@@ -120,7 +120,7 @@ The application uses a **centralized pub/sub EventBus** (`src/event-bus/event-bu
 
 **Available Events:**
 - `APP_INIT` - Application initialized
-- `FILE_LOADED` - JSON file loaded
+- `FILE_LOADED` - emj file loaded
 - `JSON_CHANGED` - JSON data modified (includes `source` to prevent loops)
 - `FILTER_TOGGLED` - View filter state changed
 - `EDITOR_RESIZED` - Panel layout changed
@@ -231,7 +231,7 @@ The included event model represents a shopping cart domain:
 
 ## Future Enhancements
 
-To fully support the event model format:
+To fully support the emj format:
 1. Create a specialized converter for slices/commands/events
 2. Generate sequence diagrams or state machines
 3. Add interactive features (click nodes for details)
@@ -242,17 +242,17 @@ To fully support the event model format:
 
 **Diagram not showing:**
 - Check browser console for errors
-- Ensure JSON is valid Event Model format
+- Ensure emj content is valid Event Model format
 - Verify diagram container has content
 
 **Upload not working:**
-- Ensure file has `.json` extension
-- Check file contains valid JSON
-- Try pasting JSON directly into editor
+- Ensure file has `.emj` extension
+- Check file contains valid emj content
+- Try pasting emj content directly into editor
 
 **Auto-refresh not working:**
 - Wait 1 second after typing stops (debounced)
-- Ensure JSON is syntactically valid
+- Ensure emj content is syntactically valid
 - Check browser console for errors
 
 **After editing src/ files:**

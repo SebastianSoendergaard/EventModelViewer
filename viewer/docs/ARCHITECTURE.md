@@ -67,7 +67,7 @@ app.html (shell)
 | Event | Payload | Purpose | Emitted By |
 |-------|---------|---------|------------|
 | `APP_INIT` | `{}` | Application initialized | `app.html` |
-| `FILE_LOADED` | `{ json, fileName }` | JSON file loaded | `file-buttons` |
+| `FILE_LOADED` | `{ json, fileName }` | emj file loaded | `file-buttons` |
 | `JSON_CHANGED` | `{ json, source }` | JSON modified | `code-view`, `tree-view`, `editor` |
 | `MODEL_CHANGED` | `{ model }` | Enriched event model ready | `event-model` |
 | `FILTER_TOGGLED` | `{ type, checked }` | View filter changed | `filter-toggles` |
@@ -405,7 +405,7 @@ historyManager = {
 **Key boundaries:**
 - localStorage read/write (quota, corruption)
 - JSON.parse (file upload, editor changes)
-- Diagram rendering (invalid JSON structure)
+- Diagram rendering (invalid emj structure)
 - SVG export (canvas conversion)
 
 **Recovery strategies:**
@@ -464,7 +464,7 @@ See `tests/README.md` for detailed test documentation and coverage summary.
 ### 1. Self-contained HTML file (default)
 
 The built `event-model-viewer.html` (with CDN dependencies) can be:
-- Checked into git with event model JSON files
+- Checked into git with event model emj files
 - Served from any static file server
 - Opened directly from filesystem (`file://`)
 - Emailed or shared
@@ -486,7 +486,7 @@ A self-contained `.NET 9` minimal-API server (`server/EventModelServer`) that:
 **Build:** `build_server.cmd` → `EventModelServer.exe` in repo root  
 **API reference:** `server/docs/README.md`
 
-**Why this mode?** When you want to keep your JSON files in any folder on disk and have them live-sync into the viewer without manually opening/saving files.
+**Why this mode?** When you want to keep your emj files in any folder on disk and have them live-sync into the viewer without manually opening/saving files.
 
 ## Future Architecture Considerations
 
@@ -495,7 +495,7 @@ A self-contained `.NET 9` minimal-API server (`server/EventModelServer`) that:
 1. **Module bundler migration** - Replace custom build.js with Rollup/Vite
 2. **TypeScript** - Add type safety to EventBus contracts
 3. **Web Components** - Encapsulate modules as custom elements
-4. **Virtual scrolling** - Handle huge JSON files (1000+ slices)
+4. **Virtual scrolling** - Handle huge emj files (1000+ slices)
 5. **Service Worker** - Offline-first with caching
 
 ### Architectural Constraints
@@ -503,7 +503,7 @@ A self-contained `.NET 9` minimal-API server (`server/EventModelServer`) that:
 **Must maintain:**
 - Single-file output (core value prop)
 - No build-time dependencies (just Node.js + build.js)
-- Backward compatibility with existing JSON format
+- Backward compatibility with existing emj format
 
 ## Troubleshooting Common Issues
 
@@ -527,7 +527,7 @@ A self-contained `.NET 9` minimal-API server (`server/EventModelServer`) that:
 
 ### localStorage quota exceeded
 
-**Cause:** Very large JSON files (>5MB on some browsers).
+**Cause:** Very large emj files (>5MB on some browsers).
 
 **Fix:** Code includes error handling (`removeItem` + retry) but may need to add size warning.
 

@@ -239,7 +239,7 @@
         // Function to add a slice to the model
         function addSliceToModel(sliceTemplate) {
             if (!_editorJson || !_editorJson.slices) {
-                alert('No event model loaded. Please load a JSON file first.');
+                alert('No event model loaded. Please load an emj file first.');
                 return;
             }
 

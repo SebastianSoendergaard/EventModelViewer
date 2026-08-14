@@ -44,7 +44,7 @@
             try {
                 const diagramDiv = document.querySelector('.event-model-diagram');
                 if (!diagramDiv) {
-                    alert('No diagram to export. Please load a JSON file first.');
+                    alert('No diagram to export. Please load an emj file first.');
                     return;
                 }
 
@@ -87,7 +87,7 @@
             try {
                 const diagramDiv = document.querySelector('.event-model-diagram');
                 if (!diagramDiv) {
-                    alert('No diagram to export. Please load a JSON file first.');
+                    alert('No diagram to export. Please load an emj file first.');
                     return;
                 }
 

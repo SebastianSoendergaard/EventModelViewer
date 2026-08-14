@@ -34,7 +34,7 @@ EventModelViewer/
 ### Want to Use the Application?
 1. Read: [Project README](../README.md) for user guide
 2. Read: [Quick References](collapse-quick-reference.md) and [Tree View Quick Reference](tree-view-quick-reference.md)
-3. Try: Upload a JSON file and explore features
+3. Try: Open an emj file and explore features
 
 ### Want to Develop or Contribute?
 1. Read: [Architecture Guide](ARCHITECTURE.md) - **Start here for system understanding**
