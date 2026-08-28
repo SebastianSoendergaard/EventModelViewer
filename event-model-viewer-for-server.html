@@ -181,6 +181,118 @@
             background: rgba(255,255,255,0.2);
         }
 
+        .folder-browser-trigger {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .current-root-label {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            max-width: 220px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .folder-browser-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .folder-browser-overlay.visible {
+            display: flex;
+        }
+
+        .folder-browser-modal {
+            background: white;
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            width: 480px;
+            max-width: 90vw;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .folder-browser-modal h2 {
+            font-size: 1.1rem;
+            color: #2c3e50;
+        }
+
+        .folder-browser-path {
+            font-size: 0.85rem;
+            color: #34495e;
+            background: #f4f6f7;
+            border-radius: 6px;
+            padding: 0.4rem 0.6rem;
+            word-break: break-all;
+        }
+
+        .folder-browser-list {
+            border: 1px solid #dfe4e8;
+            border-radius: 6px;
+            height: 260px;
+            overflow-y: auto;
+        }
+
+        .folder-browser-item {
+            padding: 0.4rem 0.6rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .folder-browser-item:hover {
+            background: #eaf4fc;
+        }
+
+        .folder-browser-up {
+            font-weight: 600;
+            color: #2980b9;
+        }
+
+        .folder-browser-error {
+            color: #c0392b;
+            font-size: 0.85rem;
+            min-height: 1em;
+        }
+
+        .folder-browser-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .folder-browser-actions button {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        #folderBrowserCancel {
+            background: #ecf0f1;
+            color: #2c3e50;
+        }
+
+        #folderBrowserSelect {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+
+        #folderBrowserSelect:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .checkbox-group {
             display: flex;
             gap: 1.5rem;
@@ -1605,7 +1717,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026080902</span>
+        <span class="build-number" title="Build number">Build 2026082823</span>
     </header>
 
     <div class="upload-section">
@@ -1615,6 +1727,10 @@
                 <option value="">-- No files available --</option>
             </select>
             <span id="serverSaveStatus" class="server-save-status"></span>
+        </div>
+                <div class="folder-browser-trigger">
+            <button class="file-label" id="changeFolderBtn" title="Change the folder scanned for event models">📁 Folder</button>
+            <span id="currentRootLabel" class="current-root-label"></span>
         </div>
         <div class="checkbox-group">
             <div class="checkbox-item">
@@ -1800,6 +1916,10 @@
             // The event model has been built from raw JSON (on FILE_LOADED or JSON_CHANGED).
             // Payload: { model }  — fully-enriched event model object, or { model: null } for cleared document
             MODEL_CHANGED:  'model:changed',
+
+            // The server's active root folder (scanned for .emj files) changed.
+            // Payload: { root }  — absolute path of the new root folder
+            ROOT_CHANGED:   'root:changed',
         };
 
 (function() {
@@ -1811,6 +1931,7 @@
         const saveStatus = document.getElementById('serverSaveStatus');
 
         let _selectedFile = null;
+        let _currentRoot = '';
         let _lastSavedContent = null; // stringified JSON as last saved to server
         let _currentJson = null;
         let _saveTimer = null;
@@ -1840,25 +1961,88 @@
             }
         }
 
+        // ── Root folder ───────────────────────────────────────────────────────
+
+        async function fetchRoot() {
+            try {
+                const res = await fetch(`${baseUrl()}/root`);
+                if (!res.ok) return null;
+                setConnected(true);
+                const data = await res.json();
+                return data.path;
+            } catch (e) {
+                console.warn('[server] Failed to fetch current root:', e);
+                setConnected(false);
+                return null;
+            }
+        }
+
+        async function applySavedRootIfAny() {
+            const saved = localStorage.getItem('serverSelectedRoot');
+            if (!saved) return;
+            try {
+                const res = await fetch(`${baseUrl()}/root`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: saved })
+                });
+                if (!res.ok) {
+                    console.warn('[server] Saved folder is no longer valid, clearing:', saved);
+                    localStorage.removeItem('serverSelectedRoot');
+                }
+            } catch (e) {
+                console.warn('[server] Failed to apply saved folder:', e);
+            }
+        }
+
+        async function refreshRoot() {
+            const root = await fetchRoot();
+            if (root !== null) {
+                _currentRoot = root;
+                EventBus.emit(Events.ROOT_CHANGED, { root });
+            }
+        }
+
         // ── File list ─────────────────────────────────────────────────────────
 
         async function fetchFileList() {
             try {
                 const res = await fetch(`${baseUrl()}/files`);
-                if (!res.ok) return [];
+                if (!res.ok) return { files: [], truncated: false };
                 setConnected(true);
                 return await res.json();
             } catch (e) {
                 console.warn('[server] Failed to fetch file list:', e);
                 setConnected(false);
-                return [];
+                return { files: [], truncated: false };
             }
         }
 
+        function setDropdownLoading(loading) {
+            dropdown.disabled = loading || !_connected;
+            if (loading) {
+                dropdown.innerHTML = '';
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'Scanning for files…';
+                dropdown.appendChild(opt);
+            }
+        }
+
+        function setTruncatedWarning(truncated) {
+            if (!truncated) {
+                saveStatus.title = '';
+                return;
+            }
+            saveStatus.title = 'Folder scan stopped early (too many subfolders or took too long) — file list may be incomplete.';
+        }
+
         async function populateDropdown(preserveSelection) {
-            const files = await fetchFileList();
+            setDropdownLoading(true);
+            const { files, truncated } = await fetchFileList();
             const prev = preserveSelection ? dropdown.value : null;
 
+            setTruncatedWarning(truncated);
             dropdown.innerHTML = '';
 
             if (files.length === 0) {
@@ -1866,6 +2050,7 @@
                 opt.value = '';
                 opt.textContent = '-- No files available --';
                 dropdown.appendChild(opt);
+                dropdown.disabled = !_connected;
                 return;
             }
 
@@ -1875,6 +2060,7 @@
                 opt.textContent = f;
                 dropdown.appendChild(opt);
             });
+            dropdown.disabled = !_connected;
 
             // Priority: preserve current → localStorage → first
             const saved = localStorage.getItem('serverSelectedFile');
@@ -2022,6 +2208,14 @@
                 await populateDropdown(true);
             });
 
+            _eventSource.addEventListener('root-changed', async () => {
+                setConnected(true);
+                await refreshRoot();
+                await populateDropdown(false);
+                const path = dropdown.value;
+                if (path) await selectFile(path);
+            });
+
             _eventSource.onopen = () => {
                 setConnected(true);
             };
@@ -2051,6 +2245,8 @@
 
         EventBus.on(Events.APP_INIT, async () => {
             setConnected(false);
+            await applySavedRootIfAny();
+            await refreshRoot();
             await populateDropdown(false);
             const path = dropdown.value;
             if (path) await selectFile(path);
@@ -2103,6 +2299,133 @@
             } catch (e) {
                 alert('Error creating file: ' + e.message);
             }
+        });
+})();
+
+(function() {
+        const changeFolderBtn = document.getElementById('changeFolderBtn');
+        const currentRootLabel = document.getElementById('currentRootLabel');
+
+        // The modal is appended directly to <body> (not left inside the toolbar),
+        // because the toolbar uses `backdrop-filter`, which creates a new containing
+        // block for `position: fixed` descendants and would confine the overlay to
+        // the toolbar's own height instead of covering the viewport.
+        const folderOverlay = document.createElement('div');
+        folderOverlay.className = 'folder-browser-overlay';
+        folderOverlay.innerHTML = `
+            <div class="folder-browser-modal">
+                <h2>Select Folder</h2>
+                <div class="folder-browser-path" id="folderBrowserPath"></div>
+                <div class="folder-browser-list" id="folderBrowserList"></div>
+                <div class="folder-browser-error" id="folderBrowserError"></div>
+                <div class="folder-browser-actions">
+                    <button id="folderBrowserCancel">Cancel</button>
+                    <button id="folderBrowserSelect">Select Current Folder</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(folderOverlay);
+
+        const folderPathEl = folderOverlay.querySelector('#folderBrowserPath');
+        const folderListEl = folderOverlay.querySelector('#folderBrowserList');
+        const folderErrorEl = folderOverlay.querySelector('#folderBrowserError');
+        const folderCancelBtn = folderOverlay.querySelector('#folderBrowserCancel');
+        const folderSelectBtn = folderOverlay.querySelector('#folderBrowserSelect');
+
+        let _currentRoot = '';
+        let _browsePath = null; // folder currently shown in the browser ("" = drive list)
+
+        function baseUrl() {
+            return window.location.origin;
+        }
+
+        // ── Modal open/close ─────────────────────────────────────────────────
+
+        function openFolderBrowser() {
+            folderErrorEl.textContent = '';
+            folderOverlay.classList.add('visible');
+            browseTo(_currentRoot || '');
+        }
+
+        function closeFolderBrowser() {
+            folderOverlay.classList.remove('visible');
+        }
+
+        // ── Browsing ─────────────────────────────────────────────────────────
+
+        async function browseTo(path) {
+            try {
+                const res = await fetch(`${baseUrl()}/root/browse?path=${encodeURIComponent(path)}`);
+                if (!res.ok) {
+                    folderErrorEl.textContent = 'Could not browse that folder.';
+                    return;
+                }
+                const data = await res.json();
+                renderFolderBrowser(data);
+            } catch (e) {
+                folderErrorEl.textContent = 'Error browsing folder: ' + e.message;
+            }
+        }
+
+        function renderFolderBrowser(data) {
+            folderErrorEl.textContent = '';
+            _browsePath = data.path;
+            folderPathEl.textContent = data.path === '' ? 'This PC' : data.path;
+            folderListEl.innerHTML = '';
+
+            if (data.parent !== null) {
+                const up = document.createElement('div');
+                up.className = 'folder-browser-item folder-browser-up';
+                up.textContent = '⬆ .. (Up)';
+                up.addEventListener('click', () => browseTo(data.parent));
+                folderListEl.appendChild(up);
+            }
+
+            data.folders.forEach(f => {
+                const item = document.createElement('div');
+                item.className = 'folder-browser-item';
+                item.textContent = '📁 ' + f.name;
+                item.addEventListener('click', () => browseTo(f.path));
+                folderListEl.appendChild(item);
+            });
+
+            // The drive list ("") isn't itself a selectable folder.
+            folderSelectBtn.disabled = data.path === '';
+        }
+
+        // ── Confirm selection ────────────────────────────────────────────────
+
+        folderSelectBtn.addEventListener('click', async () => {
+            if (!_browsePath) return;
+            try {
+                const res = await fetch(`${baseUrl()}/root`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: _browsePath })
+                });
+                if (!res.ok) {
+                    const msg = await res.text();
+                    folderErrorEl.textContent = 'Could not select folder: ' + msg;
+                    return;
+                }
+                localStorage.setItem('serverSelectedRoot', _browsePath);
+                closeFolderBrowser();
+                // Dropdown/label refresh is driven by the server's 'root-changed'
+                // SSE broadcast, handled in server-integration.js.
+            } catch (e) {
+                folderErrorEl.textContent = 'Error selecting folder: ' + e.message;
+            }
+        });
+
+        changeFolderBtn.addEventListener('click', openFolderBrowser);
+        folderCancelBtn.addEventListener('click', closeFolderBrowser);
+
+        // ── EventBus subscriptions ────────────────────────────────────────────
+
+        EventBus.on(Events.ROOT_CHANGED, ({ root }) => {
+            _currentRoot = root;
+            currentRootLabel.textContent = root;
+            currentRootLabel.title = root;
         });
 })();
 
@@ -3914,7 +4237,7 @@
         // Function to add a slice to the model
         function addSliceToModel(sliceTemplate) {
             if (!_editorJson || !_editorJson.slices) {
-                alert('No event model loaded. Please load a JSON file first.');
+                alert('No event model loaded. Please load an emj file first.');
                 return;
             }
 
@@ -5668,7 +5991,7 @@
             try {
                 const diagramDiv = document.querySelector('.event-model-diagram');
                 if (!diagramDiv) {
-                    alert('No diagram to export. Please load a JSON file first.');
+                    alert('No diagram to export. Please load an emj file first.');
                     return;
                 }
 
@@ -5711,7 +6034,7 @@
             try {
                 const diagramDiv = document.querySelector('.event-model-diagram');
                 if (!diagramDiv) {
-                    alert('No diagram to export. Please load a JSON file first.');
+                    alert('No diagram to export. Please load an emj file first.');
                     return;
                 }
 

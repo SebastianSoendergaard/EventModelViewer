@@ -42,11 +42,11 @@ app.MapGet("/", () =>
     return Results.Content(reader.ReadToEnd(), "text/html");
 });
 
-// GET /files — list all .emj files under root (relative paths)
+// GET /files — list all .emj files under root (relative paths), bounded scan
 app.MapGet("/files", () =>
 {
-    var files = fileService.GetFiles();
-    return Results.Json(files);
+    var result = fileService.GetFiles();
+    return Results.Json(new { files = result.Files, truncated = result.Truncated });
 });
 
 // GET /root — the currently active root folder
@@ -60,7 +60,9 @@ app.MapGet("/root/browse", (string? path) =>
     return Results.Json(result);
 });
 
-// POST /root — body: { "path": "C:\\my-models" } — switch the active root folder
+// POST /root — body: { "path": "C:\\my-models" } — switch the active root folder.
+// Fast: only validates the folder and rewires watchers. It does NOT scan for .emj files —
+// that happens separately via GET /files, so switching root never blocks on a large tree.
 app.MapPost("/root", async (HttpRequest request) =>
 {
     using var doc = await JsonDocument.ParseAsync(request.Body);
@@ -72,7 +74,7 @@ app.MapPost("/root", async (HttpRequest request) =>
         return Results.BadRequest(error);
 
     sseService.Broadcast("root-changed", "{}");
-    return Results.Ok(new { root = fileService.Root, files = fileService.GetFiles() });
+    return Results.Ok(new { root = fileService.Root });
 });
 
 // POST /select — body: { "path": "relative/path.emj" }

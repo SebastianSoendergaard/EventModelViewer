@@ -75,7 +75,9 @@ Lists the subfolders of `path` (query string), for building an in-app folder pic
 
 ### `POST /root`
 
-Switches the active root folder. Resets the current file selection, rewires the folder/file watchers, and broadcasts a `root-changed` SSE event to all connected clients.
+Switches the active root folder. Resets the current file selection and rewires the folder/file watchers, then broadcasts a `root-changed` SSE event to all connected clients.
+
+This call is intentionally fast and does **not** scan for `.emj` files — it only validates the folder and rewires watchers. Scanning is a separate, decoupled step handled by `GET /files`, so switching root never blocks on a large folder tree (e.g. a whole drive).
 
 **Request body:**
 
@@ -87,19 +89,21 @@ Switches the active root folder. Resets the current file selection, rewires the 
 
 | Status | Meaning |
 |--------|---------|
-| `200 OK` | Root switched — `{ "root": "...", "files": [...] }` |
+| `200 OK` | Root switched — `{ "root": "..." }` |
 | `400 Bad Request` | `path` missing, or folder does not exist |
 
 ---
 
 ### `GET /files`
 
-Returns a JSON array of all `.emj` files found under the root folder (recursive), as relative paths with forward slashes.
+Scans the root folder (recursive) for `.emj` files and returns them as relative paths with forward slashes, along with whether the scan was cut short.
+
+To keep a single huge or slow-to-enumerate folder tree (e.g. accidentally picking a drive root) from hanging indefinitely, the scan is bounded: it stops early after visiting **20,000 folders** or **30 seconds**, whichever comes first. When that happens, `truncated` is `true` and `files` contains whatever was found before the limit was hit.
 
 **Response:** `200 OK`
 
 ```json
-["em.emj", "examples/shopping-cart.emj"]
+{ "files": ["em.emj", "examples/shopping-cart.emj"], "truncated": false }
 ```
 
 ---
@@ -252,10 +256,10 @@ It is served by reading the embedded stream at runtime — no file on disk is ne
 
 ## Tests
 
-The solution includes an xUnit test project (`EventModelServer.Tests`) with 43 tests:
+The solution includes an xUnit test project (`EventModelServer.Tests`) with 44 tests:
 
 - **EndpointTests** — integration tests using `WebApplicationFactory<Program>` covering all HTTP endpoints and SSE service behaviour.
-- **FileServiceTests** — unit tests for file scanning, selection, content read/write, and `FileSystemWatcher` event firing.
+- **FileServiceTests** — unit tests for file scanning (including the bounded-scan/truncation behaviour), selection, content read/write, and `FileSystemWatcher` event firing.
 
 Run tests with:
 

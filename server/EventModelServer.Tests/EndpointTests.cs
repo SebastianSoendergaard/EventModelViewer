@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Linq;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -54,9 +55,10 @@ public class EndpointTests : IDisposable
     {
         var response = await _client.GetAsync("/files");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var files = await response.Content.ReadFromJsonAsync<List<string>>();
-        Assert.NotNull(files);
+        var doc = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var files = doc.GetProperty("files").EnumerateArray().Select(e => e.GetString()).ToList();
         Assert.Empty(files);
+        Assert.False(doc.GetProperty("truncated").GetBoolean());
     }
 
     [Fact]
@@ -66,8 +68,8 @@ public class EndpointTests : IDisposable
         File.WriteAllText(Path.Combine(_tempRoot, "b.emj"), "{}");
 
         var response = await _client.GetAsync("/files");
-        var files = await response.Content.ReadFromJsonAsync<List<string>>();
-        Assert.NotNull(files);
+        var doc = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var files = doc.GetProperty("files").EnumerateArray().Select(e => e.GetString()).ToList();
         Assert.Contains("a.emj", files);
         Assert.Contains("b.emj", files);
     }
@@ -80,8 +82,8 @@ public class EndpointTests : IDisposable
         File.WriteAllText(Path.Combine(sub, "nested.emj"), "{}");
 
         var response = await _client.GetAsync("/files");
-        var files = await response.Content.ReadFromJsonAsync<List<string>>();
-        Assert.NotNull(files);
+        var doc = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var files = doc.GetProperty("files").EnumerateArray().Select(e => e.GetString()).ToList();
         Assert.Contains("sub/nested.emj", files);
     }
 
@@ -300,9 +302,29 @@ public class EndpointTests : IDisposable
             Assert.Equal(Path.GetFullPath(newRoot), doc.GetProperty("path").GetString());
 
             var filesResponse = await _client.GetAsync("/files");
-            var files = await filesResponse.Content.ReadFromJsonAsync<List<string>>();
-            Assert.NotNull(files);
+            var filesDoc = await filesResponse.Content.ReadFromJsonAsync<JsonElement>();
+            var files = filesDoc.GetProperty("files").EnumerateArray().Select(e => e.GetString()).ToList();
             Assert.Contains("other.emj", files);
+        }
+        finally
+        {
+            Directory.Delete(newRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task PostRoot_Does_Not_Scan_Files_Synchronously()
+    {
+        // POST /root should only return the new root path, not a file list — scanning
+        // for .emj files is a separate, decoupled step (GET /files) so switching root
+        // stays fast even for huge folder trees.
+        var newRoot = Path.Combine(Path.GetTempPath(), "ems-test-newroot-" + Guid.NewGuid());
+        Directory.CreateDirectory(newRoot);
+        try
+        {
+            var response = await _client.PostAsJsonAsync("/root", new { path = newRoot });
+            var doc = await response.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.False(doc.TryGetProperty("files", out _));
         }
         finally
         {

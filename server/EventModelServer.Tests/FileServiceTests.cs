@@ -15,7 +15,7 @@ public class FileServiceTests : IDisposable
     [Fact]
     public void GetFiles_Returns_Empty_When_No_Json_Files()
     {
-        Assert.Empty(_svc.GetFiles());
+        Assert.Empty(_svc.GetFiles().Files);
     }
 
     [Fact]
@@ -24,9 +24,10 @@ public class FileServiceTests : IDisposable
         File.WriteAllText(Path.Combine(_root, "a.emj"), "{}");
         File.WriteAllText(Path.Combine(_root, "b.txt"), "text");
 
-        var files = _svc.GetFiles();
-        Assert.Single(files);
-        Assert.Equal("a.emj", files[0]);
+        var result = _svc.GetFiles();
+        Assert.Single(result.Files);
+        Assert.Equal("a.emj", result.Files[0]);
+        Assert.False(result.Truncated);
     }
 
     [Fact]
@@ -36,7 +37,7 @@ public class FileServiceTests : IDisposable
         Directory.CreateDirectory(sub);
         File.WriteAllText(Path.Combine(sub, "c.emj"), "{}");
 
-        var files = _svc.GetFiles();
+        var files = _svc.GetFiles().Files;
         Assert.Single(files);
         Assert.Equal("sub/c.emj", files[0]);
     }
@@ -153,7 +154,7 @@ public class FileServiceTests : IDisposable
             Assert.True(result);
             Assert.Empty(error);
             Assert.Equal(Path.GetFullPath(newRoot), _svc.Root);
-            Assert.Contains("other.emj", _svc.GetFiles());
+            Assert.Contains("other.emj", _svc.GetFiles().Files);
         }
         finally
         {

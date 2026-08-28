@@ -1543,7 +1543,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026080902</span>
+        <span class="build-number" title="Build number">Build 2026082823</span>
     </header>
 
     <div class="upload-section">
@@ -1738,6 +1738,10 @@
             // The event model has been built from raw JSON (on FILE_LOADED or JSON_CHANGED).
             // Payload: { model }  — fully-enriched event model object, or { model: null } for cleared document
             MODEL_CHANGED:  'model:changed',
+
+            // The server's active root folder (scanned for .emj files) changed.
+            // Payload: { root }  — absolute path of the new root folder
+            ROOT_CHANGED:   'root:changed',
         };
 
 (function() {
@@ -1906,7 +1910,7 @@
                         console.error('Error loading file:', error);
                         EventBus.emit(Events.FILE_LOADED, { json: null, fileName: null });
                         document.getElementById('diagram').innerHTML =
-                            `<div class="error-message">Invalid JSON file: ${error.message}</div>`;
+                            `<div class="error-message">Invalid emj file: ${error.message}</div>`;
                     }
                 };
                 reader.onerror = (e) => {
@@ -3743,7 +3747,7 @@
         // Function to add a slice to the model
         function addSliceToModel(sliceTemplate) {
             if (!_editorJson || !_editorJson.slices) {
-                alert('No event model loaded. Please load a JSON file first.');
+                alert('No event model loaded. Please load an emj file first.');
                 return;
             }
 
@@ -5497,7 +5501,7 @@
             try {
                 const diagramDiv = document.querySelector('.event-model-diagram');
                 if (!diagramDiv) {
-                    alert('No diagram to export. Please load a JSON file first.');
+                    alert('No diagram to export. Please load an emj file first.');
                     return;
                 }
 
@@ -5540,7 +5544,7 @@
             try {
                 const diagramDiv = document.querySelector('.event-model-diagram');
                 if (!diagramDiv) {
-                    alert('No diagram to export. Please load a JSON file first.');
+                    alert('No diagram to export. Please load an emj file first.');
                     return;
                 }
 

@@ -79,20 +79,41 @@
         async function fetchFileList() {
             try {
                 const res = await fetch(`${baseUrl()}/files`);
-                if (!res.ok) return [];
+                if (!res.ok) return { files: [], truncated: false };
                 setConnected(true);
                 return await res.json();
             } catch (e) {
                 console.warn('[server] Failed to fetch file list:', e);
                 setConnected(false);
-                return [];
+                return { files: [], truncated: false };
             }
         }
 
+        function setDropdownLoading(loading) {
+            dropdown.disabled = loading || !_connected;
+            if (loading) {
+                dropdown.innerHTML = '';
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'Scanning for files…';
+                dropdown.appendChild(opt);
+            }
+        }
+
+        function setTruncatedWarning(truncated) {
+            if (!truncated) {
+                saveStatus.title = '';
+                return;
+            }
+            saveStatus.title = 'Folder scan stopped early (too many subfolders or took too long) — file list may be incomplete.';
+        }
+
         async function populateDropdown(preserveSelection) {
-            const files = await fetchFileList();
+            setDropdownLoading(true);
+            const { files, truncated } = await fetchFileList();
             const prev = preserveSelection ? dropdown.value : null;
 
+            setTruncatedWarning(truncated);
             dropdown.innerHTML = '';
 
             if (files.length === 0) {
@@ -100,6 +121,7 @@
                 opt.value = '';
                 opt.textContent = '-- No files available --';
                 dropdown.appendChild(opt);
+                dropdown.disabled = !_connected;
                 return;
             }
 
@@ -109,6 +131,7 @@
                 opt.textContent = f;
                 dropdown.appendChild(opt);
             });
+            dropdown.disabled = !_connected;
 
             // Priority: preserve current → localStorage → first
             const saved = localStorage.getItem('serverSelectedFile');

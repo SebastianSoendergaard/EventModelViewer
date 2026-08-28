@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Security;
 
@@ -12,8 +13,22 @@ public record FolderEntry(string Name, string Path);
 /// </summary>
 public record BrowseResult(string Path, string? Parent, IReadOnlyList<FolderEntry> Folders);
 
+/// <summary>
+/// Result of scanning root for .emj files. <see cref="Truncated"/> is true when the scan
+/// was stopped early by <see cref="FileService.MaxScanFolders"/> or
+/// <see cref="FileService.MaxScanDuration"/> being reached, meaning the file list may be
+/// incomplete.
+/// </summary>
+public record FileScanResult(IReadOnlyList<string> Files, bool Truncated);
+
 public class FileService : IDisposable
 {
+    /// <summary>Hard cap on folders visited during a scan, guarding against huge trees (e.g. a drive root).</summary>
+    public const int MaxScanFolders = 20_000;
+
+    /// <summary>Hard cap on wall-clock time spent scanning, guarding against slow/huge trees.</summary>
+    public static readonly TimeSpan MaxScanDuration = TimeSpan.FromSeconds(30);
+
     private string _root;
     private string? _selectedRelative;
     private FileSystemWatcher? _fileWatcher;
@@ -130,16 +145,53 @@ public class FileService : IDisposable
         return new BrowseResult(full, parent, folders);
     }
 
-    /// <summary>Returns relative paths of all .emj files under root.</summary>
-    public IReadOnlyList<string> GetFiles()
+    /// <summary>
+    /// Scans root for .emj files. Bounded by <see cref="MaxScanFolders"/> and
+    /// <see cref="MaxScanDuration"/> so a very large tree (e.g. a whole drive) can't hang
+    /// indefinitely; when a limit is hit, the scan stops early and returns whatever it
+    /// found so far with <see cref="FileScanResult.Truncated"/> set to true.
+    /// </summary>
+    public FileScanResult GetFiles()
     {
-        if (!Directory.Exists(_root)) return [];
+        if (!Directory.Exists(_root)) return new FileScanResult([], false);
 
-        return Directory
-            .EnumerateFiles(_root, "*.emj", SearchOption.AllDirectories)
-            .Select(f => Path.GetRelativePath(_root, f).Replace('\\', '/'))
-            .OrderBy(f => f)
-            .ToList();
+        var files = new List<string>();
+        var sw = Stopwatch.StartNew();
+        var foldersVisited = 0;
+        var truncated = false;
+        var pending = new Queue<string>();
+        pending.Enqueue(_root);
+
+        while (pending.Count > 0)
+        {
+            if (foldersVisited >= MaxScanFolders || sw.Elapsed >= MaxScanDuration)
+            {
+                truncated = true;
+                break;
+            }
+
+            var dir = pending.Dequeue();
+            foldersVisited++;
+
+            try
+            {
+                foreach (var f in Directory.EnumerateFiles(dir, "*.emj"))
+                {
+                    files.Add(Path.GetRelativePath(_root, f).Replace('\\', '/'));
+                }
+                foreach (var d in Directory.EnumerateDirectories(dir))
+                {
+                    pending.Enqueue(d);
+                }
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
+            {
+                // Skip folders we can't read; keep scanning the rest of the tree.
+            }
+        }
+
+        files.Sort(StringComparer.Ordinal);
+        return new FileScanResult(files, truncated);
     }
 
     /// <summary>Selects a file by relative path. Returns false + error if invalid.</summary>
