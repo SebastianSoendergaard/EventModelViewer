@@ -137,6 +137,8 @@ When a slice doesn't fit cleanly into one pattern, call it out — it likely nee
 
 Some read models are updated and displayed at more than one distinct point in the story (e.g. a campaign list shown right after a draft is created, and shown again after publishing). When the source material indicates this recurrence, model it as **multiple slice entries that share the same view id/name**, positioned at each point in the timeline, with each slice's `view.events` listing only the events that feed it up to that point — not one slice whose `view.events` lumps together every event from across the whole model.
 
+**These repeated slices intentionally share the same slice `id` too** (not just the view id/name) — they represent multiple copies of the *same* slice repeated across the timeline purely to keep the diagram clean, not distinct slices that happen to collide. Do not flag the shared slice `id` as a duplicate-id bug or suggest making it unique (e.g. `campaigns-list-1`/`-2`/`-3`); it's expected and correct.
+
 This is guidance, not an enforced rule: propose it when you notice a read model recurring across non-adjacent slices, but don't block a write over it. The renderer resolves duplicate view ids/names by connecting each occurrence to the nearest **preceding** matching view — repeating the slice keeps this resolution meaningful instead of collapsing the whole timeline into one disconnected, all-events view.
 
 ---
