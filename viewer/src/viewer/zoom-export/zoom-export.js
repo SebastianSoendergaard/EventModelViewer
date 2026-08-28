@@ -39,8 +39,24 @@
         zoomOutBtn.addEventListener('click', zoomOut);
         zoomResetBtn.addEventListener('click', resetZoom);
 
+        // Temporarily resets the diagram zoom to 100% so exports are always generated
+        // from the unscaled layout, regardless of the on-screen viewing zoom. Returns a
+        // restore function that puts the previous zoom back.
+        function withResetZoomForExport() {
+            const previousZoom = currentZoom;
+            if (previousZoom !== 1) {
+                setZoom(1);
+            }
+            return () => {
+                if (previousZoom !== 1) {
+                    setZoom(previousZoom);
+                }
+            };
+        }
+
         // Export functions
         async function exportToPNG() {
+            const restoreZoom = withResetZoomForExport();
             try {
                 const diagramDiv = document.querySelector('.event-model-diagram');
                 if (!diagramDiv) {
@@ -96,10 +112,13 @@
             } catch (error) {
                 console.error('Export to PNG failed:', error);
                 alert('Failed to export PNG: ' + error.message);
+            } finally {
+                restoreZoom();
             }
         }
 
         function exportToSVG() {
+            const restoreZoom = withResetZoomForExport();
             try {
                 const diagramDiv = document.querySelector('.event-model-diagram');
                 if (!diagramDiv) {
@@ -168,6 +187,8 @@
             } catch (error) {
                 console.error('Export to SVG failed:', error);
                 alert('Failed to export SVG: ' + error.message);
+            } finally {
+                restoreZoom();
             }
         }
 

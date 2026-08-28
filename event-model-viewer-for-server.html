@@ -1820,7 +1820,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026082900</span>
+        <span class="build-number" title="Build number">Build 2026082901</span>
     </header>
 
     <div class="upload-section">
@@ -6241,8 +6241,24 @@
         zoomOutBtn.addEventListener('click', zoomOut);
         zoomResetBtn.addEventListener('click', resetZoom);
 
+        // Temporarily resets the diagram zoom to 100% so exports are always generated
+        // from the unscaled layout, regardless of the on-screen viewing zoom. Returns a
+        // restore function that puts the previous zoom back.
+        function withResetZoomForExport() {
+            const previousZoom = currentZoom;
+            if (previousZoom !== 1) {
+                setZoom(1);
+            }
+            return () => {
+                if (previousZoom !== 1) {
+                    setZoom(previousZoom);
+                }
+            };
+        }
+
         // Export functions
         async function exportToPNG() {
+            const restoreZoom = withResetZoomForExport();
             try {
                 const diagramDiv = document.querySelector('.event-model-diagram');
                 if (!diagramDiv) {
@@ -6262,17 +6278,25 @@
                 }
 
                 // Capture the diagram as canvas.
-                // The arrows overlay contains invisible wide "hit-area" paths (stroke="transparent")
-                // used only for mouse hover/click interaction. html2canvas doesn't render
-                // stroke="transparent" as invisible — it paints it as an opaque gray blob — so
-                // strip those paths from the cloned document before rendering to avoid phantom
-                // shadow boxes in the exported PNG.
+                // Two html2canvas quirks are worked around in the cloned document it renders from
+                // (this does not touch the live page):
+                // 1. The arrows overlay contains invisible wide "hit-area" paths (stroke="transparent")
+                //    used only for mouse hover/click interaction. html2canvas doesn't render
+                //    stroke="transparent" as invisible — it paints it as an opaque blob — so they're
+                //    removed before capture.
+                // 2. html2canvas's box-shadow renderer misplaces blurred shadows on rounded elements,
+                //    producing stray gray "shadow" rectangles unrelated to any visible element.
+                //    Disabling box-shadow for the capture avoids these artifacts; the shadows are a
+                //    minor decorative touch so losing them in the exported image is not noticeable.
                 const canvas = await html2canvas(diagramDiv, {
                     backgroundColor: '#ffffff',
                     scale: 2, // Higher quality
                     logging: false,
                     onclone: (clonedDoc) => {
                         clonedDoc.querySelectorAll('.arrow-hitarea').forEach(el => el.remove());
+                        const style = clonedDoc.createElement('style');
+                        style.textContent = '* { box-shadow: none !important; }';
+                        clonedDoc.head.appendChild(style);
                     }
                 });
 
@@ -6290,10 +6314,13 @@
             } catch (error) {
                 console.error('Export to PNG failed:', error);
                 alert('Failed to export PNG: ' + error.message);
+            } finally {
+                restoreZoom();
             }
         }
 
         function exportToSVG() {
+            const restoreZoom = withResetZoomForExport();
             try {
                 const diagramDiv = document.querySelector('.event-model-diagram');
                 if (!diagramDiv) {
@@ -6362,6 +6389,8 @@
             } catch (error) {
                 console.error('Export to SVG failed:', error);
                 alert('Failed to export SVG: ' + error.message);
+            } finally {
+                restoreZoom();
             }
         }
 
