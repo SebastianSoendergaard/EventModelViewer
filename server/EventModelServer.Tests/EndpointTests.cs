@@ -75,6 +75,19 @@ public class EndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task GetFiles_Returns_YamlFiles()
+    {
+        File.WriteAllText(Path.Combine(_tempRoot, "a.emj"), "{}");
+        File.WriteAllText(Path.Combine(_tempRoot, "b.emy"), "{}");
+
+        var response = await _client.GetAsync("/files");
+        var doc = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var files = doc.GetProperty("files").EnumerateArray().Select(e => e.GetString()).ToList();
+        Assert.Contains("a.emj", files);
+        Assert.Contains("b.emy", files);
+    }
+
+    [Fact]
     public async Task GetFiles_Returns_Files_In_Subdirectories()
     {
         var sub = Path.Combine(_tempRoot, "sub");
@@ -134,6 +147,30 @@ public class EndpointTests : IDisposable
         Assert.Equal(content, body);
     }
 
+    [Fact]
+    public async Task GetSelected_Returns_Json_ContentType_For_Emj_File()
+    {
+        File.WriteAllText(Path.Combine(_tempRoot, "data.emj"), "{}");
+        await _client.PostAsJsonAsync("/select", new { path = "data.emj" });
+
+        var response = await _client.GetAsync("/selected");
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task GetSelected_Returns_Yaml_ContentType_For_Emy_File()
+    {
+        var content = "key: value\n";
+        File.WriteAllText(Path.Combine(_tempRoot, "data.emy"), content);
+        await _client.PostAsJsonAsync("/select", new { path = "data.emy" });
+
+        var response = await _client.GetAsync("/selected");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/x-yaml", response.Content.Headers.ContentType?.MediaType);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Equal(content, body);
+    }
+
     // ── PUT /selected ────────────────────────────────────────────────────────
 
     [Fact]
@@ -156,6 +193,21 @@ public class EndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, put.StatusCode);
 
         var disk = File.ReadAllText(Path.Combine(_tempRoot, "edit.emj"));
+        Assert.Equal(newContent, disk);
+    }
+
+    [Fact]
+    public async Task PutSelected_Updates_Emy_File_Content()
+    {
+        File.WriteAllText(Path.Combine(_tempRoot, "edit.emy"), "{}");
+        await _client.PostAsJsonAsync("/select", new { path = "edit.emy" });
+
+        var newContent = "updated: true\n";
+        var put = await _client.PutAsync("/selected",
+            new StringContent(newContent, Encoding.UTF8, "application/x-yaml"));
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+
+        var disk = File.ReadAllText(Path.Combine(_tempRoot, "edit.emy"));
         Assert.Equal(newContent, disk);
     }
 
@@ -205,6 +257,16 @@ public class EndpointTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_tempRoot, "new.emj")));
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("new.emj", body);
+    }
+
+    [Fact]
+    public async Task PostFiles_Creates_Emy_File_In_Root()
+    {
+        var response = await _client.PostAsJsonAsync("/files", new { name = "new.emy" });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.True(File.Exists(Path.Combine(_tempRoot, "new.emy")));
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("new.emy", body);
     }
 
     [Fact]

@@ -1,7 +1,7 @@
 # Event Model Viewer - Instructions
 
 ## Overview
-Event Model Viewer is a web-based application that visualizes event-driven architecture models defined in the emj format. It provides an interactive interface with a JSON editor 
+Event Model Viewer is a web-based application that visualizes event-driven architecture models defined in the `.emj` (JSON) or `.emy` (YAML) format — same schema, two on-disk encodings. It provides an interactive interface with a code editor 
 The viewer exists in two versions. One that is pure browser based, thus model files must be up- and downloaded. And one that is embedded within a local server application thus it has access to the file system.
 The actual viewer application is the same web application with a few difference for file handling. The server applications is a simple C# application that accesses the filesystem and serves a simple web api.
 
@@ -60,20 +60,21 @@ EventModelViewer/
 │   ├── docs/                           # Detailed technical documentation
 │   └── tests/                          # Browser-based test suite
 ├── server/                             # The server application
-├── em.json                             # Example event model
+├── em.emj                              # Example event model (JSON encoding)
+├── em.emy                              # Same example, YAML encoding
 └── README.md                           # User-facing documentation
 ```
 
 ## Features
 
-### 1. **EMJ File Upload**
-- Click "Open" to load an emj file
-- Accepts `.emj` files only
+### 1. **Event Model File Upload**
+- Click "Open" to load an `.emj` or `.emy` file
+- Accepts `.emj` and `.emy` files
 - Displays selected filename
 - Automatically populates the editor and renders the diagram
 
-### 2. **JSON Editor Panel**
-- Live JSON editor with syntax highlighting
+### 2. **Code Editor Panel**
+- Live editor with syntax highlighting — JSON mode for `.emj`, YAML mode for `.emy`
 - Auto-formatting with 2-space indentation
 - Debounced auto-refresh (1 second delay after typing stops)
 - Collapsible panel (click ◀/▶ button to toggle)
@@ -82,13 +83,13 @@ EventModelViewer/
 ### 3. **Diagram Viewer**
 - Real-time diagram rendering
 - Supports Event Modeling visualization
-- Displays helpful error messages for invalid emj content
+- Displays helpful error messages for invalid event model content
 - Centered and scrollable display area
 
-## Supported EMJ Format
+## Supported Event Model Formats (.emj / .emy)
 
-### Event Model Structure (em.emj)
-The included `em.emj` demonstrates a domain-driven design event model with:
+### Event Model Structure (em.emj / em.emy)
+The included `em.emj` (and its YAML twin `em.emy`) demonstrate a domain-driven design event model with:
 - **Slices**: Logical groupings of functionality
 - **Triggers**: UI interactions (buttons, lists)
 - **Commands**: Actions with properties
@@ -103,11 +104,11 @@ The included `em.emj` demonstrates a domain-driven design event model with:
 ### Basic Usage
 1. Build the application: `node build.js` (generates `event-model-viewer.html`)
 2. Open `event-model-viewer.html` in a web browser
-3. Open an emj file or paste emj content directly into the editor
+3. Open an `.emj` or `.emy` file, or paste JSON/YAML content directly into the editor
 4. View the generated diagram in real-time
 
-### Editing emj content
-1. Type or paste emj content into the editor panel
+### Editing event model content
+1. Type or paste content into the editor panel (JSON for `.emj`, YAML for `.emy`)
 2. Wait 1 second after stopping typing
 3. The diagram updates automatically if the content is valid
 4. Invalid content won't show errors while typing (better UX)
@@ -125,8 +126,8 @@ The application uses a **centralized pub/sub EventBus** (`src/event-bus/event-bu
 
 **Available Events:**
 - `APP_INIT` - Application initialized
-- `FILE_LOADED` - emj file loaded
-- `JSON_CHANGED` - JSON data modified (includes `source` to prevent loops)
+- `FILE_LOADED` - event model file loaded (`.emj` or `.emy`, carries a `format` field)
+- `JSON_CHANGED` - in-memory model data modified (includes `source` to prevent loops)
 - `FILTER_TOGGLED` - View filter state changed
 - `EDITOR_RESIZED` - Panel layout changed
 - `TREE_SYNC` - Sync from tree view to code view
@@ -160,8 +161,9 @@ The project uses a **custom build script** (`build.js`) that:
 - Diagram: Always updates on `JSON_CHANGED`
 
 **Persistence:** `localStorage` automatically saves:
-- `eventModelJson` - Current JSON document
+- `eventModelJson` - Current in-memory model document
 - `eventModelFileName` - Loaded filename
+- `eventModelFormat` - Encoding of the loaded/new document (`json` or `yaml`, i.e. `.emj`/`.emy`)
 - `eventModelViewerLayout` - Panel widths
 
 ### Code Editor
@@ -198,6 +200,10 @@ To modify styles, edit the corresponding CSS file in `src/` and rebuild.
   ```html
   <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.32.2/src-min-noconflict/ace.js"></script>
   ```
+- **js-yaml**: Parses/serializes the `.emy` (YAML) encoding, loaded from CDN
+  ```html
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+  ```
 - **html2canvas**: Loaded dynamically for PNG export
 - **No other runtime dependencies** - Core app is self-contained
 
@@ -211,7 +217,7 @@ Works in all modern browsers that support:
 
 Tested on: Chrome 120+, Firefox 121+, Edge 120+, Safari 17+
 
-## Event Model (em.json) Structure Explanation
+## Event Model (em.emj / em.emy) Structure Explanation
 
 The included event model represents a shopping cart domain:
 
@@ -236,7 +242,7 @@ The included event model represents a shopping cart domain:
 
 ## Future Enhancements
 
-To fully support the emj format:
+To further build on `.emj`/`.emy` support:
 1. Create a specialized converter for slices/commands/events
 2. Generate sequence diagrams or state machines
 3. Add interactive features (click nodes for details)
@@ -247,17 +253,17 @@ To fully support the emj format:
 
 **Diagram not showing:**
 - Check browser console for errors
-- Ensure emj content is valid Event Model format
+- Ensure the content is a valid Event Model (JSON for `.emj`, YAML for `.emy`)
 - Verify diagram container has content
 
 **Upload not working:**
-- Ensure file has `.emj` extension
-- Check file contains valid emj content
-- Try pasting emj content directly into editor
+- Ensure file has a `.emj` or `.emy` extension
+- Check file contains valid content for its encoding
+- Try pasting content directly into editor
 
 **Auto-refresh not working:**
 - Wait 1 second after typing stops (debounced)
-- Ensure emj content is syntactically valid
+- Ensure the content is syntactically valid for its format (JSON or YAML)
 - Check browser console for errors
 
 **After editing src/ files:**

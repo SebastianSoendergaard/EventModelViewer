@@ -2,6 +2,7 @@
         const saveStatus = document.getElementById('serverSaveStatus');
 
         let _selectedFile = null;
+        let _selectedFormat = Codec.JSON;
         let _currentRoot = '';
         let _lastSavedContent = null; // stringified JSON as last saved to server
         let _currentJson = null;
@@ -159,6 +160,7 @@
                     return;
                 }
                 _selectedFile = path;
+                _selectedFormat = Codec.formatForFileName(path);
                 localStorage.setItem('serverSelectedFile', path);
                 await loadSelectedFile();
             } catch (e) {
@@ -171,10 +173,10 @@
                 const res = await fetch(`${baseUrl()}/selected`);
                 if (!res.ok) return;
                 const text = await res.text();
-                const json = JSON.parse(text);
+                const json = Codec.parse(text, _selectedFormat);
                 _lastSavedContent = text;
                 _currentJson = json;
-                EventBus.emit(Events.FILE_LOADED, { json, fileName: _selectedFile });
+                EventBus.emit(Events.FILE_LOADED, { json, fileName: _selectedFile, format: _selectedFormat });
                 setSaveStatus('saved');
             } catch (e) {
                 console.warn('[server] Failed to load selected file:', e);
@@ -198,7 +200,7 @@
 
         function hasUnsavedChanges() {
             if (!_currentJson || _lastSavedContent === null) return false;
-            return JSON.stringify(_currentJson, null, 2) !== _lastSavedContent;
+            return Codec.stringify(_currentJson, _selectedFormat) !== _lastSavedContent;
         }
 
         // ── Auto-save (1 s debounce, only on actual change) ──────────────────
@@ -210,13 +212,14 @@
 
         async function trySaveToServer() {
             if (!_selectedFile || !_currentJson) return;
-            const content = JSON.stringify(_currentJson, null, 2);
+            const content = Codec.stringify(_currentJson, _selectedFormat);
             if (content === _lastSavedContent) return; // no change
 
             try {
+                const contentType = _selectedFormat === Codec.YAML ? 'application/x-yaml' : 'application/json';
                 const res = await fetch(`${baseUrl()}/selected`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': contentType },
                     body: content
                 });
                 if (res.ok) {
@@ -323,3 +326,8 @@
             if (path) await selectFile(path);
             connectSSE();
         });
+
+        // Exposed so other IIFE-scoped modules (e.g. the server "New" button) can
+        // select + load a file through the same path that keeps _selectedFile,
+        // _selectedFormat and _lastSavedContent consistent for auto-save.
+        window.ServerIntegration = { selectFile, populateDropdown };

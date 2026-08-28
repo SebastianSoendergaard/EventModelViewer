@@ -10,7 +10,7 @@ EventModelServer.exe
 
 Opens `http://127.0.0.1:55231` in your default browser (falling back to an OS-assigned port if `55231` is already in use).
 
-By default it scans the folder the exe lives in for `.emj` files. Use the **📁 Folder** button in the viewer's toolbar to browse to and select a different folder — the choice is remembered (via the browser's `localStorage`) so the next launch opens on the same folder automatically.
+By default it scans the folder the exe lives in for `.emj` and `.emy` files. Use the **📁 Folder** button in the viewer's toolbar to browse to and select a different folder — the choice is remembered (via the browser's `localStorage`) so the next launch opens on the same folder automatically.
 
 ## Building
 
@@ -38,7 +38,7 @@ Serves the embedded `event-model-viewer.html` application.
 
 ### `GET /root`
 
-Returns the folder currently being scanned for `.emj` files.
+Returns the folder currently being scanned for `.emj`/`.emy` files.
 
 **Response:** `200 OK`
 
@@ -77,7 +77,7 @@ Lists the subfolders of `path` (query string), for building an in-app folder pic
 
 Switches the active root folder. Resets the current file selection and rewires the folder/file watchers, then broadcasts a `root-changed` SSE event to all connected clients.
 
-This call is intentionally fast and does **not** scan for `.emj` files — it only validates the folder and rewires watchers. Scanning is a separate, decoupled step handled by `GET /files`, so switching root never blocks on a large folder tree (e.g. a whole drive).
+This call is intentionally fast and does **not** scan for `.emj`/`.emy` files — it only validates the folder and rewires watchers. Scanning is a separate, decoupled step handled by `GET /files`, so switching root never blocks on a large folder tree (e.g. a whole drive).
 
 **Request body:**
 
@@ -96,21 +96,21 @@ This call is intentionally fast and does **not** scan for `.emj` files — it on
 
 ### `GET /files`
 
-Scans the root folder (recursive) for `.emj` files and returns them as relative paths with forward slashes, along with whether the scan was cut short.
+Scans the root folder (recursive) for `.emj` and `.emy` files and returns them as relative paths with forward slashes, along with whether the scan was cut short.
 
 To keep a single huge or slow-to-enumerate folder tree (e.g. accidentally picking a drive root) from hanging indefinitely, the scan is bounded: it stops early after visiting **20,000 folders** or **30 seconds**, whichever comes first. When that happens, `truncated` is `true` and `files` contains whatever was found before the limit was hit.
 
 **Response:** `200 OK`
 
 ```json
-{ "files": ["em.emj", "examples/shopping-cart.emj"], "truncated": false }
+{ "files": ["em.emj", "examples/shopping-cart.emy"], "truncated": false }
 ```
 
 ---
 
 ### `POST /files`
 
-Creates a new `.emj` file in the root folder with content `{}`.
+Creates a new empty event model file in the root folder with content `{}` (valid as both an empty JSON object and an empty YAML mapping). The extension of `name` determines the encoding — `.emj` for JSON, `.emy` for YAML.
 
 **Request body:**
 
@@ -148,13 +148,13 @@ Selects a file to work with. Subsequent calls to `/selected` operate on this fil
 
 ### `GET /selected`
 
-Returns the raw content of the currently selected file.
+Returns the raw content of the currently selected file. The server never parses it — `Content-Type` just reflects the file's encoding so the client knows which parser to use.
 
 **Responses:**
 
 | Status | Meaning |
 |--------|---------|
-| `200 OK` | File content, `Content-Type: application/json` |
+| `200 OK` | File content, `Content-Type: application/json` for `.emj` or `application/x-yaml` for `.emy` |
 | `404 Not Found` | No file has been selected yet |
 
 ---
@@ -163,7 +163,7 @@ Returns the raw content of the currently selected file.
 
 Overwrites the content of the currently selected file. The `FileSystemWatcher` is paused during the write to avoid a spurious `file-changed` event.
 
-**Request body:** Raw JSON string (the new file content)
+**Request body:** Raw file content in the selected file's own encoding (JSON for `.emj`, YAML for `.emy`) — the server writes it verbatim without parsing.
 
 **Responses:**
 
@@ -190,7 +190,7 @@ Cache-Control: no-cache
 | Event name | When fired | Data |
 |------------|-----------|------|
 | `file-changed` | The selected file was modified by an external editor | `{}` |
-| `files-changed` | An `.emj` file was added, removed, or renamed anywhere under the root folder | `{}` |
+| `files-changed` | An `.emj`/`.emy` file was added, removed, or renamed anywhere under the root folder | `{}` |
 | `root-changed` | The active root folder was switched via `POST /root` | `{}` |
 
 **Example stream:**
@@ -230,11 +230,11 @@ EventModelServer/
 
 ### FileService
 
-- Scans the active root folder recursively for `*.emj` files.
+- Scans the active root folder recursively for `*.emj` and `*.emy` files.
 - The root folder is mutable (`TrySetRoot`) — switching it clears the current selection and rewires both watchers to the new location; `Browse` powers the in-app folder picker (subfolders, or drives when given an empty path).
 - Tracks one selected file at a time.
 - Owns a `FileSystemWatcher` on the selected file (rewired on each `TrySelect` call).
-- Owns a second `FileSystemWatcher` on the root folder to detect added/removed `.emj` files.
+- Owns a second `FileSystemWatcher` on the root folder to detect added/removed `.emj`/`.emy` files.
 - Pauses the file watcher during `TryUpdateSelected` writes to avoid self-triggered events.
 
 ### SseService
@@ -256,7 +256,7 @@ It is served by reading the embedded stream at runtime — no file on disk is ne
 
 ## Tests
 
-The solution includes an xUnit test project (`EventModelServer.Tests`) with 44 tests:
+The solution includes an xUnit test project (`EventModelServer.Tests`) with 53 tests:
 
 - **EndpointTests** — integration tests using `WebApplicationFactory<Program>` covering all HTTP endpoints and SSE service behaviour.
 - **FileServiceTests** — unit tests for file scanning (including the bounded-scan/truncation behaviour), selection, content read/write, and `FileSystemWatcher` event firing.

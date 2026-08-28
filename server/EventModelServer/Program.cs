@@ -42,7 +42,7 @@ app.MapGet("/", () =>
     return Results.Content(reader.ReadToEnd(), "text/html");
 });
 
-// GET /files — list all .emj files under root (relative paths), bounded scan
+// GET /files — list all .emj/.emy files under root (relative paths), bounded scan
 app.MapGet("/files", () =>
 {
     var result = fileService.GetFiles();
@@ -61,8 +61,9 @@ app.MapGet("/root/browse", (string? path) =>
 });
 
 // POST /root — body: { "path": "C:\\my-models" } — switch the active root folder.
-// Fast: only validates the folder and rewires watchers. It does NOT scan for .emj files —
-// that happens separately via GET /files, so switching root never blocks on a large tree.
+// Fast: only validates the folder and rewires watchers. It does NOT scan for
+// .emj/.emy files — that happens separately via GET /files, so switching root never
+// blocks on a large tree.
 app.MapPost("/root", async (HttpRequest request) =>
 {
     using var doc = await JsonDocument.ParseAsync(request.Body);
@@ -77,7 +78,7 @@ app.MapPost("/root", async (HttpRequest request) =>
     return Results.Ok(new { root = fileService.Root });
 });
 
-// POST /select — body: { "path": "relative/path.emj" }
+// POST /select — body: { "path": "relative/path.emj" } (or .emy)
 app.MapPost("/select", async (HttpRequest request) =>
 {
     using var doc = await JsonDocument.ParseAsync(request.Body);
@@ -91,12 +92,17 @@ app.MapPost("/select", async (HttpRequest request) =>
     return Results.Ok(new { selected = rel });
 });
 
-// GET /selected — return content of selected file
+// GET /selected — return content of selected file. Content-Type reflects the file's
+// encoding (.emj -> JSON, .emy -> YAML) but the server never parses either — it's a
+// pass-through so the client's Codec module can pick the right parser.
 app.MapGet("/selected", () =>
 {
     var content = fileService.GetSelectedContent();
     if (content is null) return Results.NotFound("No file selected");
-    return Results.Content(content, "application/json");
+    var contentType = fileService.SelectedRelative?.EndsWith(".emy", StringComparison.OrdinalIgnoreCase) == true
+        ? "application/x-yaml"
+        : "application/json";
+    return Results.Content(content, contentType);
 });
 
 // PUT /selected — update content of selected file
@@ -111,7 +117,8 @@ app.MapPut("/selected", async (HttpRequest request) =>
     return Results.Ok();
 });
 
-// POST /files — create a new JSON file in root folder
+// POST /files — create a new empty event model file (name determines .emj/.emy encoding).
+// Request body itself is JSON (the API envelope), independent of the created file's format.
 app.MapPost("/files", async (HttpRequest request) =>
 {
     using var doc = await JsonDocument.ParseAsync(request.Body);

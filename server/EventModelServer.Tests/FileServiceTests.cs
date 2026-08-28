@@ -31,6 +31,20 @@ public class FileServiceTests : IDisposable
     }
 
     [Fact]
+    public void GetFiles_Returns_Both_Emj_And_Emy_Files_But_Not_Other_Extensions()
+    {
+        File.WriteAllText(Path.Combine(_root, "a.emj"), "{}");
+        File.WriteAllText(Path.Combine(_root, "b.emy"), "{}");
+        File.WriteAllText(Path.Combine(_root, "c.txt"), "text");
+
+        var result = _svc.GetFiles();
+        Assert.Equal(2, result.Files.Count);
+        Assert.Contains("a.emj", result.Files);
+        Assert.Contains("b.emy", result.Files);
+        Assert.False(result.Truncated);
+    }
+
+    [Fact]
     public void GetFiles_Returns_Relative_Paths_With_Forward_Slashes()
     {
         var sub = Path.Combine(_root, "sub");
@@ -58,6 +72,16 @@ public class FileServiceTests : IDisposable
         Assert.True(result);
         Assert.Empty(error);
         Assert.Equal("x.emj", _svc.SelectedRelative);
+    }
+
+    [Fact]
+    public void TrySelect_Succeeds_For_Existing_Emy_File()
+    {
+        File.WriteAllText(Path.Combine(_root, "x.emy"), "{}");
+        var result = _svc.TrySelect("x.emy", out var error);
+        Assert.True(result);
+        Assert.Empty(error);
+        Assert.Equal("x.emy", _svc.SelectedRelative);
     }
 
     [Fact]
@@ -94,6 +118,19 @@ public class FileServiceTests : IDisposable
     }
 
     [Fact]
+    public void TryUpdateSelected_Writes_Yaml_Content_To_Disk_For_Emy_File()
+    {
+        File.WriteAllText(Path.Combine(_root, "z.emy"), "{}");
+        _svc.TrySelect("z.emy", out _);
+
+        const string yaml = "updated: true\n";
+        _svc.TryUpdateSelected(yaml, out _);
+
+        var disk = File.ReadAllText(Path.Combine(_root, "z.emy"));
+        Assert.Equal(yaml, disk);
+    }
+
+    [Fact]
     public async Task OnSelectedFileChanged_Fires_When_File_Changes_Externally()
     {
         File.WriteAllText(Path.Combine(_root, "watch.emj"), "{}");
@@ -119,6 +156,18 @@ public class FileServiceTests : IDisposable
 
         var completed = await Task.WhenAny(fired.Task, Task.Delay(TimeSpan.FromSeconds(3)));
         Assert.True(fired.Task.IsCompletedSuccessfully, "files-changed event did not fire within 3s");
+    }
+
+    [Fact]
+    public async Task OnFolderContentsChanged_Fires_When_Emy_File_Added()
+    {
+        var fired = new TaskCompletionSource<bool>();
+        _svc.OnFolderContentsChanged += () => fired.TrySetResult(true);
+
+        File.WriteAllText(Path.Combine(_root, "new.emy"), "{}");
+
+        var completed = await Task.WhenAny(fired.Task, Task.Delay(TimeSpan.FromSeconds(3)));
+        Assert.True(fired.Task.IsCompletedSuccessfully, "files-changed event did not fire within 3s for .emy file");
     }
 
     // ── TrySetRoot ───────────────────────────────────────────────────────────

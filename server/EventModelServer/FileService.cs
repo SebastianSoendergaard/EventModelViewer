@@ -14,10 +14,10 @@ public record FolderEntry(string Name, string Path);
 public record BrowseResult(string Path, string? Parent, IReadOnlyList<FolderEntry> Folders);
 
 /// <summary>
-/// Result of scanning root for .emj files. <see cref="Truncated"/> is true when the scan
-/// was stopped early by <see cref="FileService.MaxScanFolders"/> or
-/// <see cref="FileService.MaxScanDuration"/> being reached, meaning the file list may be
-/// incomplete.
+/// Result of scanning root for Event Model files (.emj/.emy). <see cref="Truncated"/>
+/// is true when the scan was stopped early by <see cref="FileService.MaxScanFolders"/>
+/// or <see cref="FileService.MaxScanDuration"/> being reached, meaning the file list
+/// may be incomplete.
 /// </summary>
 public record FileScanResult(IReadOnlyList<string> Files, bool Truncated);
 
@@ -28,6 +28,13 @@ public class FileService : IDisposable
 
     /// <summary>Hard cap on wall-clock time spent scanning, guarding against slow/huge trees.</summary>
     public static readonly TimeSpan MaxScanDuration = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Search patterns for the two Event Model encodings: ".emj" (JSON) and ".emy"
+    /// (YAML) — same schema either way (see CONTEXT.md). The server never parses
+    /// either; it only needs to recognize them by extension for scanning/watching.
+    /// </summary>
+    private static readonly string[] FilePatterns = ["*.emj", "*.emy"];
 
     private string _root;
     private string? _selectedRelative;
@@ -43,18 +50,21 @@ public class FileService : IDisposable
         _folderWatcher = CreateFolderWatcher(_root);
     }
 
-    /// <summary>The folder currently scanned for .emj files.</summary>
+    /// <summary>The folder currently scanned for .emj/.emy files.</summary>
     public string Root => _root;
 
     private FileSystemWatcher CreateFolderWatcher(string root)
     {
         var watcher = new FileSystemWatcher(root)
         {
-            Filter = "*.emj",
             IncludeSubdirectories = true,
             EnableRaisingEvents = true,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName
         };
+        foreach (var pattern in FilePatterns)
+        {
+            watcher.Filters.Add(pattern);
+        }
         watcher.Created += (_, _) => OnFolderContentsChanged?.Invoke();
         watcher.Deleted += (_, _) => OnFolderContentsChanged?.Invoke();
         watcher.Renamed += (_, _) => OnFolderContentsChanged?.Invoke();
@@ -146,7 +156,7 @@ public class FileService : IDisposable
     }
 
     /// <summary>
-    /// Scans root for .emj files. Bounded by <see cref="MaxScanFolders"/> and
+    /// Scans root for .emj/.emy files. Bounded by <see cref="MaxScanFolders"/> and
     /// <see cref="MaxScanDuration"/> so a very large tree (e.g. a whole drive) can't hang
     /// indefinitely; when a limit is hit, the scan stops early and returns whatever it
     /// found so far with <see cref="FileScanResult.Truncated"/> set to true.
@@ -175,9 +185,12 @@ public class FileService : IDisposable
 
             try
             {
-                foreach (var f in Directory.EnumerateFiles(dir, "*.emj"))
+                foreach (var pattern in FilePatterns)
                 {
-                    files.Add(Path.GetRelativePath(_root, f).Replace('\\', '/'));
+                    foreach (var f in Directory.EnumerateFiles(dir, pattern))
+                    {
+                        files.Add(Path.GetRelativePath(_root, f).Replace('\\', '/'));
+                    }
                 }
                 foreach (var d in Directory.EnumerateDirectories(dir))
                 {

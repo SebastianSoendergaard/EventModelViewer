@@ -1,0 +1,102 @@
+        .format-picker-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .format-picker-overlay.visible {
+            display: flex;
+        }
+
+        .format-picker-modal {
+            background: white;
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            width: 420px;
+            max-width: 90vw;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .format-picker-modal h2 {
+            font-size: 1.1rem;
+            color: #2c3e50;
+        }
+
+        .format-picker-name-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .format-picker-name-row label {
+            font-size: 0.8rem;
+            color: #34495e;
+            font-weight: 600;
+        }
+
+        .format-picker-name-row input {
+            padding: 0.5rem 0.6rem;
+            border: 1px solid #dfe4e8;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .format-picker-error {
+            color: #c0392b;
+            font-size: 0.85rem;
+            min-height: 1em;
+        }
+
+        .format-picker-choices {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .format-picker-choice {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.75rem;
+            border: 2px solid #dfe4e8;
+            border-radius: 8px;
+            background: #f9fafb;
+            cursor: pointer;
+            font-weight: 600;
+            color: #2c3e50;
+            transition: all 0.2s ease;
+        }
+
+        .format-picker-choice:hover {
+            border-color: #3498db;
+            background: #eaf4fc;
+        }
+
+        .format-picker-choice-ext {
+            font-size: 0.8rem;
+            font-weight: 400;
+            color: #7f8c8d;
+        }
+
+        .format-picker-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .format-picker-actions button {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            background: #ecf0f1;
+            color: #2c3e50;
+        }

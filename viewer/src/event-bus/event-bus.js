@@ -16,7 +16,10 @@
 
         const Events = {
             // A file was loaded (from disk, localStorage) or a new document was created.
-            // Payload: { json, fileName }  — json is null for new/cleared document
+            // Payload: { json, fileName, format }  — json is null for new/cleared
+            // document; format ('json'|'yaml', see Codec) is set explicitly when a
+            // document has no fileName yet (e.g. a brand-new document), otherwise it's
+            // inferred from fileName's extension (.emj/.emy)
             FILE_LOADED:    'file:loaded',
 
             // JSON content was changed by a user edit or undo/redo.
@@ -47,7 +50,7 @@
             // Payload: { model }  — fully-enriched event model object, or { model: null } for cleared document
             MODEL_CHANGED:  'model:changed',
 
-            // The server's active root folder (scanned for .emj files) changed.
+            // The server's active root folder (scanned for .emj/.emy files) changed.
             // Payload: { root }  — absolute path of the new root folder
             ROOT_CHANGED:   'root:changed',
         };

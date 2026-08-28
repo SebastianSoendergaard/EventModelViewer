@@ -1,10 +1,13 @@
         const newServerBtn = document.getElementById('newServerBtn');
 
         newServerBtn.addEventListener('click', async () => {
-            const input = prompt('Enter filename for new event model:');
-            if (!input) return;
+            const choice = await FormatPicker.prompt({ askName: true, title: 'New Event Model' });
+            if (!choice) return;
 
-            const name = input.endsWith('.emj') ? input : input + '.emj';
+            // The picker's format button is authoritative — strip any extension the
+            // user may have typed themselves so it can't disagree with the choice.
+            const baseName = choice.name.replace(/\.(emj|emy)$/i, '');
+            const name = `${baseName}.${choice.extension}`;
 
             try {
                 const createRes = await fetch(`${window.location.origin}/files`, {
@@ -19,26 +22,12 @@
                     return;
                 }
 
-                // Select the new file (SSE files-changed will also refresh the dropdown)
-                const selectRes = await fetch(`${window.location.origin}/select`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: name })
-                });
-
-                if (!selectRes.ok) {
-                    console.warn('[server] Could not select newly created file:', name);
-                    return;
-                }
-
-                // Load the empty file content and update the viewer
-                const contentRes = await fetch(`${window.location.origin}/selected`);
-                if (contentRes.ok) {
-                    const text = await contentRes.text();
-                    const json = JSON.parse(text);
-                    localStorage.setItem('serverSelectedFile', name);
-                    EventBus.emit(Events.FILE_LOADED, { json, fileName: name });
-                }
+                // Select + load through ServerIntegration so its tracked state
+                // (_selectedFile, _selectedFormat, _lastSavedContent) stays consistent
+                // for auto-save; also refresh the dropdown immediately rather than
+                // waiting on the files-changed SSE broadcast.
+                await window.ServerIntegration.selectFile(name);
+                await window.ServerIntegration.populateDropdown(true);
             } catch (e) {
                 alert('Error creating file: ' + e.message);
             }

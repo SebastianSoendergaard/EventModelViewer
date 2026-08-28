@@ -23,6 +23,14 @@ function iife(js) {
 // Event bus (must be first JS in the bundle, NOT wrapped in IIFE)
 const eventBusJs = readFile('src/event-bus/event-bus.js');
 
+// Event Model Codec (must load right after EventBus, NOT wrapped in IIFE — it
+// defines a top-level `const Codec` that every format-aware module relies on)
+const codecJs = readFile('src/codec/codec.js');
+
+// Format Picker modal (JSON vs YAML choice for new documents) — shared by both builds
+const formatPickerCss = readFile('src/toolbar/format-picker/format-picker.css');
+const formatPickerJs  = readFile('src/toolbar/format-picker/format-picker.js');
+
 // Filter toggles
 const filterTogglesHtml = readFile('src/toolbar/filter-toggles/filter-toggles.html');
 const filterTogglesCss  = readFile('src/toolbar/filter-toggles/filter-toggles.css');
@@ -100,7 +108,7 @@ function assembleApp(toolbarParts, resizerParts) {
     result = result.replace('        <!-- RESIZER_HTML -->', resizerParts.html.trimEnd());
     result = result.replace('        /* TOOLBAR_CSS */', toolbarParts.css);
     result = result.replace('        /* RESIZER_CSS */', resizerParts.css);
-    result = result.replace('        // TOOLBAR_JS', eventBusJs.trimEnd() + '\n\n' + toolbarParts.js);
+    result = result.replace('        // TOOLBAR_JS', eventBusJs.trimEnd() + '\n\n' + codecJs.trimEnd() + '\n\n' + toolbarParts.js);
     result = result.replace('        // RESIZER_JS', resizerParts.js);
     return result;
 }
@@ -117,8 +125,10 @@ function buildStandalone() {
     toolbarHtml = toolbarHtml.replace('        <!-- FILTER_TOGGLES_HTML -->', filterTogglesHtml.trimEnd());
     const toolbarParts = {
         html: toolbarHtml,
-        css:  toolbarCss.trimEnd() + '\n\n' + fileButtonsCss.trimEnd() + '\n\n' + filterTogglesCss.trimEnd(),
-        js:   iife(toolbarJs) + '\n\n' + iife(fileButtonsJs) + '\n\n' + iife(filterTogglesJs),
+        css:  toolbarCss.trimEnd() + '\n\n' + fileButtonsCss.trimEnd() + '\n\n' + filterTogglesCss.trimEnd() +
+              '\n\n' + formatPickerCss.trimEnd(),
+        js:   iife(toolbarJs) + '\n\n' + iife(fileButtonsJs) + '\n\n' + iife(filterTogglesJs) +
+              '\n\n' + iife(formatPickerJs),
     };
 
     const editor  = assembleEditor();
@@ -126,7 +136,7 @@ function buildStandalone() {
     const resizer = assembleResizer(editor, viewer);
     const result  = assembleApp(toolbarParts, resizer);
 
-    fs.writeFileSync(path.join(__dirname, 'event-model-viewer.html'), result, { encoding: 'utf8' });
+    fs.writeFileSync(path.join(__dirname, '..', 'event-model-viewer.html'), result, { encoding: 'utf8' });
     console.log('Standalone build: event-model-viewer.html (' + Math.round(result.length / 1024) + ' KB)');
 }
 
@@ -154,10 +164,10 @@ function buildServer() {
         html: toolbarHtml,
         css:  toolbarCss.trimEnd() + '\n\n' + fileButtonsServerCss.trimEnd() + '\n\n' +
               serverIntegrationCss.trimEnd() + '\n\n' + folderBrowserServerCss.trimEnd() + '\n\n' +
-              filterTogglesCss.trimEnd(),
+              filterTogglesCss.trimEnd() + '\n\n' + formatPickerCss.trimEnd(),
         js:   iife(toolbarJs) + '\n\n' + iife(serverIntegrationJs) + '\n\n' +
               iife(fileButtonsServerJs) + '\n\n' + iife(folderBrowserServerJs) + '\n\n' +
-              iife(filterTogglesJs),
+              iife(filterTogglesJs) + '\n\n' + iife(formatPickerJs),
     };
 
     const editor  = assembleEditor();
@@ -165,7 +175,7 @@ function buildServer() {
     const resizer = assembleResizer(editor, viewer);
     const result  = assembleApp(toolbarParts, resizer);
 
-    fs.writeFileSync(path.join(__dirname, 'event-model-viewer-for-server.html'), result, { encoding: 'utf8' });
+    fs.writeFileSync(path.join(__dirname, '..', 'event-model-viewer-for-server.html'), result, { encoding: 'utf8' });
     console.log('Server build:     event-model-viewer-for-server.html (' + Math.round(result.length / 1024) + ' KB)');
 }
 

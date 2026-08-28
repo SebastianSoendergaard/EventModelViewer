@@ -11,12 +11,21 @@
         // Local JSON state
         let _codeViewJson = null;
 
+        // Which encoding the currently-loaded file uses (Codec.JSON or Codec.YAML).
+        // Derived from the file's extension on FILE_LOADED; JSON_CHANGED/CODE_SYNC
+        // don't carry a filename, so they keep using whatever was last resolved here.
+        let _currentFormat = Codec.JSON;
+
         // Subscribe to events
-        EventBus.on(Events.FILE_LOADED, ({ json }) => {
+        EventBus.on(Events.FILE_LOADED, ({ json, fileName, format }) => {
             _codeViewJson = json;
+            // A brand-new, not-yet-named document (fileName is null) still carries an
+            // explicit `format` chosen via the New-document format picker.
+            _currentFormat = format || Codec.formatForFileName(fileName);
             collapsedLines.clear();
             if (codeEditorView && codeEditorView.setValue) {
-                codeEditorView.setValue(json ? JSON.stringify(json, null, 2) : '', -1);
+                codeEditorView.session.setMode(Codec.aceMode(_currentFormat));
+                codeEditorView.setValue(json ? Codec.stringify(json, _currentFormat) : '', -1);
             }
         });
 
@@ -24,7 +33,7 @@
             if (source === 'code') return; // Don't update from our own edits
             _codeViewJson = json;
             if (codeEditorView && codeEditorView.setValue) {
-                codeEditorView.setValue(JSON.stringify(json, null, 2), -1);
+                codeEditorView.setValue(Codec.stringify(json, _currentFormat), -1);
             }
         });
 
@@ -41,7 +50,7 @@
         EventBus.on(Events.CODE_SYNC, ({ json }) => {
             if (!codeEditorView) return;
             if (json === undefined) return;
-            const expected = JSON.stringify(json, null, 2);
+            const expected = Codec.stringify(json, _currentFormat);
             if (codeEditorView.getValue() !== expected) {
                 codeEditorView.setValue(expected, -1);
             }
@@ -293,7 +302,7 @@
                 
                 // Initialize ACE editor
                 const editor = ace.edit(codeEditor, {
-                    mode: "ace/mode/json",
+                    mode: Codec.aceMode(_currentFormat),
                     theme: "ace/theme/chrome",
                     fontSize: "14px",
                     showPrintMargin: false,
@@ -301,7 +310,7 @@
                 });
                 
                 // Set initial content
-                const initialContent = _codeViewJson ? JSON.stringify(_codeViewJson, null, 2) : '// No JSON loaded. Upload a file to start.';
+                const initialContent = _codeViewJson ? Codec.stringify(_codeViewJson, _currentFormat) : '// No event model loaded. Upload a file to start.';
                 editor.setValue(initialContent, -1); // -1 moves cursor to start
                 
                 // Enable code folding
@@ -459,7 +468,7 @@
             try {
                 // ACE uses getValue() instead of state.doc.toString()
                 const content = codeEditorView.getValue();
-                const parsed = JSON.parse(content);
+                const parsed = Codec.parse(content, _currentFormat);
                 _codeViewJson = parsed;
                 
                 EventBus.emit(Events.JSON_CHANGED, { json: parsed, source: 'code' });
@@ -468,8 +477,8 @@
                 const errorMsg = document.querySelector('.json-error-message');
                 if (errorMsg) errorMsg.remove();
             } catch (error) {
-                // Invalid JSON - show error inline (non-intrusive)
-                console.log('Invalid JSON while typing:', error.message);
+                // Invalid content - show error inline (non-intrusive)
+                console.log('Invalid content while typing:', error.message);
                 
                 // Optionally show a subtle error indicator
                 let errorMsg = document.querySelector('.json-error-message');
@@ -480,7 +489,8 @@
                     codeEditor.style.position = 'relative';
                     codeEditor.appendChild(errorMsg);
                 }
-                errorMsg.textContent = '⚠️ JSON Syntax Error: ' + error.message;
+                const formatLabel = _currentFormat === Codec.YAML ? 'YAML' : 'JSON';
+                errorMsg.textContent = '⚠️ ' + formatLabel + ' Syntax Error: ' + error.message;
             }
         }
 
