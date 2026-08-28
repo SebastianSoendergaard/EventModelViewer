@@ -59,9 +59,10 @@ The file is JSON with the `.emj` extension. The canonical structure:
       "border": "string (optional — visual grouping color)",
       "trigger": {
         "swimlane": "string",
-        "type": "ui-input | ui-list | automation | external",
+        "type": "ui-input | ui-input-disabled | ui-table | ui-chart-line | ui-chart-column | ui-chart-pie | automation | translation",
         "properties": [{ "name": "string", "value": "string" }],
-        "buttons": ["string"]
+        "buttons": ["string"],
+        "views": ["string (optional — id or name of a view this trigger displays or depends on; draws a view → trigger arrow)"]
       },
       "command": {
         "name": "string",
@@ -71,7 +72,7 @@ The file is JSON with the `.emj` extension. The canonical structure:
       "view": {
         "name": "string",
         "swimlane": "string",
-        "sourceEvents": ["string"],
+        "events": ["string"],
         "properties": [{ "name": "string", "type": "string" }]
       },
       "events": [
@@ -110,6 +111,8 @@ The file is JSON with the `.emj` extension. The canonical structure:
 - `hotspots` at the top level is the model-wide parking lot for concerns not yet tied to a slice.
 - Events are always named in **past tense** (`OrderPlaced`, not `PlaceOrder`).
 - Commands are always named as **imperative intent** (`PlaceOrder`, not `OrderPlaced`).
+- `trigger.type` controls how the screen renders: `ui-input` / `ui-input-disabled` render a form dialog (disabled = read-only display, no editable fields); `ui-table` renders properties as table columns — use it for lists and multi-select pickers; `ui-chart-line` / `ui-chart-column` / `ui-chart-pie` render a chart mock; `automation` / `translation` render as a gear icon with no dialog chrome (fully automated, no human screen). There is no `ui-list` or `external` trigger type — don't invent one; any unrecognized value silently falls back to a generic property list.
+- `trigger.views` links a trigger to one or more views it displays or depends on, drawing a view → trigger arrow. If a matching view exists in the same slice it wins; otherwise the nearest **preceding** slice with a matching view id/name is used, falling back to the nearest subsequent one. A view's id defaults to its name when no explicit `id` is set. This is how a screen mockup pairs with its underlying read model, and also how a State-Change trigger (e.g. a "Publish" button) can display a summary view built up in an earlier slice before the user acts.
 
 ---
 
@@ -126,6 +129,23 @@ Every slice must match exactly one of these patterns. Identify and label the pat
 
 When a slice doesn't fit cleanly into one pattern, call it out — it likely needs to be split.
 
+**Default shape for State View slices:** unless the user says the read model is purely internal/invisible, pair the `view` with a companion display `trigger` connected via `trigger.views` — use `ui-input-disabled` for a single-record screen, `ui-table` for a list. Mirror whatever the source material shows: if a whiteboard photo, sketch, or existing screen draws an arrow from the read model back to a screen, that screen is the trigger — wire it up. This keeps every read model visibly connected in the diagram instead of floating disconnected. The same `trigger.views` mechanism also applies to State-Change triggers that need to display an existing read model for context before the user acts (e.g. a "Publish" button showing a summary view built up in an earlier slice).
+
+---
+
+## Recurring Read Models
+
+Some read models are updated and displayed at more than one distinct point in the story (e.g. a campaign list shown right after a draft is created, and shown again after publishing). When the source material indicates this recurrence, model it as **multiple slice entries that share the same view id/name**, positioned at each point in the timeline, with each slice's `view.events` listing only the events that feed it up to that point — not one slice whose `view.events` lumps together every event from across the whole model.
+
+This is guidance, not an enforced rule: propose it when you notice a read model recurring across non-adjacent slices, but don't block a write over it. The renderer resolves duplicate view ids/names by connecting each occurrence to the nearest **preceding** matching view — repeating the slice keeps this resolution meaningful instead of collapsing the whole timeline into one disconnected, all-events view.
+
+---
+
+## UI Trigger Conventions
+
+- **Multi-select from a list** — when a trigger lets the user pick or toggle multiple items from a list (e.g. "select products", "choose recipients"), model it as a `ui-table` trigger with one row-property per field plus a boolean `Selected` column (e.g. `Product`, `Selected`) — never a single list-valued property like `SelectedItems: string[]`. This matches how the table renders and how the resulting command's list-typed property (e.g. `ProductIds: Guid[]`) is derived from the selection.
+- **Read-only display screens** — a trigger with no `command` (paired only with a `view` via `trigger.views`) is a valid, idiomatic way to represent a screen that just shows current state. Use `ui-input-disabled` for single-record screens, `ui-table` for lists.
+
 ---
 
 ## Event Modeling Rules — Enforce These
@@ -140,6 +160,7 @@ When you detect a violation, raise it immediately and suggest a fix. Do not sile
 6. **Unknowns become hotspots** — never guess at domain facts. When something is unclear, add a `hotspot` or push to the top-level `hotspots` array.
 7. **Model behavior, not structure** — if a slice looks like a database table or a class, redirect toward behavior.
 8. **Name by intent** — commands and events should be readable by a domain expert without technical background.
+9. **Property names stay consistent** — the same concept must use the exact same property name everywhere it appears (event, view, summary, etc.). Flag and correct drift (e.g. an event's `PublicTitle` resurfacing as `IntendedTitle` in a downstream view) even though the tool itself won't validate this — it silently breaks readability.
 
 ---
 
