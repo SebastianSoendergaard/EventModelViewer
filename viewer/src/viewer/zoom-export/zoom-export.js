@@ -138,6 +138,17 @@
                 const width = diagramDiv.offsetWidth;
                 const height = diagramDiv.offsetHeight;
 
+                // The app's base typography (font-family, color, etc.) is set on <body> and
+                // inherited from there. A standalone SVG document has no <body> element (its
+                // root is <svg>), so that rule never matches and text silently falls back to
+                // the browser's default serif font. Copy the live computed values onto the
+                // clone directly so the export is self-contained and typography matches
+                // what's shown on screen.
+                clone.style.fontFamily = styles.fontFamily;
+                clone.style.color = styles.color;
+                clone.style.fontSize = styles.fontSize;
+                clone.style.lineHeight = styles.lineHeight;
+
                 // Create SVG wrapper
                 const svgNS = 'http://www.w3.org/2000/svg';
                 const svg = document.createElementNS(svgNS, 'svg');
