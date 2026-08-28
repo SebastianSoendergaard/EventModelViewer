@@ -7,15 +7,19 @@ using EventModelServer;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Resolve root folder: --root arg or exe directory
-var rootArg = args.SkipWhile(a => a != "--root").Skip(1).FirstOrDefault();
-var rootFolder = rootArg is not null
-    ? Path.GetFullPath(rootArg)
-    : AppContext.BaseDirectory;
+// Root folder starts at the exe directory. Any previously-picked folder lives in the
+// client's localStorage; the client applies it via POST /root right after the page loads.
+var rootFolder = AppContext.BaseDirectory;
+
+// Prefer a fixed port so the browser origin (and therefore localStorage) stays stable
+// across launches, which is what makes remembering the selected root folder possible.
+// Fall back to an OS-assigned ephemeral port if the fixed one is already in use.
+const int PreferredPort = 55231;
+var port = IsPortAvailable(PreferredPort) ? PreferredPort : 0;
 
 builder.WebHost.ConfigureKestrel(o =>
 {
-    o.Listen(System.Net.IPAddress.Loopback, 0); // port 0 = OS picks free port
+    o.Listen(System.Net.IPAddress.Loopback, port);
 });
 builder.Services.AddSingleton<FileService>(_ => new FileService(rootFolder));
 builder.Services.AddSingleton<SseService>();
@@ -43,6 +47,32 @@ app.MapGet("/files", () =>
 {
     var files = fileService.GetFiles();
     return Results.Json(files);
+});
+
+// GET /root — the currently active root folder
+app.MapGet("/root", () => Results.Json(new { path = fileService.Root }));
+
+// GET /root/browse?path=... — list subfolders of path (or drives, when path is empty)
+app.MapGet("/root/browse", (string? path) =>
+{
+    var result = fileService.Browse(path);
+    if (result is null) return Results.BadRequest("Invalid or inaccessible path");
+    return Results.Json(result);
+});
+
+// POST /root — body: { "path": "C:\\my-models" } — switch the active root folder
+app.MapPost("/root", async (HttpRequest request) =>
+{
+    using var doc = await JsonDocument.ParseAsync(request.Body);
+    if (!doc.RootElement.TryGetProperty("path", out var pathEl))
+        return Results.BadRequest("Missing 'path'");
+
+    var path = pathEl.GetString() ?? string.Empty;
+    if (!fileService.TrySetRoot(path, out var error))
+        return Results.BadRequest(error);
+
+    sseService.Broadcast("root-changed", "{}");
+    return Results.Ok(new { root = fileService.Root, files = fileService.GetFiles() });
 });
 
 // POST /select — body: { "path": "relative/path.emj" }
@@ -130,6 +160,21 @@ static void OpenBrowser(string url)
 {
     try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
     catch { /* best-effort */ }
+}
+
+static bool IsPortAvailable(int port)
+{
+    try
+    {
+        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, port);
+        listener.Start();
+        listener.Stop();
+        return true;
+    }
+    catch (System.Net.Sockets.SocketException)
+    {
+        return false;
+    }
 }
 
 // Make Program partial so WebApplicationFactory can reference it in tests

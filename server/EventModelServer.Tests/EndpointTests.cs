@@ -24,7 +24,6 @@ public class EndpointTests : IDisposable
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
-                builder.UseSetting("args", $"--root {_tempRoot}");
                 builder.ConfigureServices(services =>
                 {
                     // Replace FileService with one pointing at our temp root
@@ -232,6 +231,97 @@ public class EndpointTests : IDisposable
     public async Task PostFiles_Returns_BadRequest_When_Name_Missing()
     {
         var response = await _client.PostAsJsonAsync("/files", new { });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // ── GET /root ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetRoot_Returns_Current_Root_Path()
+    {
+        var response = await _client.GetAsync("/root");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var doc = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(Path.GetFullPath(_tempRoot), doc.GetProperty("path").GetString());
+    }
+
+    // ── GET /root/browse ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task BrowseRoot_Empty_Path_Lists_Drives()
+    {
+        var response = await _client.GetAsync("/root/browse?path=");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var doc = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(string.Empty, doc.GetProperty("path").GetString());
+        Assert.Equal(JsonValueKind.Null, doc.GetProperty("parent").ValueKind);
+        Assert.True(doc.GetProperty("folders").GetArrayLength() > 0);
+    }
+
+    [Fact]
+    public async Task BrowseRoot_Returns_Subfolders_And_Parent()
+    {
+        var sub = Path.Combine(_tempRoot, "sub");
+        Directory.CreateDirectory(sub);
+
+        var response = await _client.GetAsync($"/root/browse?path={Uri.EscapeDataString(_tempRoot)}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var doc = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(Path.GetFullPath(_tempRoot), doc.GetProperty("path").GetString());
+        Assert.NotEqual(JsonValueKind.Null, doc.GetProperty("parent").ValueKind);
+        var folders = doc.GetProperty("folders").EnumerateArray().Select(f => f.GetProperty("name").GetString());
+        Assert.Contains("sub", folders);
+    }
+
+    [Fact]
+    public async Task BrowseRoot_Returns_BadRequest_For_Nonexistent_Path()
+    {
+        var missing = Path.Combine(_tempRoot, "does-not-exist");
+        var response = await _client.GetAsync($"/root/browse?path={Uri.EscapeDataString(missing)}");
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // ── POST /root ───────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task PostRoot_Switches_Active_Root()
+    {
+        var newRoot = Path.Combine(Path.GetTempPath(), "ems-test-newroot-" + Guid.NewGuid());
+        Directory.CreateDirectory(newRoot);
+        try
+        {
+            File.WriteAllText(Path.Combine(newRoot, "other.emj"), "{}");
+
+            var response = await _client.PostAsJsonAsync("/root", new { path = newRoot });
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var rootResponse = await _client.GetAsync("/root");
+            var doc = await rootResponse.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(Path.GetFullPath(newRoot), doc.GetProperty("path").GetString());
+
+            var filesResponse = await _client.GetAsync("/files");
+            var files = await filesResponse.Content.ReadFromJsonAsync<List<string>>();
+            Assert.NotNull(files);
+            Assert.Contains("other.emj", files);
+        }
+        finally
+        {
+            Directory.Delete(newRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task PostRoot_Returns_BadRequest_For_Nonexistent_Folder()
+    {
+        var missing = Path.Combine(_tempRoot, "does-not-exist");
+        var response = await _client.PostAsJsonAsync("/root", new { path = missing });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostRoot_Returns_BadRequest_When_Path_Missing()
+    {
+        var response = await _client.PostAsJsonAsync("/root", new { });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 

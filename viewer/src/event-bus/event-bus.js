@@ -46,4 +46,8 @@
             // The event model has been built from raw JSON (on FILE_LOADED or JSON_CHANGED).
             // Payload: { model }  — fully-enriched event model object, or { model: null } for cleared document
             MODEL_CHANGED:  'model:changed',
+
+            // The server's active root folder (scanned for .emj files) changed.
+            // Payload: { root }  — absolute path of the new root folder
+            ROOT_CHANGED:   'root:changed',
         };

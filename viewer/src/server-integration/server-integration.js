@@ -2,6 +2,7 @@
         const saveStatus = document.getElementById('serverSaveStatus');
 
         let _selectedFile = null;
+        let _currentRoot = '';
         let _lastSavedContent = null; // stringified JSON as last saved to server
         let _currentJson = null;
         let _saveTimer = null;
@@ -28,6 +29,48 @@
                 saveStatus.className = 'server-save-status disconnected';
                 dropdown.disabled = true;
                 if (newServerBtn) newServerBtn.disabled = true;
+            }
+        }
+
+        // ── Root folder ───────────────────────────────────────────────────────
+
+        async function fetchRoot() {
+            try {
+                const res = await fetch(`${baseUrl()}/root`);
+                if (!res.ok) return null;
+                setConnected(true);
+                const data = await res.json();
+                return data.path;
+            } catch (e) {
+                console.warn('[server] Failed to fetch current root:', e);
+                setConnected(false);
+                return null;
+            }
+        }
+
+        async function applySavedRootIfAny() {
+            const saved = localStorage.getItem('serverSelectedRoot');
+            if (!saved) return;
+            try {
+                const res = await fetch(`${baseUrl()}/root`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: saved })
+                });
+                if (!res.ok) {
+                    console.warn('[server] Saved folder is no longer valid, clearing:', saved);
+                    localStorage.removeItem('serverSelectedRoot');
+                }
+            } catch (e) {
+                console.warn('[server] Failed to apply saved folder:', e);
+            }
+        }
+
+        async function refreshRoot() {
+            const root = await fetchRoot();
+            if (root !== null) {
+                _currentRoot = root;
+                EventBus.emit(Events.ROOT_CHANGED, { root });
             }
         }
 
@@ -213,6 +256,14 @@
                 await populateDropdown(true);
             });
 
+            _eventSource.addEventListener('root-changed', async () => {
+                setConnected(true);
+                await refreshRoot();
+                await populateDropdown(false);
+                const path = dropdown.value;
+                if (path) await selectFile(path);
+            });
+
             _eventSource.onopen = () => {
                 setConnected(true);
             };
@@ -242,6 +293,8 @@
 
         EventBus.on(Events.APP_INIT, async () => {
             setConnected(false);
+            await applySavedRootIfAny();
+            await refreshRoot();
             await populateDropdown(false);
             const path = dropdown.value;
             if (path) await selectFile(path);

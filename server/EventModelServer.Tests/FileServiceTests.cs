@@ -120,6 +120,99 @@ public class FileServiceTests : IDisposable
         Assert.True(fired.Task.IsCompletedSuccessfully, "files-changed event did not fire within 3s");
     }
 
+    // ── TrySetRoot ───────────────────────────────────────────────────────────
+
+    [Fact]
+    public void TrySetRoot_Fails_For_Nonexistent_Folder()
+    {
+        var missing = Path.Combine(_root, "does-not-exist");
+        var result = _svc.TrySetRoot(missing, out var error);
+        Assert.False(result);
+        Assert.NotEmpty(error);
+        Assert.Equal(Path.GetFullPath(_root), _svc.Root);
+    }
+
+    [Fact]
+    public void TrySetRoot_Fails_For_Empty_Path()
+    {
+        var result = _svc.TrySetRoot("", out var error);
+        Assert.False(result);
+        Assert.NotEmpty(error);
+    }
+
+    [Fact]
+    public void TrySetRoot_Switches_Root_And_Files_Reflect_New_Folder()
+    {
+        var newRoot = Path.Combine(Path.GetTempPath(), "ems-unit-newroot-" + Guid.NewGuid());
+        Directory.CreateDirectory(newRoot);
+        try
+        {
+            File.WriteAllText(Path.Combine(newRoot, "other.emj"), "{}");
+
+            var result = _svc.TrySetRoot(newRoot, out var error);
+            Assert.True(result);
+            Assert.Empty(error);
+            Assert.Equal(Path.GetFullPath(newRoot), _svc.Root);
+            Assert.Contains("other.emj", _svc.GetFiles());
+        }
+        finally
+        {
+            Directory.Delete(newRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void TrySetRoot_Clears_Current_Selection()
+    {
+        File.WriteAllText(Path.Combine(_root, "picked.emj"), "{}");
+        _svc.TrySelect("picked.emj", out _);
+        Assert.Equal("picked.emj", _svc.SelectedRelative);
+
+        var newRoot = Path.Combine(Path.GetTempPath(), "ems-unit-newroot2-" + Guid.NewGuid());
+        Directory.CreateDirectory(newRoot);
+        try
+        {
+            _svc.TrySetRoot(newRoot, out _);
+            Assert.Null(_svc.SelectedRelative);
+        }
+        finally
+        {
+            Directory.Delete(newRoot, recursive: true);
+        }
+    }
+
+    // ── Browse ───────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Browse_Empty_Path_Lists_Drives()
+    {
+        var result = _svc.Browse("");
+        Assert.NotNull(result);
+        Assert.Equal("", result!.Path);
+        Assert.Null(result.Parent);
+        Assert.NotEmpty(result.Folders);
+    }
+
+    [Fact]
+    public void Browse_Returns_Subfolders_And_Parent()
+    {
+        var sub = Path.Combine(_root, "sub");
+        Directory.CreateDirectory(sub);
+
+        var result = _svc.Browse(_root);
+        Assert.NotNull(result);
+        Assert.Equal(Path.GetFullPath(_root), result!.Path);
+        Assert.NotNull(result.Parent);
+        Assert.Contains(result.Folders, f => f.Name == "sub");
+    }
+
+    [Fact]
+    public void Browse_Returns_Null_For_Nonexistent_Path()
+    {
+        var missing = Path.Combine(_root, "does-not-exist");
+        Assert.Null(_svc.Browse(missing));
+    }
+
     public void Dispose()
     {
         _svc.Dispose();

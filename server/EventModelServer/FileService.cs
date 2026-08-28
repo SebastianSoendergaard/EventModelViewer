@@ -1,13 +1,23 @@
 using System.IO;
+using System.Security;
 
 namespace EventModelServer;
 
+/// <summary>One entry in a folder listing (a subfolder or a drive).</summary>
+public record FolderEntry(string Name, string Path);
+
+/// <summary>
+/// Result of browsing a directory: the resolved path, the parent to navigate back to
+/// (null when there is no parent, e.g. at the drive list), and its immediate subfolders.
+/// </summary>
+public record BrowseResult(string Path, string? Parent, IReadOnlyList<FolderEntry> Folders);
+
 public class FileService : IDisposable
 {
-    private readonly string _root;
+    private string _root;
     private string? _selectedRelative;
     private FileSystemWatcher? _fileWatcher;
-    private readonly FileSystemWatcher _folderWatcher;
+    private FileSystemWatcher _folderWatcher;
 
     public event Action? OnSelectedFileChanged;
     public event Action? OnFolderContentsChanged;
@@ -15,17 +25,109 @@ public class FileService : IDisposable
     public FileService(string root)
     {
         _root = root;
+        _folderWatcher = CreateFolderWatcher(_root);
+    }
 
-        _folderWatcher = new FileSystemWatcher(_root)
+    /// <summary>The folder currently scanned for .emj files.</summary>
+    public string Root => _root;
+
+    private FileSystemWatcher CreateFolderWatcher(string root)
+    {
+        var watcher = new FileSystemWatcher(root)
         {
             Filter = "*.emj",
             IncludeSubdirectories = true,
             EnableRaisingEvents = true,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName
         };
-        _folderWatcher.Created += (_, _) => OnFolderContentsChanged?.Invoke();
-        _folderWatcher.Deleted += (_, _) => OnFolderContentsChanged?.Invoke();
-        _folderWatcher.Renamed += (_, _) => OnFolderContentsChanged?.Invoke();
+        watcher.Created += (_, _) => OnFolderContentsChanged?.Invoke();
+        watcher.Deleted += (_, _) => OnFolderContentsChanged?.Invoke();
+        watcher.Renamed += (_, _) => OnFolderContentsChanged?.Invoke();
+        return watcher;
+    }
+
+    /// <summary>Switches the active root folder. Returns false + error if invalid.</summary>
+    public bool TrySetRoot(string newRoot, out string error)
+    {
+        if (string.IsNullOrWhiteSpace(newRoot))
+        {
+            error = "Path cannot be empty";
+            return false;
+        }
+
+        string full;
+        try { full = Path.GetFullPath(newRoot); }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            error = "Invalid path";
+            return false;
+        }
+
+        if (!Directory.Exists(full))
+        {
+            error = $"Folder not found: {full}";
+            return false;
+        }
+
+        _root = full;
+        _selectedRelative = null;
+
+        _fileWatcher?.Dispose();
+        _fileWatcher = null;
+
+        _folderWatcher.Dispose();
+        _folderWatcher = CreateFolderWatcher(_root);
+
+        error = string.Empty;
+        return true;
+    }
+
+    /// <summary>
+    /// Lists the subfolders of <paramref name="path"/>, plus the parent to navigate back to.
+    /// A null/empty path lists the available drives. Returns null for an invalid path.
+    /// </summary>
+    public BrowseResult? Browse(string? path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            var drives = DriveInfo.GetDrives()
+                .Where(d => d.IsReady)
+                .Select(d => new FolderEntry(d.Name, d.Name))
+                .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return new BrowseResult(string.Empty, null, drives);
+        }
+
+        string full;
+        try { full = Path.GetFullPath(path); }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
+
+        if (!Directory.Exists(full)) return null;
+
+        string? parent;
+        try { parent = Directory.GetParent(full)?.FullName ?? string.Empty; }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
+        {
+            parent = string.Empty;
+        }
+
+        List<FolderEntry> folders;
+        try
+        {
+            folders = Directory.EnumerateDirectories(full)
+                .Select(d => new FolderEntry(Path.GetFileName(d), d))
+                .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
+        {
+            folders = [];
+        }
+
+        return new BrowseResult(full, parent, folders);
     }
 
     /// <summary>Returns relative paths of all .emj files under root.</summary>

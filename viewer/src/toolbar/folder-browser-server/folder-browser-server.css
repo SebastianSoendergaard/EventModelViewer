@@ -1,0 +1,111 @@
+        .folder-browser-trigger {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .current-root-label {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            max-width: 220px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .folder-browser-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .folder-browser-overlay.visible {
+            display: flex;
+        }
+
+        .folder-browser-modal {
+            background: white;
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            width: 480px;
+            max-width: 90vw;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .folder-browser-modal h2 {
+            font-size: 1.1rem;
+            color: #2c3e50;
+        }
+
+        .folder-browser-path {
+            font-size: 0.85rem;
+            color: #34495e;
+            background: #f4f6f7;
+            border-radius: 6px;
+            padding: 0.4rem 0.6rem;
+            word-break: break-all;
+        }
+
+        .folder-browser-list {
+            border: 1px solid #dfe4e8;
+            border-radius: 6px;
+            height: 260px;
+            overflow-y: auto;
+        }
+
+        .folder-browser-item {
+            padding: 0.4rem 0.6rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .folder-browser-item:hover {
+            background: #eaf4fc;
+        }
+
+        .folder-browser-up {
+            font-weight: 600;
+            color: #2980b9;
+        }
+
+        .folder-browser-error {
+            color: #c0392b;
+            font-size: 0.85rem;
+            min-height: 1em;
+        }
+
+        .folder-browser-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .folder-browser-actions button {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        #folderBrowserCancel {
+            background: #ecf0f1;
+            color: #2c3e50;
+        }
+
+        #folderBrowserSelect {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+
+        #folderBrowserSelect:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }

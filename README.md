@@ -25,8 +25,9 @@ For a more integrated local experience, the project ships a self-contained Windo
 ```cmd
 build_server.cmd          # build the .exe (requires .NET 9 SDK)
 EventModelServer.exe      # opens browser automatically
-EventModelServer.exe --root "C:\my-models"   # scan a specific folder
 ```
+
+It scans the folder the exe lives in for `.emj` files by default. Use the **📁 Folder** button in the toolbar to browse to and select a different folder — the choice is remembered for the next launch.
 
 See [`server/docs/README.md`](server/docs/README.md) for the full API reference and architecture overview.
 

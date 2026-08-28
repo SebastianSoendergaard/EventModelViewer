@@ -139,9 +139,13 @@ function buildServer() {
     const serverIntegrationHtml = readFile('src/server-integration/server-integration.html');
     const serverIntegrationCss  = readFile('src/server-integration/server-integration.css');
     const serverIntegrationJs   = readFile('src/server-integration/server-integration.js');
+    const folderBrowserServerHtml = readFile('src/toolbar/folder-browser-server/folder-browser-server.html');
+    const folderBrowserServerCss  = readFile('src/toolbar/folder-browser-server/folder-browser-server.css');
+    const folderBrowserServerJs   = readFile('src/toolbar/folder-browser-server/folder-browser-server.js');
 
-    // Inject New button + file dropdown into the FILE_BUTTONS_HTML slot
-    const combinedFileAreaHtml = fileButtonsServerHtml.trimEnd() + '\n        ' + serverIntegrationHtml.trimEnd();
+    // Inject New button + file dropdown + folder browser into the FILE_BUTTONS_HTML slot
+    const combinedFileAreaHtml = fileButtonsServerHtml.trimEnd() + '\n        ' + serverIntegrationHtml.trimEnd() +
+        '\n        ' + folderBrowserServerHtml.trimEnd();
 
     let toolbarHtml = readFile('src/toolbar/toolbar.html');
     toolbarHtml = toolbarHtml.replace('        <!-- FILE_BUTTONS_HTML -->', combinedFileAreaHtml);
@@ -149,9 +153,11 @@ function buildServer() {
     const toolbarParts = {
         html: toolbarHtml,
         css:  toolbarCss.trimEnd() + '\n\n' + fileButtonsServerCss.trimEnd() + '\n\n' +
-              serverIntegrationCss.trimEnd() + '\n\n' + filterTogglesCss.trimEnd(),
+              serverIntegrationCss.trimEnd() + '\n\n' + folderBrowserServerCss.trimEnd() + '\n\n' +
+              filterTogglesCss.trimEnd(),
         js:   iife(toolbarJs) + '\n\n' + iife(serverIntegrationJs) + '\n\n' +
-              iife(fileButtonsServerJs) + '\n\n' + iife(filterTogglesJs),
+              iife(fileButtonsServerJs) + '\n\n' + iife(folderBrowserServerJs) + '\n\n' +
+              iife(filterTogglesJs),
     };
 
     const editor  = assembleEditor();

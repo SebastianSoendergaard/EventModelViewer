@@ -8,13 +8,9 @@ A self-contained Windows desktop application that hosts the Event Model Viewer l
 EventModelServer.exe
 ```
 
-Opens `http://127.0.0.1:<port>` in your default browser. The port is chosen automatically by the OS.
+Opens `http://127.0.0.1:55231` in your default browser (falling back to an OS-assigned port if `55231` is already in use).
 
-To scan a specific folder for emj files instead of the folder the exe lives in:
-
-```cmd
-EventModelServer.exe --root "C:\my-event-models"
-```
+By default it scans the folder the exe lives in for `.emj` files. Use the **📁 Folder** button in the viewer's toolbar to browse to and select a different folder — the choice is remembered (via the browser's `localStorage`) so the next launch opens on the same folder automatically.
 
 ## Building
 
@@ -28,7 +24,7 @@ This publishes a single self-contained `win-x64` exe and copies it to the repo r
 
 ## HTTP API
 
-All endpoints are served on `http://127.0.0.1:<port>` where `<port>` is printed to the console on startup.
+All endpoints are served on `http://127.0.0.1:<port>` where `<port>` is printed to the console on startup (`55231` unless already taken).
 
 ---
 
@@ -37,6 +33,62 @@ All endpoints are served on `http://127.0.0.1:<port>` where `<port>` is printed 
 Serves the embedded `event-model-viewer.html` application.
 
 **Response:** `200 OK`, `Content-Type: text/html`
+
+---
+
+### `GET /root`
+
+Returns the folder currently being scanned for `.emj` files.
+
+**Response:** `200 OK`
+
+```json
+{ "path": "C:\\my-event-models" }
+```
+
+---
+
+### `GET /root/browse`
+
+Lists the subfolders of `path` (query string), for building an in-app folder picker. An empty/omitted `path` lists the available drives instead.
+
+**Response:** `200 OK`
+
+```json
+{
+  "path": "C:\\my-event-models",
+  "parent": "C:\\",
+  "folders": [{ "name": "examples", "path": "C:\\my-event-models\\examples" }]
+}
+```
+
+`parent` is `null` only at the drive list (nothing to go up to). Folders that error while being enumerated (e.g. access denied) are silently skipped.
+
+**Responses:**
+
+| Status | Meaning |
+|--------|---------|
+| `200 OK` | Listing returned |
+| `400 Bad Request` | `path` does not exist or is otherwise invalid |
+
+---
+
+### `POST /root`
+
+Switches the active root folder. Resets the current file selection, rewires the folder/file watchers, and broadcasts a `root-changed` SSE event to all connected clients.
+
+**Request body:**
+
+```json
+{ "path": "C:\\my-event-models" }
+```
+
+**Responses:**
+
+| Status | Meaning |
+|--------|---------|
+| `200 OK` | Root switched — `{ "root": "...", "files": [...] }` |
+| `400 Bad Request` | `path` missing, or folder does not exist |
 
 ---
 
@@ -135,6 +187,7 @@ Cache-Control: no-cache
 |------------|-----------|------|
 | `file-changed` | The selected file was modified by an external editor | `{}` |
 | `files-changed` | An `.emj` file was added, removed, or renamed anywhere under the root folder | `{}` |
+| `root-changed` | The active root folder was switched via `POST /root` | `{}` |
 
 **Example stream:**
 
@@ -173,7 +226,8 @@ EventModelServer/
 
 ### FileService
 
-- Scans the root folder recursively for `*.emj` files.
+- Scans the active root folder recursively for `*.emj` files.
+- The root folder is mutable (`TrySetRoot`) — switching it clears the current selection and rewires both watchers to the new location; `Browse` powers the in-app folder picker (subfolders, or drives when given an empty path).
 - Tracks one selected file at a time.
 - Owns a `FileSystemWatcher` on the selected file (rewired on each `TrySelect` call).
 - Owns a second `FileSystemWatcher` on the root folder to detect added/removed `.emj` files.
@@ -198,7 +252,7 @@ It is served by reading the embedded stream at runtime — no file on disk is ne
 
 ## Tests
 
-The solution includes an xUnit test project (`EventModelServer.Tests`) with 24 tests:
+The solution includes an xUnit test project (`EventModelServer.Tests`) with 43 tests:
 
 - **EndpointTests** — integration tests using `WebApplicationFactory<Program>` covering all HTTP endpoints and SSE service behaviour.
 - **FileServiceTests** — unit tests for file scanning, selection, content read/write, and `FileSystemWatcher` event firing.
