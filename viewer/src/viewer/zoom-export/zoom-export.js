@@ -59,11 +59,27 @@
                     });
                 }
 
-                // Capture the diagram as canvas
+                // Capture the diagram as canvas.
+                // Two html2canvas quirks are worked around in the cloned document it renders from
+                // (this does not touch the live page):
+                // 1. The arrows overlay contains invisible wide "hit-area" paths (stroke="transparent")
+                //    used only for mouse hover/click interaction. html2canvas doesn't render
+                //    stroke="transparent" as invisible — it paints it as an opaque blob — so they're
+                //    removed before capture.
+                // 2. html2canvas's box-shadow renderer misplaces blurred shadows on rounded elements,
+                //    producing stray gray "shadow" rectangles unrelated to any visible element.
+                //    Disabling box-shadow for the capture avoids these artifacts; the shadows are a
+                //    minor decorative touch so losing them in the exported image is not noticeable.
                 const canvas = await html2canvas(diagramDiv, {
                     backgroundColor: '#ffffff',
                     scale: 2, // Higher quality
-                    logging: false
+                    logging: false,
+                    onclone: (clonedDoc) => {
+                        clonedDoc.querySelectorAll('.arrow-hitarea').forEach(el => el.remove());
+                        const style = clonedDoc.createElement('style');
+                        style.textContent = '* { box-shadow: none !important; }';
+                        clonedDoc.head.appendChild(style);
+                    }
                 });
 
                 // Convert to blob and download
@@ -93,6 +109,10 @@
 
                 // Clone the diagram div
                 const clone = diagramDiv.cloneNode(true);
+
+                // Remove invisible arrow hit-area paths — they exist only for mouse
+                // interaction and serve no purpose in a static export.
+                clone.querySelectorAll('.arrow-hitarea').forEach(el => el.remove());
                 
                 // Get computed styles
                 const styles = window.getComputedStyle(diagramDiv);

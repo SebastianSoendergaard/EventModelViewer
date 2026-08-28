@@ -490,9 +490,14 @@
             }
             path.setAttribute('marker-end', `url(#${markerId})`);
 
-            // Invisible wide hit-area path for easier mouse interaction
+            // Invisible wide hit-area path for easier mouse interaction.
+            // Marked with "arrow-hitarea" so PNG/SVG export can strip it — html2canvas
+            // (and some static SVG viewers) mis-render stroke="transparent" as an opaque
+            // gray blob instead of invisible, which showed up as phantom "shadow" boxes
+            // behind command/event elements with many overlapping outgoing arrows.
             const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             hitPath.setAttribute('d', d);
+            hitPath.setAttribute('class', 'arrow-hitarea');
             hitPath.setAttribute('stroke', 'transparent');
             hitPath.setAttribute('stroke-width', '12');
             hitPath.setAttribute('fill', 'none');
