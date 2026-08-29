@@ -116,18 +116,64 @@
                 .replace(/^-+|-+$/g, '');
         }
 
+        function exportTrigger(trigger) {
+            if (!trigger) return null;
+            var sourceType = String(trigger.type || '').trim().toLowerCase();
+            return {
+                swimlane: trigger.swimlane,
+                type: sourceType === 'automation' ? 'automation' :
+                    sourceType === 'translation' ? 'translation' : 'ui'
+            };
+        }
+
+        function withoutId(element) {
+            if (!element) return null;
+            var result = Object.assign({}, element);
+            delete result.id;
+            return result;
+        }
+
+        function withDefaultId(element) {
+            if (!element) return element;
+            var result = Object.assign({}, element);
+            if (!result.id && result.name) result.id = result.name;
+            return result;
+        }
+
+        function withDefaultIds(elements) {
+            return (elements || []).map(withDefaultId);
+        }
+
+        function mergeEvents(ownEvents, dependencyEvents) {
+            var result = [];
+            var seenIds = new Set();
+            (ownEvents || []).concat(dependencyEvents || []).forEach(function(event) {
+                var eventId = event.id || event.name;
+                if (eventId && seenIds.has(eventId)) return;
+                if (eventId) seenIds.add(eventId);
+                result.push(withDefaultId(event));
+            });
+            return result;
+        }
+
         function buildGlobalMaps(dedupedSlices) {
             var eventsById = new Map();
             var viewsById = new Map();
             dedupedSlices.forEach(function(slice) {
-                (slice.events || []).forEach(function(ev) { if (ev.id) eventsById.set(ev.id, ev); });
-                if (slice.view && slice.view.id) viewsById.set(slice.view.id, slice.view);
+                (slice.events || []).forEach(function(ev) {
+                    var eventId = ev.id || ev.name;
+                    if (eventId) eventsById.set(eventId, ev);
+                });
+                if (slice.view) {
+                    var viewId = slice.view.id || slice.view.name;
+                    if (viewId) viewsById.set(viewId, slice.view);
+                }
             });
             return { eventsById: eventsById, viewsById: viewsById };
         }
 
         function computeDependencies(slice, globalMaps) {
-            var ownEventIds = new Set((slice.events || []).map(function(e) { return e.id; }));
+            var ownEventIds = new Set((slice.events || []).map(function(e) { return e.id || e.name; }));
             var internalEvents = [];
             var externalEvents = [];
             var seenEventIds = new Set();
@@ -146,7 +192,7 @@
             var seenViewIds = new Set();
             if (slice.trigger && Array.isArray(slice.trigger.views)) {
                 slice.trigger.views.forEach(function(refId) {
-                    if (slice.view && slice.view.id === refId) return;
+                    if (slice.view && (slice.view.id || slice.view.name) === refId) return;
                     if (seenViewIds.has(refId)) return;
                     var view = globalMaps.viewsById.get(refId);
                     if (!view) return;
@@ -372,54 +418,22 @@
             return lines.join('\n') + '\n';
         }
 
-        function buildRelationEdges(slice, deps) {
-            var edges = [];
-            var triggerNode = slice.trigger ? { type: 'trigger', id: slice.trigger.id } : null;
-            var commandNode = slice.command ? { type: 'command', id: slice.command.id } : null;
-            var viewNode = slice.view ? { type: 'view', id: slice.view.id } : null;
-
-            if (triggerNode && commandNode) {
-                edges.push({ from: triggerNode, to: commandNode, dependency: false });
-            }
-            if (commandNode) {
-                (slice.events || []).forEach(function(ev) {
-                    edges.push({ from: commandNode, to: { type: 'event', id: ev.id }, dependency: false });
-                });
-            }
-            if (viewNode) {
-                deps.internalEvents.concat(deps.externalEvents).forEach(function(ev) {
-                    edges.push({ from: { type: 'event', id: ev.id }, to: viewNode, dependency: true });
-                });
-            }
-            if (triggerNode) {
-                deps.dependencyViews.forEach(function(v) {
-                    edges.push({ from: { type: 'view', id: v.id }, to: triggerNode, dependency: true });
-                });
-            }
-
-            return edges;
-        }
-
-        function buildSliceJson(order, slice, pattern, deps, relationEdges) {
-            return {
+        function buildSliceJson(slice, pattern, deps) {
+            var json = {
                 schemaVersion: TASK_JSON_SCHEMA_VERSION,
-                order: order,
-                id: slice.id,
                 name: slice.name || '',
                 state: slice.border || '',
                 pattern: patternToCode(pattern),
-                trigger: slice.trigger || null,
-                command: slice.command || null,
-                events: slice.events || [],
-                view: slice.view || null,
-                dependencies: {
-                    events: deps.internalEvents,
-                    externalEvents: deps.externalEvents,
-                    views: deps.dependencyViews
-                },
-                tests: slice.tests || [],
-                relations: relationEdges
+                trigger: exportTrigger(slice.trigger),
+                command: withoutId(slice.command),
+                view: withDefaultId(slice.view),
+                events: mergeEvents(slice.events, deps.internalEvents),
+                externalEvents: withDefaultIds(deps.externalEvents),
+                views: withDefaultIds(deps.dependencyViews),
+                tests: slice.tests || []
             };
+            if (!slice.trigger) delete json.trigger;
+            return json;
         }
 
         function buildIndexJson(title, entries) {
@@ -428,8 +442,6 @@
                 title: title || 'Event Model',
                 slices: entries.map(function(e) {
                     return {
-                        order: e.order,
-                        id: e.id,
                         name: e.name,
                         pattern: patternToCode(e.pattern),
                         state: e.state || '',
@@ -457,8 +469,7 @@
 
                 files.push({ name: fileNameMd, content: buildSliceMarkdown(orderStr, slice, pattern, deps) });
 
-                var relationEdges = buildRelationEdges(slice, deps);
-                var json = buildSliceJson(order, slice, pattern, deps, relationEdges);
+                var json = buildSliceJson(slice, pattern, deps);
                 files.push({ name: fileNameJson, content: JSON.stringify(json, null, 2) + '\n' });
 
                 indexEntries.push({
@@ -697,44 +708,6 @@
         });
 
         // =====================================================================
-        // Tests: buildRelationEdges (structured JSON equivalent of buildRelations)
-        // =====================================================================
-        section('buildRelationEdges');
-
-        test('emits trigger->command, command->event edges for own elements', () => {
-            const slice = {
-                trigger: { id: 't1' }, command: { id: 'c1' },
-                events: [{ id: 'e1' }, { id: 'e2' }]
-            };
-            const deps = { internalEvents: [], externalEvents: [], dependencyViews: [] };
-            const edges = buildRelationEdges(slice, deps);
-            assertEquals(edges, [
-                { from: { type: 'trigger', id: 't1' }, to: { type: 'command', id: 'c1' }, dependency: false },
-                { from: { type: 'command', id: 'c1' }, to: { type: 'event', id: 'e1' }, dependency: false },
-                { from: { type: 'command', id: 'c1' }, to: { type: 'event', id: 'e2' }, dependency: false }
-            ]);
-        });
-
-        test('marks dependency-event->view and dependency-view->trigger edges with dependency: true', () => {
-            const slice = { trigger: { id: 't1' }, view: { id: 'v1' } };
-            const deps = {
-                internalEvents: [{ id: 'depEv', external: false }],
-                externalEvents: [{ id: 'extEv', external: true }],
-                dependencyViews: [{ id: 'depView' }]
-            };
-            const edges = buildRelationEdges(slice, deps);
-            assertEquals(edges, [
-                { from: { type: 'event', id: 'depEv' }, to: { type: 'view', id: 'v1' }, dependency: true },
-                { from: { type: 'event', id: 'extEv' }, to: { type: 'view', id: 'v1' }, dependency: true },
-                { from: { type: 'view', id: 'depView' }, to: { type: 'trigger', id: 't1' }, dependency: true }
-            ]);
-        });
-
-        test('empty slice with no dependencies produces no edges', () => {
-            assertEquals(buildRelationEdges({}, { internalEvents: [], externalEvents: [], dependencyViews: [] }), []);
-        });
-
-        // =====================================================================
         // Tests: generateExportFiles (end-to-end, small model)
         // =====================================================================
         section('generateExportFiles');
@@ -798,19 +771,21 @@
             const files = generateExportFiles(model);
             const json = JSON.parse(files.find(f => f.name === '001-add-item.json').content);
             assertEquals(json.schemaVersion, 1);
-            assertEquals(json.order, 1);
-            assertEquals(json.id, '1');
+            assert(!('order' in json), 'slice JSON should not include order');
+            assert(!('id' in json), 'slice JSON should not include slice id');
             assertEquals(json.name, 'Add item');
             assertEquals(json.state, 'green');
             assertEquals(json.pattern, 'state-change', 'pattern should be the kebab-case code, not the Markdown\'s Title Case');
-            assertEquals(json.trigger.id, 't1');
-            assertEquals(json.command.id, 'c1');
+            assertEquals(json.trigger, { type: 'ui' });
+            assert(!('id' in json.command), 'command JSON should not include id');
             assertEquals(json.events[0].id, 'Cart created');
-            assertEquals(json.dependencies, { events: [], externalEvents: [], views: [] });
-            assert(Array.isArray(json.relations) && json.relations.length > 0, 'should include structured relation edges');
+            assertEquals(json.externalEvents, []);
+            assertEquals(json.views, []);
+            assert(!('dependencies' in json), 'slice JSON should not include dependencies');
+            assert(!('relations' in json), 'slice JSON should not include relations');
         });
 
-        test('slice .json embeds the full dependency event (internal vs external kept as separate arrays)', () => {
+        test('slice .json merges internal dependency events and keeps external events at top level', () => {
             const model = {
                 title: 'Test Model',
                 slices: [
@@ -824,9 +799,25 @@
             };
             const files = generateExportFiles(model);
             const json = JSON.parse(files.find(f => f.name === '002-cart-items.json').content);
-            assertEquals(json.dependencies.events.map(e => e.id), ['Cart created']);
-            assertEquals(json.dependencies.externalEvents.map(e => e.id), ['Ext event']);
-            assertEquals(json.dependencies.events[0].properties, [], 'dependency event should carry its full definition, including properties');
+            assertEquals(json.events.map(e => e.id), ['Cart created']);
+            assertEquals(json.externalEvents.map(e => e.id), ['Ext event']);
+            assertEquals(json.events[0].properties, [], 'dependency event should carry its full definition, including properties');
+        });
+
+        test('slice .json supplies names as fallback ids for exported events and views', () => {
+            const model = {
+                title: 'Test Model',
+                slices: [
+                    { id: '1', name: 'Source', events: [{ name: 'Created', properties: [] }],
+                      view: { name: 'Source View', events: [] } },
+                    { id: '2', name: 'Consumer', view: { id: 'consumer', events: ['Created'] },
+                      trigger: { type: 'ui', views: ['Source View'] } }
+                ]
+            };
+            const files = generateExportFiles(model);
+            const json = JSON.parse(files.find(f => f.name === '002-consumer.json').content);
+            assertEquals(json.events[0].id, 'Created');
+            assertEquals(json.views[0].id, 'Source View');
         });
 
         test('slice .json tests mirror the raw given/when/then structure (structured, not flattened strings)', () => {
@@ -854,7 +845,8 @@
             const indexJson = JSON.parse(files.find(f => f.name === 'index.json').content);
             assertEquals(indexJson.schemaVersion, 1);
             assertEquals(indexJson.title, 'Test Model');
-            assertEquals(indexJson.slices.map(s => s.order), [1, 2], 'order should be a plain integer, not zero-padded');
+            assert(!('order' in indexJson.slices[0]), 'index entries should not include order');
+            assert(!('id' in indexJson.slices[0]), 'index entries should not include id');
             assertEquals(indexJson.slices[0].pattern, 'state-change');
             assertEquals(indexJson.slices[1].pattern, 'state-view');
             assertEquals(indexJson.slices[1].state, 'blue');

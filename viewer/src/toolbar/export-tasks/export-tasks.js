@@ -15,10 +15,10 @@
 
         // ----- Pure calculation helpers (copy-paste into test files) -----
 
-        // Bumped whenever the exported JSON task schema's shape changes in a way
-        // that could break a code-gen tool consuming it (see docs/adr for the
-        // decision to version this format). Markdown output is not versioned —
-        // it's for humans/agents to read, not to parse structurally.
+        // Kept at 1 while the exported task format is unreleased. Bump it after
+        // release whenever the JSON shape changes in a way that could break a
+        // code-gen tool consuming it (see docs/adr). Markdown output is not
+        // versioned — it's for humans/agents to read, not to parse structurally.
         var TASK_JSON_SCHEMA_VERSION = 1;
 
         function sanitizeSliceName(name) {
@@ -133,13 +133,59 @@
                 .replace(/^-+|-+$/g, '');
         }
 
+        function exportTrigger(trigger) {
+            if (!trigger) return null;
+            var sourceType = String(trigger.type || '').trim().toLowerCase();
+            return {
+                swimlane: trigger.swimlane,
+                type: sourceType === 'automation' ? 'automation' :
+                    sourceType === 'translation' ? 'translation' : 'ui'
+            };
+        }
+
+        function withoutId(element) {
+            if (!element) return null;
+            var result = Object.assign({}, element);
+            delete result.id;
+            return result;
+        }
+
+        function withDefaultId(element) {
+            if (!element) return element;
+            var result = Object.assign({}, element);
+            if (!result.id && result.name) result.id = result.name;
+            return result;
+        }
+
+        function withDefaultIds(elements) {
+            return (elements || []).map(withDefaultId);
+        }
+
+        function mergeEvents(ownEvents, dependencyEvents) {
+            var result = [];
+            var seenIds = new Set();
+            (ownEvents || []).concat(dependencyEvents || []).forEach(function(event) {
+                var eventId = event.id || event.name;
+                if (eventId && seenIds.has(eventId)) return;
+                if (eventId) seenIds.add(eventId);
+                result.push(withDefaultId(event));
+            });
+            return result;
+        }
+
         /** Builds global id->element maps across ALL deduplicated slices, used to resolve one-hop-back dependencies. */
         function buildGlobalMaps(dedupedSlices) {
             var eventsById = new Map();
             var viewsById = new Map();
             dedupedSlices.forEach(function(slice) {
-                (slice.events || []).forEach(function(ev) { if (ev.id) eventsById.set(ev.id, ev); });
-                if (slice.view && slice.view.id) viewsById.set(slice.view.id, slice.view);
+                (slice.events || []).forEach(function(ev) {
+                    var eventId = ev.id || ev.name;
+                    if (eventId) eventsById.set(eventId, ev);
+                });
+                if (slice.view) {
+                    var viewId = slice.view.id || slice.view.name;
+                    if (viewId) viewsById.set(viewId, slice.view);
+                }
             });
             return { eventsById: eventsById, viewsById: viewsById };
         }
@@ -155,7 +201,7 @@
          * slice's own file's job).
          */
         function computeDependencies(slice, globalMaps) {
-            var ownEventIds = new Set((slice.events || []).map(function(e) { return e.id; }));
+            var ownEventIds = new Set((slice.events || []).map(function(e) { return e.id || e.name; }));
             var internalEvents = [];
             var externalEvents = [];
             var seenEventIds = new Set();
@@ -174,7 +220,7 @@
             var seenViewIds = new Set();
             if (slice.trigger && Array.isArray(slice.trigger.views)) {
                 slice.trigger.views.forEach(function(refId) {
-                    if (slice.view && slice.view.id === refId) return; // this slice's own view, not a dependency
+                    if (slice.view && (slice.view.id || slice.view.name) === refId) return; // this slice's own view, not a dependency
                     if (seenViewIds.has(refId)) return;
                     var view = globalMaps.viewsById.get(refId);
                     if (!view) return;
@@ -409,61 +455,22 @@
             return lines.join('\n') + '\n';
         }
 
-        /**
-         * Structured equivalent of buildRelations()'s bullet list: the same edges,
-         * as plain {from, to, dependency} objects instead of rendered text — used
-         * by the JSON task file. "dependency: true" marks edges into/out of an
-         * element defined by *another* slice (fed via computeDependencies), same
-         * meaning as the "(depended on)"/"(external)" annotations in the Markdown.
-         */
-        function buildRelationEdges(slice, deps) {
-            var edges = [];
-            var triggerNode = slice.trigger ? { type: 'trigger', id: slice.trigger.id } : null;
-            var commandNode = slice.command ? { type: 'command', id: slice.command.id } : null;
-            var viewNode = slice.view ? { type: 'view', id: slice.view.id } : null;
-
-            if (triggerNode && commandNode) {
-                edges.push({ from: triggerNode, to: commandNode, dependency: false });
-            }
-            if (commandNode) {
-                (slice.events || []).forEach(function(ev) {
-                    edges.push({ from: commandNode, to: { type: 'event', id: ev.id }, dependency: false });
-                });
-            }
-            if (viewNode) {
-                deps.internalEvents.concat(deps.externalEvents).forEach(function(ev) {
-                    edges.push({ from: { type: 'event', id: ev.id }, to: viewNode, dependency: true });
-                });
-            }
-            if (triggerNode) {
-                deps.dependencyViews.forEach(function(v) {
-                    edges.push({ from: { type: 'view', id: v.id }, to: triggerNode, dependency: true });
-                });
-            }
-
-            return edges;
-        }
-
-        function buildSliceJson(order, slice, pattern, deps, relationEdges) {
-            return {
+        function buildSliceJson(slice, pattern, deps) {
+            var json = {
                 schemaVersion: TASK_JSON_SCHEMA_VERSION,
-                order: order,
-                id: slice.id,
                 name: slice.name || '',
                 state: slice.border || '',
                 pattern: patternToCode(pattern),
-                trigger: slice.trigger || null,
-                command: slice.command || null,
-                events: slice.events || [],
-                view: slice.view || null,
-                dependencies: {
-                    events: deps.internalEvents,
-                    externalEvents: deps.externalEvents,
-                    views: deps.dependencyViews
-                },
-                tests: slice.tests || [],
-                relations: relationEdges
+                trigger: exportTrigger(slice.trigger),
+                command: withoutId(slice.command),
+                view: withDefaultId(slice.view),
+                events: mergeEvents(slice.events, deps.internalEvents),
+                externalEvents: withDefaultIds(deps.externalEvents),
+                views: withDefaultIds(deps.dependencyViews),
+                tests: slice.tests || []
             };
+            if (!slice.trigger) delete json.trigger;
+            return json;
         }
 
         function buildIndexJson(title, entries) {
@@ -472,8 +479,6 @@
                 title: title || 'Event Model',
                 slices: entries.map(function(e) {
                     return {
-                        order: e.order,
-                        id: e.id,
                         name: e.name,
                         pattern: patternToCode(e.pattern),
                         state: e.state || '',
@@ -508,8 +513,7 @@
 
                 files.push({ name: fileNameMd, content: buildSliceMarkdown(orderStr, slice, pattern, deps) });
 
-                var relationEdges = buildRelationEdges(slice, deps);
-                var json = buildSliceJson(order, slice, pattern, deps, relationEdges);
+                var json = buildSliceJson(slice, pattern, deps);
                 files.push({ name: fileNameJson, content: JSON.stringify(json, null, 2) + '\n' });
 
                 indexEntries.push({
