@@ -97,6 +97,8 @@
             return order.map(function(key) { return byKey.get(key); });
         }
 
+        var TASK_JSON_SCHEMA_VERSION = 1;
+
         function classifySlicePattern(slice) {
             var triggerType = slice.trigger ? String(slice.trigger.type || '').toLowerCase() : '';
             if (triggerType === 'automation') return 'Automation';
@@ -105,6 +107,13 @@
             if (slice.view) return 'State View';
             if (slice.command) return 'State Change';
             return 'Unclassified';
+        }
+
+        function patternToCode(pattern) {
+            return String(pattern || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
         }
 
         function buildGlobalMaps(dedupedSlices) {
@@ -363,6 +372,73 @@
             return lines.join('\n') + '\n';
         }
 
+        function buildRelationEdges(slice, deps) {
+            var edges = [];
+            var triggerNode = slice.trigger ? { type: 'trigger', id: slice.trigger.id } : null;
+            var commandNode = slice.command ? { type: 'command', id: slice.command.id } : null;
+            var viewNode = slice.view ? { type: 'view', id: slice.view.id } : null;
+
+            if (triggerNode && commandNode) {
+                edges.push({ from: triggerNode, to: commandNode, dependency: false });
+            }
+            if (commandNode) {
+                (slice.events || []).forEach(function(ev) {
+                    edges.push({ from: commandNode, to: { type: 'event', id: ev.id }, dependency: false });
+                });
+            }
+            if (viewNode) {
+                deps.internalEvents.concat(deps.externalEvents).forEach(function(ev) {
+                    edges.push({ from: { type: 'event', id: ev.id }, to: viewNode, dependency: true });
+                });
+            }
+            if (triggerNode) {
+                deps.dependencyViews.forEach(function(v) {
+                    edges.push({ from: { type: 'view', id: v.id }, to: triggerNode, dependency: true });
+                });
+            }
+
+            return edges;
+        }
+
+        function buildSliceJson(order, slice, pattern, deps, relationEdges) {
+            return {
+                schemaVersion: TASK_JSON_SCHEMA_VERSION,
+                order: order,
+                id: slice.id,
+                name: slice.name || '',
+                state: slice.border || '',
+                pattern: patternToCode(pattern),
+                trigger: slice.trigger || null,
+                command: slice.command || null,
+                events: slice.events || [],
+                view: slice.view || null,
+                dependencies: {
+                    events: deps.internalEvents,
+                    externalEvents: deps.externalEvents,
+                    views: deps.dependencyViews
+                },
+                tests: slice.tests || [],
+                relations: relationEdges
+            };
+        }
+
+        function buildIndexJson(title, entries) {
+            return {
+                schemaVersion: TASK_JSON_SCHEMA_VERSION,
+                title: title || 'Event Model',
+                slices: entries.map(function(e) {
+                    return {
+                        order: e.order,
+                        id: e.id,
+                        name: e.name,
+                        pattern: patternToCode(e.pattern),
+                        state: e.state || '',
+                        files: { markdown: e.fileNameMd, json: e.fileNameJson }
+                    };
+                })
+            };
+        }
+
         function generateExportFiles(model) {
             var dedupedSlices = deduplicateSlices(model.slices);
             var globalMaps = buildGlobalMaps(dedupedSlices);
@@ -371,16 +447,30 @@
             var indexEntries = [];
 
             dedupedSlices.forEach(function(slice, i) {
-                var orderStr = padOrder(i + 1, width);
+                var order = i + 1;
+                var orderStr = padOrder(order, width);
                 var pattern = classifySlicePattern(slice);
                 var deps = computeDependencies(slice, globalMaps);
-                var fileName = orderStr + '-' + sanitizeSliceName(slice.name) + '.md';
-                var content = buildSliceMarkdown(orderStr, slice, pattern, deps);
-                files.push({ name: fileName, content: content });
-                indexEntries.push({ order: orderStr, fileName: fileName, name: slice.name || '(unnamed)', pattern: pattern, state: slice.border });
+                var baseName = orderStr + '-' + sanitizeSliceName(slice.name);
+                var fileNameMd = baseName + '.md';
+                var fileNameJson = baseName + '.json';
+
+                files.push({ name: fileNameMd, content: buildSliceMarkdown(orderStr, slice, pattern, deps) });
+
+                var relationEdges = buildRelationEdges(slice, deps);
+                var json = buildSliceJson(order, slice, pattern, deps, relationEdges);
+                files.push({ name: fileNameJson, content: JSON.stringify(json, null, 2) + '\n' });
+
+                indexEntries.push({
+                    order: order, orderStr: orderStr, id: slice.id, name: slice.name || '(unnamed)', pattern: pattern, state: slice.border,
+                    fileNameMd: fileNameMd, fileNameJson: fileNameJson
+                });
             });
 
-            files.unshift({ name: 'index.md', content: buildIndexMarkdown(model.title, indexEntries) });
+            files.unshift({ name: 'index.json', content: JSON.stringify(buildIndexJson(model.title, indexEntries), null, 2) + '\n' });
+            files.unshift({ name: 'index.md', content: buildIndexMarkdown(model.title, indexEntries.map(function(e) {
+                return { order: e.orderStr, fileName: e.fileNameMd, name: e.name, pattern: e.pattern, state: e.state };
+            })) });
             return files;
         }
 
@@ -543,6 +633,21 @@
             assertEquals(classifySlicePattern({}), 'Unclassified');
         });
 
+        section('patternToCode');
+
+        test('converts each Title Case pattern to a stable kebab-case code', () => {
+            assertEquals(patternToCode('State Change'), 'state-change');
+            assertEquals(patternToCode('State View'), 'state-view');
+            assertEquals(patternToCode('Automation'), 'automation');
+            assertEquals(patternToCode('Translation'), 'translation');
+            assertEquals(patternToCode('Unclassified'), 'unclassified');
+        });
+
+        test('handles empty/null input', () => {
+            assertEquals(patternToCode(''), '');
+            assertEquals(patternToCode(null), '');
+        });
+
         // =====================================================================
         // Tests: computeDependencies
         // =====================================================================
@@ -592,11 +697,49 @@
         });
 
         // =====================================================================
+        // Tests: buildRelationEdges (structured JSON equivalent of buildRelations)
+        // =====================================================================
+        section('buildRelationEdges');
+
+        test('emits trigger->command, command->event edges for own elements', () => {
+            const slice = {
+                trigger: { id: 't1' }, command: { id: 'c1' },
+                events: [{ id: 'e1' }, { id: 'e2' }]
+            };
+            const deps = { internalEvents: [], externalEvents: [], dependencyViews: [] };
+            const edges = buildRelationEdges(slice, deps);
+            assertEquals(edges, [
+                { from: { type: 'trigger', id: 't1' }, to: { type: 'command', id: 'c1' }, dependency: false },
+                { from: { type: 'command', id: 'c1' }, to: { type: 'event', id: 'e1' }, dependency: false },
+                { from: { type: 'command', id: 'c1' }, to: { type: 'event', id: 'e2' }, dependency: false }
+            ]);
+        });
+
+        test('marks dependency-event->view and dependency-view->trigger edges with dependency: true', () => {
+            const slice = { trigger: { id: 't1' }, view: { id: 'v1' } };
+            const deps = {
+                internalEvents: [{ id: 'depEv', external: false }],
+                externalEvents: [{ id: 'extEv', external: true }],
+                dependencyViews: [{ id: 'depView' }]
+            };
+            const edges = buildRelationEdges(slice, deps);
+            assertEquals(edges, [
+                { from: { type: 'event', id: 'depEv' }, to: { type: 'view', id: 'v1' }, dependency: true },
+                { from: { type: 'event', id: 'extEv' }, to: { type: 'view', id: 'v1' }, dependency: true },
+                { from: { type: 'view', id: 'depView' }, to: { type: 'trigger', id: 't1' }, dependency: true }
+            ]);
+        });
+
+        test('empty slice with no dependencies produces no edges', () => {
+            assertEquals(buildRelationEdges({}, { internalEvents: [], externalEvents: [], dependencyViews: [] }), []);
+        });
+
+        // =====================================================================
         // Tests: generateExportFiles (end-to-end, small model)
         // =====================================================================
         section('generateExportFiles');
 
-        test('produces index.md plus one file per deduplicated slice, in order', () => {
+        test('produces index.md + index.json plus a paired .md/.json file per deduplicated slice, in order', () => {
             const model = {
                 title: 'Test Model',
                 slices: [
@@ -606,14 +749,19 @@
                 ]
             };
             const files = generateExportFiles(model);
-            assertEquals(files.map(f => f.name), ['index.md', '001-add-item.md', '002-cart-items.md']);
-            assert(files[0].content.includes('Test Model'), 'index.md should include the model title');
-            assert(files[0].content.includes('| 001 | [001-add-item.md]'), 'index.md should list slice 1');
-            assert(files[2].content.includes('**State:** red'), 'slice 2 file should show its border as State');
-            assert(files[2].content.includes('**Pattern:** State View'), 'slice 2 should be classified as State View');
+            assertEquals(files.map(f => f.name), [
+                'index.md', 'index.json',
+                '001-add-item.md', '001-add-item.json',
+                '002-cart-items.md', '002-cart-items.json'
+            ]);
+            assert(files.find(f => f.name === 'index.md').content.includes('Test Model'), 'index.md should include the model title');
+            assert(files.find(f => f.name === 'index.md').content.includes('| 001 | [001-add-item.md]'), 'index.md should list slice 1');
+            const cartItemsMd = files.find(f => f.name === '002-cart-items.md').content;
+            assert(cartItemsMd.includes('**State:** red'), 'slice 2 file should show its border as State');
+            assert(cartItemsMd.includes('**Pattern:** State View'), 'slice 2 should be classified as State View (human-readable Title Case in Markdown)');
         });
 
-        test('State View slice embeds the full upstream event even though it is defined in another slice', () => {
+        test('State View slice embeds the full upstream event even though it is defined in another slice (Markdown)', () => {
             const model = {
                 title: 'Test Model',
                 slices: [
@@ -633,8 +781,84 @@
             const slices = [];
             for (let i = 0; i < 12; i++) slices.push({ id: String(i), name: 'Slice ' + i, command: {} });
             const files = generateExportFiles({ title: 'Big Model', slices });
-            assert(files[1].name.startsWith('001-'), 'first slice file should use 3-digit padding');
-            assert(files[12].name.startsWith('012-'), 'last slice file should use 3-digit padding');
+            assert(files.some(f => f.name === '001-slice-0.md'), 'first slice should use 3-digit padding for the .md file');
+            assert(files.some(f => f.name === '001-slice-0.json'), 'first slice should use 3-digit padding for the .json file');
+            assert(files.some(f => f.name === '012-slice-11.md'), 'last slice should use 3-digit padding for the .md file');
+            assert(files.some(f => f.name === '012-slice-11.json'), 'last slice should use 3-digit padding for the .json file');
+        });
+
+        test('slice .json is valid JSON containing the same information as the .md, structured', () => {
+            const model = {
+                title: 'Test Model',
+                slices: [
+                    { id: '1', name: 'Add item', border: 'green', trigger: { id: 't1', name: 'Add' }, command: { id: 'c1', name: 'Add item', events: ['Cart created'] },
+                      events: [{ id: 'Cart created', name: 'Cart created', properties: [{ name: 'CartId', type: 'Guid' }] }] }
+                ]
+            };
+            const files = generateExportFiles(model);
+            const json = JSON.parse(files.find(f => f.name === '001-add-item.json').content);
+            assertEquals(json.schemaVersion, 1);
+            assertEquals(json.order, 1);
+            assertEquals(json.id, '1');
+            assertEquals(json.name, 'Add item');
+            assertEquals(json.state, 'green');
+            assertEquals(json.pattern, 'state-change', 'pattern should be the kebab-case code, not the Markdown\'s Title Case');
+            assertEquals(json.trigger.id, 't1');
+            assertEquals(json.command.id, 'c1');
+            assertEquals(json.events[0].id, 'Cart created');
+            assertEquals(json.dependencies, { events: [], externalEvents: [], views: [] });
+            assert(Array.isArray(json.relations) && json.relations.length > 0, 'should include structured relation edges');
+        });
+
+        test('slice .json embeds the full dependency event (internal vs external kept as separate arrays)', () => {
+            const model = {
+                title: 'Test Model',
+                slices: [
+                    { id: '1', name: 'Add item', command: { id: 'c1', events: ['Cart created', 'Ext event'] },
+                      events: [
+                          { id: 'Cart created', name: 'Cart created', external: false, properties: [] },
+                          { id: 'Ext event', name: 'Ext event', external: true, properties: [] }
+                      ] },
+                    { id: '2', name: 'Cart items', view: { id: 'Cart items', events: ['Cart created', 'Ext event'] } }
+                ]
+            };
+            const files = generateExportFiles(model);
+            const json = JSON.parse(files.find(f => f.name === '002-cart-items.json').content);
+            assertEquals(json.dependencies.events.map(e => e.id), ['Cart created']);
+            assertEquals(json.dependencies.externalEvents.map(e => e.id), ['Ext event']);
+            assertEquals(json.dependencies.events[0].properties, [], 'dependency event should carry its full definition, including properties');
+        });
+
+        test('slice .json tests mirror the raw given/when/then structure (structured, not flattened strings)', () => {
+            const model = {
+                title: 'Test Model',
+                slices: [{
+                    id: '1', name: 'Add item', command: { id: 'c1' },
+                    tests: [{ name: 'Adds item', given: { events: [{ id: 'Cart created', properties: [{ name: 'CartId', value: 'abc' }] }] }, then: { events: [{ id: 'Item added' }] } }]
+                }]
+            };
+            const files = generateExportFiles(model);
+            const json = JSON.parse(files.find(f => f.name === '001-add-item.json').content);
+            assertEquals(json.tests, model.slices[0].tests, 'tests should be passed through unmodified, not rendered to strings');
+        });
+
+        test('index.json lists every slice with both file names and the kebab-case pattern code', () => {
+            const model = {
+                title: 'Test Model',
+                slices: [
+                    { id: '1', name: 'Add item', border: 'green', command: { id: 'c1' } },
+                    { id: '2', name: 'Cart items', border: 'blue', view: { id: 'v1' } }
+                ]
+            };
+            const files = generateExportFiles(model);
+            const indexJson = JSON.parse(files.find(f => f.name === 'index.json').content);
+            assertEquals(indexJson.schemaVersion, 1);
+            assertEquals(indexJson.title, 'Test Model');
+            assertEquals(indexJson.slices.map(s => s.order), [1, 2], 'order should be a plain integer, not zero-padded');
+            assertEquals(indexJson.slices[0].pattern, 'state-change');
+            assertEquals(indexJson.slices[1].pattern, 'state-view');
+            assertEquals(indexJson.slices[1].state, 'blue');
+            assertEquals(indexJson.slices[1].files, { markdown: '002-cart-items.md', json: '002-cart-items.json' });
         });
 
         // =====================================================================

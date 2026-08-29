@@ -15,6 +15,12 @@
 
         // ----- Pure calculation helpers (copy-paste into test files) -----
 
+        // Bumped whenever the exported JSON task schema's shape changes in a way
+        // that could break a code-gen tool consuming it (see docs/adr for the
+        // decision to version this format). Markdown output is not versioned —
+        // it's for humans/agents to read, not to parse structurally.
+        var TASK_JSON_SCHEMA_VERSION = 1;
+
         function sanitizeSliceName(name) {
             return (name || '')
                 .toLowerCase()
@@ -112,6 +118,19 @@
             if (slice.view) return 'State View';
             if (slice.command) return 'State Change';
             return 'Unclassified';
+        }
+
+        /**
+         * Maps classifySlicePattern()'s human-readable Title Case (used in the
+         * Markdown file) to a stable kebab-case code for the JSON task file —
+         * easier for a code-gen tool to match/switch on, and immune to future
+         * wording tweaks to the Markdown's human-facing text.
+         */
+        function patternToCode(pattern) {
+            return String(pattern || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
         }
 
         /** Builds global id->element maps across ALL deduplicated slices, used to resolve one-hop-back dependencies. */
@@ -391,9 +410,85 @@
         }
 
         /**
+         * Structured equivalent of buildRelations()'s bullet list: the same edges,
+         * as plain {from, to, dependency} objects instead of rendered text — used
+         * by the JSON task file. "dependency: true" marks edges into/out of an
+         * element defined by *another* slice (fed via computeDependencies), same
+         * meaning as the "(depended on)"/"(external)" annotations in the Markdown.
+         */
+        function buildRelationEdges(slice, deps) {
+            var edges = [];
+            var triggerNode = slice.trigger ? { type: 'trigger', id: slice.trigger.id } : null;
+            var commandNode = slice.command ? { type: 'command', id: slice.command.id } : null;
+            var viewNode = slice.view ? { type: 'view', id: slice.view.id } : null;
+
+            if (triggerNode && commandNode) {
+                edges.push({ from: triggerNode, to: commandNode, dependency: false });
+            }
+            if (commandNode) {
+                (slice.events || []).forEach(function(ev) {
+                    edges.push({ from: commandNode, to: { type: 'event', id: ev.id }, dependency: false });
+                });
+            }
+            if (viewNode) {
+                deps.internalEvents.concat(deps.externalEvents).forEach(function(ev) {
+                    edges.push({ from: { type: 'event', id: ev.id }, to: viewNode, dependency: true });
+                });
+            }
+            if (triggerNode) {
+                deps.dependencyViews.forEach(function(v) {
+                    edges.push({ from: { type: 'view', id: v.id }, to: triggerNode, dependency: true });
+                });
+            }
+
+            return edges;
+        }
+
+        function buildSliceJson(order, slice, pattern, deps, relationEdges) {
+            return {
+                schemaVersion: TASK_JSON_SCHEMA_VERSION,
+                order: order,
+                id: slice.id,
+                name: slice.name || '',
+                state: slice.border || '',
+                pattern: patternToCode(pattern),
+                trigger: slice.trigger || null,
+                command: slice.command || null,
+                events: slice.events || [],
+                view: slice.view || null,
+                dependencies: {
+                    events: deps.internalEvents,
+                    externalEvents: deps.externalEvents,
+                    views: deps.dependencyViews
+                },
+                tests: slice.tests || [],
+                relations: relationEdges
+            };
+        }
+
+        function buildIndexJson(title, entries) {
+            return {
+                schemaVersion: TASK_JSON_SCHEMA_VERSION,
+                title: title || 'Event Model',
+                slices: entries.map(function(e) {
+                    return {
+                        order: e.order,
+                        id: e.id,
+                        name: e.name,
+                        pattern: patternToCode(e.pattern),
+                        state: e.state || '',
+                        files: { markdown: e.fileNameMd, json: e.fileNameJson }
+                    };
+                })
+            };
+        }
+
+        /**
          * Main entry point: turns an enriched event model (from MODEL_CHANGED) into
-         * the full list of files to write — one index.md plus one file per
-         * deduplicated slice, in slice order.
+         * the full list of files to write — index.md + index.json plus, per
+         * deduplicated slice in order, a paired NNN-slicename.md (for humans/agents
+         * to read) and NNN-slicename.json (same information, structured for a
+         * code-gen tool to consume).
          */
         function generateExportFiles(model) {
             var dedupedSlices = deduplicateSlices(model.slices);
@@ -403,16 +498,30 @@
             var indexEntries = [];
 
             dedupedSlices.forEach(function(slice, i) {
-                var orderStr = padOrder(i + 1, width);
+                var order = i + 1;
+                var orderStr = padOrder(order, width);
                 var pattern = classifySlicePattern(slice);
                 var deps = computeDependencies(slice, globalMaps);
-                var fileName = orderStr + '-' + sanitizeSliceName(slice.name) + '.md';
-                var content = buildSliceMarkdown(orderStr, slice, pattern, deps);
-                files.push({ name: fileName, content: content });
-                indexEntries.push({ order: orderStr, fileName: fileName, name: slice.name || '(unnamed)', pattern: pattern, state: slice.border });
+                var baseName = orderStr + '-' + sanitizeSliceName(slice.name);
+                var fileNameMd = baseName + '.md';
+                var fileNameJson = baseName + '.json';
+
+                files.push({ name: fileNameMd, content: buildSliceMarkdown(orderStr, slice, pattern, deps) });
+
+                var relationEdges = buildRelationEdges(slice, deps);
+                var json = buildSliceJson(order, slice, pattern, deps, relationEdges);
+                files.push({ name: fileNameJson, content: JSON.stringify(json, null, 2) + '\n' });
+
+                indexEntries.push({
+                    order: order, orderStr: orderStr, id: slice.id, name: slice.name || '(unnamed)', pattern: pattern, state: slice.border,
+                    fileNameMd: fileNameMd, fileNameJson: fileNameJson
+                });
             });
 
-            files.unshift({ name: 'index.md', content: buildIndexMarkdown(model.title, indexEntries) });
+            files.unshift({ name: 'index.json', content: JSON.stringify(buildIndexJson(model.title, indexEntries), null, 2) + '\n' });
+            files.unshift({ name: 'index.md', content: buildIndexMarkdown(model.title, indexEntries.map(function(e) {
+                return { order: e.orderStr, fileName: e.fileNameMd, name: e.name, pattern: e.pattern, state: e.state };
+            })) });
             return files;
         }
 
@@ -458,27 +567,39 @@
         var exportSelectBtn = exportOverlay.querySelector('#exportFolderBrowserSelect');
 
         var _exportBrowsePath = null; // folder currently shown in the browser ("" = drive list)
+        var EXPORT_LAST_FOLDER_KEY = 'exportTasksLastFolder';
 
         function openExportFolderBrowser() {
             exportErrorEl.textContent = '';
             exportOverlay.classList.add('visible');
-            browseExportTo('');
+            var lastFolder = localStorage.getItem(EXPORT_LAST_FOLDER_KEY) || '';
+            browseExportTo(lastFolder, /*fallbackToRootOnError*/ true);
         }
 
         function closeExportFolderBrowser() {
             exportOverlay.classList.remove('visible');
         }
 
-        async function browseExportTo(browsePath) {
+        async function browseExportTo(browsePath, fallbackToRootOnError) {
             try {
                 const res = await fetch(`${baseUrl()}/root/browse?path=${encodeURIComponent(browsePath)}`);
                 if (!res.ok) {
+                    // Remembered folder may no longer exist (moved/deleted/different
+                    // machine) — fall back to the drive list instead of erroring out.
+                    if (fallbackToRootOnError && browsePath !== '') {
+                        browseExportTo('', false);
+                        return;
+                    }
                     exportErrorEl.textContent = 'Could not browse that folder.';
                     return;
                 }
                 const data = await res.json();
                 renderExportFolderBrowser(data);
             } catch (e) {
+                if (fallbackToRootOnError && browsePath !== '') {
+                    browseExportTo('', false);
+                    return;
+                }
                 exportErrorEl.textContent = 'Error browsing folder: ' + e.message;
             }
         }
@@ -534,6 +655,7 @@
                 }
                 const data = await res.json();
                 closeExportFolderBrowser();
+                localStorage.setItem(EXPORT_LAST_FOLDER_KEY, _exportBrowsePath);
                 alert('Wrote ' + data.written.length + ' file(s) to ' + _exportBrowsePath);
             } catch (e) {
                 exportErrorEl.textContent = 'Error exporting: ' + e.message;
