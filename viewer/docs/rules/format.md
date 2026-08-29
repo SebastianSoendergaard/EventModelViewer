@@ -7,6 +7,7 @@ title: the title of the work flow
 slices: list of slices on the diagram
   slice: a single slice
     name: name of the slice
+    id: unique id of the slice, can be used for reference on name clashes, if not defined fallback to name property
     border: color to mark a slice and its state (e.g. black=>draft, blue=>todo, red=>in progress, green=>done)
     trigger: something that triggers actions in the flow 
       name: name of the trigger that initiates an action
@@ -41,21 +42,29 @@ slices: list of slices on the diagram
         type: type of an event property
     tests: list of test cases for the slice
       name: name of the test case
-      given: list of preconditional events
-        name: name of the event
-        properties: list of properties for the event
-          name: name of an event property
-          value: value of an event property
-      when: the action 
-        name: name of the command
-        properties: list of properties for the command
-          name: name of a command property
-          value: value of a command property
-      then: list of resulting events or views
-        name: name of the event or view
-        properties: list of properties for the event or view
-          name: name of an event or view property
-          value: value of an event or view property
+      given: 
+        events: list of preconditional events
+          name: name of the event
+          properties: list of properties for the event
+            name: name of an event property
+            value: value of an event property
+      when: 
+        command: the action 
+          name: name of the command
+          properties: list of properties for the command
+            name: name of a command property
+            value: value of a command property
+      then: 
+        events: list of resulting events
+          name: name of the event
+          properties: list of properties for the event
+            name: name of an event property
+            value: value of an event property
+        views: list of resulting views
+          name: name of the view
+          properties: list of properties for the view
+            name: name of a view property
+            value: value of a view property
 
 trigger types:
   ui: shows properties as plain label/value rows
