@@ -18,6 +18,19 @@ function iife(js) {
     return `(function() {\n${js.trimEnd()}\n})();`;
 }
 
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// Extract the content of the first fenced code block (```...```) from a markdown string.
+function extractFirstCodeFence(markdown) {
+    const match = markdown.match(/```[^\n]*\n([\s\S]*?)```/);
+    return match ? match[1].trimEnd() : '';
+}
+
 // ── Shared modules (used by both builds) ──────────────────────────────────────
 
 // Event bus (must be first JS in the bundle, NOT wrapped in IIFE)
@@ -37,6 +50,17 @@ const filterTogglesCss  = readFile('src/toolbar/filter-toggles/filter-toggles.cs
 const filterTogglesJs   = readFile('src/toolbar/filter-toggles/filter-toggles.js');
 const toolbarCss  = readFile('src/toolbar/toolbar.css');
 const toolbarJs   = readFile('src/toolbar/toolbar.js');
+
+// Help overlay (event modeling primer + tips + EMJ/EMY format spec) — shared by both builds.
+// The format spec is copied verbatim from docs/rules/format.md at build time so the
+// in-app help and the on-disk reference stay in sync from a single source of truth.
+const helpButtonHtml  = readFile('src/help/help-button.html');
+const helpOverlayRaw  = readFile('src/help/help-overlay.html');
+const helpCss         = readFile('src/help/help.css');
+const helpJs          = readFile('src/help/help.js');
+const formatSpecMd    = readFile('docs/rules/format.md');
+const formatSpecText  = escapeHtml(extractFirstCodeFence(formatSpecMd));
+const helpOverlayHtml = helpOverlayRaw.replace('<!-- FORMAT_SPEC -->', formatSpecText);
 
 // Editor sub-modules
 const codeViewHtml = readFile('src/editor/code-view/code-view.html');
@@ -106,10 +130,14 @@ function assembleApp(toolbarParts, resizerParts) {
     result = result.replace('<!-- BUILD_NUMBER -->', buildNumber);
     result = result.replace('    <!-- TOOLBAR_HTML -->', toolbarParts.html.trimEnd());
     result = result.replace('        <!-- RESIZER_HTML -->', resizerParts.html.trimEnd());
+    result = result.replace('        <!-- HELP_BUTTON_HTML -->', helpButtonHtml.trimEnd());
+    result = result.replace('        <!-- HELP_OVERLAY_HTML -->', helpOverlayHtml.trimEnd());
     result = result.replace('        /* TOOLBAR_CSS */', toolbarParts.css);
     result = result.replace('        /* RESIZER_CSS */', resizerParts.css);
+    result = result.replace('        /* HELP_CSS */', helpCss.trimEnd());
     result = result.replace('        // TOOLBAR_JS', eventBusJs.trimEnd() + '\n\n' + codecJs.trimEnd() + '\n\n' + toolbarParts.js);
     result = result.replace('        // RESIZER_JS', resizerParts.js);
+    result = result.replace('        // HELP_JS', iife(helpJs));
     return result;
 }
 

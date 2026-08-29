@@ -293,6 +293,103 @@
             cursor: not-allowed;
         }
 
+        .export-folder-browser-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .export-folder-browser-overlay.visible {
+            display: flex;
+        }
+
+        .export-folder-browser-modal {
+            background: white;
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            width: 480px;
+            max-width: 90vw;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .export-folder-browser-modal h2 {
+            font-size: 1.1rem;
+            color: #2c3e50;
+        }
+
+        .export-folder-browser-path {
+            font-size: 0.85rem;
+            color: #34495e;
+            background: #f4f6f7;
+            border-radius: 6px;
+            padding: 0.4rem 0.6rem;
+            word-break: break-all;
+        }
+
+        .export-folder-browser-list {
+            border: 1px solid #dfe4e8;
+            border-radius: 6px;
+            height: 260px;
+            overflow-y: auto;
+        }
+
+        .export-folder-browser-item {
+            padding: 0.4rem 0.6rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .export-folder-browser-item:hover {
+            background: #eaf4fc;
+        }
+
+        .export-folder-browser-up {
+            font-weight: 600;
+            color: #2980b9;
+        }
+
+        .export-folder-browser-error {
+            color: #c0392b;
+            font-size: 0.85rem;
+            min-height: 1em;
+        }
+
+        .export-folder-browser-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .export-folder-browser-actions button {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        #exportFolderBrowserCancel {
+            background: #ecf0f1;
+            color: #2c3e50;
+        }
+
+        #exportFolderBrowserSelect {
+            background: linear-gradient(135deg, #27ae60, #1e8449);
+            color: white;
+        }
+
+        #exportFolderBrowserSelect:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .checkbox-group {
             display: flex;
             gap: 1.5rem;
@@ -434,6 +531,7 @@
             flex: 1;
             display: flex;
             overflow: hidden;
+            position: relative;
         }
 
         /* Smooth transitions for panel collapse/expand */
@@ -1810,6 +1908,151 @@
             background: rgba(0,0,0,0.1);
             margin: 5px 0;
         }
+
+.help-btn {
+    margin-left: 0.5rem;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.4);
+    background: rgba(255,255,255,0.12);
+    color: white;
+    font-weight: 700;
+    font-size: 0.95rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.help-btn:hover {
+    background: rgba(255,255,255,0.25);
+    transform: translateY(-1px);
+}
+
+.help-btn.active {
+    background: rgba(255,255,255,0.35);
+}
+
+.help-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 600px;
+    max-width: 90vw;
+    background: #ffffff;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.2);
+    border-left: 1px solid rgba(0,0,0,0.08);
+    z-index: 20000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.help-overlay[hidden] {
+    display: none;
+}
+
+.help-overlay-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    flex-shrink: 0;
+}
+
+.help-overlay-header h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.help-overlay-close {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 0.25rem;
+}
+
+.help-overlay-close:hover {
+    opacity: 0.7;
+}
+
+.help-overlay-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+}
+
+.help-section {
+    margin-bottom: 1.75rem;
+}
+
+.help-section h3 {
+    font-size: 0.95rem;
+    color: #1e3c72;
+    margin-bottom: 0.5rem;
+}
+
+.help-section p {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.help-links,
+.help-tips {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.help-links li,
+.help-tips li {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+    padding-left: 1rem;
+    position: relative;
+}
+
+.help-links li::before,
+.help-tips li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: #3498db;
+}
+
+.help-links a {
+    color: #2980b9;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.help-links a:hover {
+    text-decoration: underline;
+}
+
+.help-format-spec {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    background: #f4f6f8;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 6px;
+    padding: 0.75rem;
+    white-space: pre;
+    overflow-x: auto;
+    color: #2c3e50;
+}
     </style>
 </head>
 <body>
@@ -1820,7 +2063,8 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026082901</span>
+        <span class="build-number" title="Build number">Build 2026082923</span>
+<button class="help-btn" id="helpBtn" title="Help" aria-label="Open help" aria-expanded="false">?</button>
     </header>
 
     <div class="upload-section">
@@ -1835,6 +2079,7 @@
             <button class="file-label" id="changeFolderBtn" title="Change the folder scanned for event models">📁 Folder</button>
             <span id="currentRootLabel" class="current-root-label"></span>
         </div>
+                <button class="file-label" id="exportTasksBtn" title="Export the event model as per-slice Markdown task files for an AI coding agent">📤 Export as Tasks</button>
         <div class="checkbox-group">
             <div class="checkbox-item">
                 <input type="checkbox" id="showSlices" checked>
@@ -1915,6 +2160,114 @@
                 <button class="export-btn" id="exportSvgBtn" title="Export as SVG">SVG</button>
             </div>
         </div>
+<aside class="help-overlay" id="helpOverlay" hidden>
+    <div class="help-overlay-header">
+        <h2>Help</h2>
+        <button class="help-overlay-close" id="helpOverlayClose" title="Close help" aria-label="Close help">&times;</button>
+    </div>
+    <div class="help-overlay-body">
+        <section class="help-section">
+            <h3>What is Event Modeling?</h3>
+            <p>
+                Event Modeling is a method for describing systems by showing how information changes over time.
+                A model is built from four building blocks &mdash; <strong>triggers</strong>, <strong>commands</strong>,
+                <strong>events</strong> and <strong>views</strong> &mdash; arranged left-to-right as a timeline of
+                <strong>slices</strong>, one slice per use case.
+            </p>
+            <ul class="help-links">
+                <li>
+                    <a href="https://eventmodeling.org/" target="_blank" rel="noopener noreferrer">eventmodeling.org</a>
+                    &mdash; the official home of Event Modeling: its origin, articles, podcast and the
+                    Event Modeling &amp; Event Sourcing book.
+                </li>
+                <li>
+                    <a href="https://www.eventmodelers.ai/cheatsheet/" target="_blank" rel="noopener noreferrer">eventmodelers.ai cheat sheet</a>
+                    &mdash; a quick interactive reference for the building blocks, patterns and workshop steps.
+                </li>
+            </ul>
+        </section>
+
+        <section class="help-section">
+            <h3>Tips &amp; Tricks</h3>
+            <ul class="help-tips">
+                <li>One command should represent one intention &mdash; keep it focused.</li>
+                <li>Name events as business facts that already happened (past tense).</li>
+                <li>Use realistic, concrete example data instead of placeholders.</li>
+                <li>Only what is persisted as an event matters &mdash; skip transient UI details.</li>
+                <li>Arrange slices left-to-right in the order the use cases happen over time.</li>
+                <li>Keep names consistent with how the business talks about the domain.</li>
+            </ul>
+        </section>
+
+        <section class="help-section">
+            <h3>EMJ/EMY Format Specification</h3>
+            <pre class="help-format-spec">title: the title of the work flow
+slices: list of slices on the diagram
+  slice: a single slice
+    name: name of the slice
+    border: color to mark a slice and its state (e.g. black=&gt;draft, blue=&gt;todo, red=&gt;in progress, green=&gt;done)
+    trigger: something that triggers actions in the flow 
+      name: name of the trigger that initiates an action
+      type: type of the trigger e.g. ui or automation, see all options below
+      properties: list of properties for the trigger
+        name: name of a trigger property
+        value: value of a trigger property
+      swimlane: name of the swimlane (role/person/system) the trigger belongs to, if not defined it will be put in a default swimlane 
+      buttons: list of buttons to show on ui trigger
+      views: list of dependencies of views (id of view if defined, else name of view) 
+    command: a command
+      name: name of the command
+      id: unique id of a command, can be used for reference on name clashes, if not defined fallback to name property
+      properties: list of properties for the command
+        name: name of a command property
+        type: type of a command property
+      events: list of references to events (id of event if defined, else name of event) 
+    view: a view
+      name: name of the view
+      id: unique id of a view, can be used for reference on name clashes, if not defined fallback to name property
+      properties: list of properties for the view
+        name: name of a view property
+        type: type of a view property
+      events: list of dependencies of events (id of event if defined, else name of event) 
+    events: list of events 
+      name: name of an event
+      id: unique id of an event, can be used for reference on name clashes, if not defined fallback to name property
+      swimlane: name of the swimlane (aggregate/module/system) the event belongs to, if not defined it will be put in a default swimlane
+      external: true if the event is external
+      properties: list of properties for the event
+        name: name of an event property
+        type: type of an event property
+    tests: list of test cases for the slice
+      name: name of the test case
+      given: list of preconditional events
+        name: name of the event
+        properties: list of properties for the event
+          name: name of an event property
+          value: value of an event property
+      when: the action 
+        name: name of the command
+        properties: list of properties for the command
+          name: name of a command property
+          value: value of a command property
+      then: list of resulting events or views
+        name: name of the event or view
+        properties: list of properties for the event or view
+          name: name of an event or view property
+          value: value of an event or view property
+
+trigger types:
+  ui: shows properties as plain label/value rows
+  ui-input: properties as label + enabled text input field
+  ui-input-disabled: same as ui-input but disabled input (read-only appearance)
+  ui-table: displays tabular data with properties as column headers
+  ui-chart-line: displays a hardcoded example line chart (SVG)
+  ui-chart-column: displays a hardcoded example column/bar chart (SVG)
+  ui-chart-pie: displays a hardcoded example pie chart (SVG, 3 slices)
+  automation: represents an automated process trigger (no user interaction)
+  translation: represents a trigger that translates/relays events between systems (Translation Pattern)</pre>
+        </section>
+    </div>
+</aside>
     </div>
 
     <!-- Context Menu for Tree Items -->
@@ -2569,6 +2922,672 @@
             _currentRoot = root;
             currentRootLabel.textContent = root;
             currentRootLabel.title = root;
+        });
+})();
+
+(function() {
+        // =====================================================================
+        // export-tasks.js — "Export as Tasks": turns the currently loaded event
+        // model into one Markdown task file per deduplicated slice, suitable for
+        // handing to an AI coding agent. Server mode only (writes via POST /export).
+        //
+        // Operates entirely on the already-enriched MODEL_CHANGED payload (see
+        // event-model.js), which is identical regardless of whether the document
+        // was loaded from .emj (JSON) or .emy (YAML) — Codec.parse() normalizes
+        // both encodings into the same in-memory shape before enrichment ever runs.
+        // No format-specific code is needed here.
+        //
+        // Wrapped in IIFE by build.js; communicates only via EventBus except for
+        // the fetch() calls needed to browse/write folders on the server.
+        // =====================================================================
+
+        // ----- Pure calculation helpers (copy-paste into test files) -----
+
+        // Bumped whenever the exported JSON task schema's shape changes in a way
+        // that could break a code-gen tool consuming it (see docs/adr for the
+        // decision to version this format). Markdown output is not versioned —
+        // it's for humans/agents to read, not to parse structurally.
+        var TASK_JSON_SCHEMA_VERSION = 1;
+
+        function sanitizeSliceName(name) {
+            return (name || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .substring(0, 50) || 'slice';
+        }
+
+        function padOrder(n, width) {
+            var s = String(n);
+            while (s.length < width) s = '0' + s;
+            return s;
+        }
+
+        /**
+         * Merges raw enriched slices that share an id (id falls back to name — see
+         * event-model.js's calcId) into one logical "Deduplicated Slice" (see
+         * CONTEXT.md). Multiple raw slice entries with the same id are fragments of
+         * one slice — the diagram layout places a view fragment next to whichever
+         * events feed it — not distinct slices. Unions events/tests; first fragment
+         * to define trigger/command/view/border wins. Because a view (or, less
+         * commonly, a trigger/command) fragment is placed next to whichever event
+         * feeds it, different fragments of the same view/trigger typically carry a
+         * *different* single entry in their `events`/`views` reference array —
+         * those reference arrays are unioned across fragments too, not just
+         * overwritten by the first fragment, so no dependency is silently dropped.
+         * Preserves order of first appearance (used later for file numbering).
+         */
+        function unionRefs(existing, incoming) {
+            var result = (existing || []).slice();
+            (incoming || []).forEach(function(ref) {
+                if (result.indexOf(ref) === -1) result.push(ref);
+            });
+            return result;
+        }
+
+        function mergeReferencingElement(merged, incoming, refField) {
+            if (!incoming) return merged;
+            if (!merged) return Object.assign({}, incoming);
+            var result = Object.assign({}, merged);
+            result[refField] = unionRefs(merged[refField], incoming[refField]);
+            return result;
+        }
+
+        function deduplicateSlices(slices) {
+            var order = [];
+            var byKey = new Map();
+
+            (slices || []).forEach(function(slice, index) {
+                var key = slice.id || ('__slice_' + index);
+                var merged = byKey.get(key);
+                if (!merged) {
+                    merged = {
+                        id: slice.id || key,
+                        name: slice.name || '',
+                        border: slice.border || '',
+                        trigger: null,
+                        command: null,
+                        view: null,
+                        events: [],
+                        tests: []
+                    };
+                    byKey.set(key, merged);
+                    order.push(key);
+                }
+
+                if (!merged.name && slice.name) merged.name = slice.name;
+                if (!merged.border && slice.border) merged.border = slice.border;
+                merged.trigger = mergeReferencingElement(merged.trigger, slice.trigger, 'views');
+                merged.command = mergeReferencingElement(merged.command, slice.command, 'events');
+                merged.view = mergeReferencingElement(merged.view, slice.view, 'events');
+
+                (slice.events || []).forEach(function(ev) {
+                    if (!merged.events.some(function(e) { return e.id === ev.id; })) {
+                        merged.events.push(ev);
+                    }
+                });
+                (slice.tests || []).forEach(function(t) { merged.tests.push(t); });
+            });
+
+            return order.map(function(key) { return byKey.get(key); });
+        }
+
+        /**
+         * Classifies a deduplicated slice into one of the four Event Modeling
+         * patterns. Automation/Translation take priority over the generic
+         * trigger+command check — those slices also have a trigger and a command,
+         * but their identity comes from the trigger's type (see triggers.md).
+         */
+        function classifySlicePattern(slice) {
+            var triggerType = slice.trigger ? String(slice.trigger.type || '').toLowerCase() : '';
+            if (triggerType === 'automation') return 'Automation';
+            if (triggerType === 'translation') return 'Translation';
+            if (slice.trigger && slice.command) return 'State Change';
+            if (slice.view) return 'State View';
+            if (slice.command) return 'State Change';
+            return 'Unclassified';
+        }
+
+        /**
+         * Maps classifySlicePattern()'s human-readable Title Case (used in the
+         * Markdown file) to a stable kebab-case code for the JSON task file —
+         * easier for a code-gen tool to match/switch on, and immune to future
+         * wording tweaks to the Markdown's human-facing text.
+         */
+        function patternToCode(pattern) {
+            return String(pattern || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+        }
+
+        /** Builds global id->element maps across ALL deduplicated slices, used to resolve one-hop-back dependencies. */
+        function buildGlobalMaps(dedupedSlices) {
+            var eventsById = new Map();
+            var viewsById = new Map();
+            dedupedSlices.forEach(function(slice) {
+                (slice.events || []).forEach(function(ev) { if (ev.id) eventsById.set(ev.id, ev); });
+                if (slice.view && slice.view.id) viewsById.set(slice.view.id, slice.view);
+            });
+            return { eventsById: eventsById, viewsById: viewsById };
+        }
+
+        /**
+         * Computes this slice's one-hop-back dependencies:
+         *   - events feeding its own view (split internal vs external), and
+         *   - the view(s) feeding its own trigger.
+         * Full element definitions are embedded regardless of which other slice
+         * defines them — we don't care where they originate, only that they're
+         * available even if the producing slice hasn't been implemented yet.
+         * Does not chase dependencies further than one hop (that's the referenced
+         * slice's own file's job).
+         */
+        function computeDependencies(slice, globalMaps) {
+            var ownEventIds = new Set((slice.events || []).map(function(e) { return e.id; }));
+            var internalEvents = [];
+            var externalEvents = [];
+            var seenEventIds = new Set();
+
+            if (slice.view && Array.isArray(slice.view.events)) {
+                slice.view.events.forEach(function(refId) {
+                    if (ownEventIds.has(refId) || seenEventIds.has(refId)) return;
+                    var ev = globalMaps.eventsById.get(refId);
+                    if (!ev) return;
+                    seenEventIds.add(refId);
+                    if (ev.external) externalEvents.push(ev); else internalEvents.push(ev);
+                });
+            }
+
+            var dependencyViews = [];
+            var seenViewIds = new Set();
+            if (slice.trigger && Array.isArray(slice.trigger.views)) {
+                slice.trigger.views.forEach(function(refId) {
+                    if (slice.view && slice.view.id === refId) return; // this slice's own view, not a dependency
+                    if (seenViewIds.has(refId)) return;
+                    var view = globalMaps.viewsById.get(refId);
+                    if (!view) return;
+                    seenViewIds.add(refId);
+                    dependencyViews.push(view);
+                });
+            }
+
+            return { internalEvents: internalEvents, externalEvents: externalEvents, dependencyViews: dependencyViews };
+        }
+
+        // ----- Markdown rendering helpers -----
+
+        function mdTable(headers, rows) {
+            if (!rows || rows.length === 0) return '_None_';
+            var lines = ['| ' + headers.join(' | ') + ' |', '| ' + headers.map(function() { return '---'; }).join(' | ') + ' |'];
+            rows.forEach(function(row) { lines.push('| ' + row.join(' | ') + ' |'); });
+            return lines.join('\n');
+        }
+
+        function renderTriggerSection(trigger) {
+            if (!trigger) return '';
+            var lines = ['## Trigger', ''];
+            lines.push('- **Name:** ' + (trigger.name || trigger.id || '_unnamed_'));
+            lines.push('- **Type:** ' + (trigger.type || 'ui'));
+            if (trigger.swimlane) lines.push('- **Swimlane:** ' + trigger.swimlane);
+            lines.push('');
+            lines.push('**Properties:**', '', mdTable(['Name', 'Value'], (trigger.properties || []).map(function(p) {
+                return [p.name || '', p.value !== undefined ? String(p.value) : ''];
+            })));
+            if (trigger.buttons && trigger.buttons.length) {
+                lines.push('', '- **Buttons:** ' + trigger.buttons.join(', '));
+            }
+            return lines.join('\n');
+        }
+
+        function renderCommandSection(command) {
+            if (!command) return '';
+            var lines = ['## Command', '', '**' + (command.name || command.id) + '**', ''];
+            lines.push('**Properties:**', '', mdTable(['Name', 'Type'], (command.properties || []).map(function(p) {
+                return [p.name || '', p.type || ''];
+            })));
+            if (command.events && command.events.length) {
+                lines.push('', '**Produces events:** ' + command.events.join(', '));
+            }
+            return lines.join('\n');
+        }
+
+        function renderEventSubsection(ev, headingLevel) {
+            var h = headingLevel || 3;
+            var prefix = new Array(h + 1).join('#');
+            var lines = [prefix + ' ' + (ev.name || ev.id)];
+            if (ev.swimlane) lines.push('- **Swimlane:** ' + ev.swimlane);
+            if (ev.external) lines.push('- **External:** yes');
+            lines.push('', '**Properties:**', '', mdTable(['Name', 'Type'], (ev.properties || []).map(function(p) {
+                return [p.name || '', p.type || ''];
+            })));
+            return lines.join('\n');
+        }
+
+        function renderEventsSection(events) {
+            if (!events || events.length === 0) return '';
+            var lines = ['## Events', ''];
+            events.forEach(function(ev) { lines.push(renderEventSubsection(ev, 3), ''); });
+            return lines.join('\n').trim();
+        }
+
+        function renderViewSubsection(view, headingLevel) {
+            var h = headingLevel || 3;
+            var prefix = new Array(h + 1).join('#');
+            var lines = [prefix + ' ' + (view.name || view.id)];
+            lines.push('', '**Properties:**', '', mdTable(['Name', 'Type'], (view.properties || []).map(function(p) {
+                return [p.name || '', p.type || ''];
+            })));
+            if (view.events && view.events.length) {
+                lines.push('', '**Built from events:** ' + view.events.join(', '));
+            }
+            return lines.join('\n');
+        }
+
+        function renderViewSection(view) {
+            if (!view) return '';
+            return ['## View', '', renderViewSubsection(view, 3)].join('\n');
+        }
+
+        function renderDependencySections(deps) {
+            var out = [];
+            if (deps.internalEvents.length) {
+                out.push(['## Depends on Events', '',
+                    '_Produced by other slices — full definitions are included here so this slice can be implemented even if the producing slice isn\u2019t implemented yet._',
+                    ''].concat(deps.internalEvents.map(function(ev) { return renderEventSubsection(ev, 3); })).join('\n\n'));
+            }
+            if (deps.externalEvents.length) {
+                out.push(['## External Events', '',
+                    '_Originate outside this system (integration/webhook events) — not implemented as part of this model._',
+                    ''].concat(deps.externalEvents.map(function(ev) { return renderEventSubsection(ev, 3); })).join('\n\n'));
+            }
+            if (deps.dependencyViews.length) {
+                out.push(['## Depends on View', ''].concat(deps.dependencyViews.map(function(v) { return renderViewSubsection(v, 3); })).join('\n\n'));
+            }
+            return out.join('\n\n');
+        }
+
+        function renderTestElementRef(ref) {
+            if (!ref) return '';
+            var label = ref.name || ref.id || '';
+            if (ref.properties && ref.properties.length) {
+                label += ' (' + ref.properties.map(function(p) { return p.name + '=' + p.value; }).join(', ') + ')';
+            }
+            return label;
+        }
+
+        function renderGivenWhenThenPart(part) {
+            var pieces = [];
+            if (part.events) pieces.push('events: ' + part.events.map(renderTestElementRef).join('; '));
+            if (part.views) pieces.push('views: ' + part.views.map(renderTestElementRef).join('; '));
+            if (part.command) pieces.push('command: ' + renderTestElementRef(part.command));
+            if (part.error) pieces.push('error: "' + part.error + '"');
+            return pieces.join(', ');
+        }
+
+        function renderTests(tests) {
+            if (!tests || tests.length === 0) return '';
+            var lines = ['## Test Cases', ''];
+            tests.forEach(function(t, i) {
+                lines.push('### ' + (i + 1) + '. ' + (t.name || 'Test ' + (i + 1)));
+                if (t.given) lines.push('- **Given:** ' + renderGivenWhenThenPart(t.given));
+                if (t.when) lines.push('- **When:** ' + renderGivenWhenThenPart(t.when));
+                if (t.then) lines.push('- **Then:** ' + renderGivenWhenThenPart(t.then));
+                lines.push('');
+            });
+            return lines.join('\n').trim();
+        }
+
+        /**
+         * Builds the Relations section: an authoritative bullet list plus a small
+         * Mermaid flowchart for quick visual context. Dependency elements (fed by
+         * another slice) are marked "(depended on)"/"(external)" but otherwise
+         * treated like any other node — this slice doesn't care where they
+         * originate, only that they're fully described.
+         */
+        function buildRelations(slice, deps) {
+            var mermaid = ['flowchart LR'];
+            var bullets = [];
+            var counter = 0;
+            var nodeIdFor = {};
+
+            function ensureNode(key, label) {
+                if (!nodeIdFor[key]) {
+                    counter++;
+                    nodeIdFor[key] = 'N' + counter;
+                    mermaid.push('    ' + nodeIdFor[key] + '["' + String(label).replace(/"/g, '\'') + '"]');
+                }
+                return nodeIdFor[key];
+            }
+
+            var triggerKey = null, commandKey = null, viewKey = null;
+
+            if (slice.trigger) {
+                triggerKey = 'trigger';
+                ensureNode(triggerKey, 'Trigger: ' + (slice.trigger.name || slice.trigger.id || '(unnamed)'));
+            }
+            if (slice.command) {
+                commandKey = 'command';
+                ensureNode(commandKey, 'Command: ' + (slice.command.name || slice.command.id));
+                if (triggerKey) {
+                    mermaid.push('    ' + nodeIdFor[triggerKey] + ' --> ' + nodeIdFor[commandKey]);
+                    bullets.push('- Trigger **' + (slice.trigger.name || slice.trigger.id) + '** \u2192 Command **' + (slice.command.name || slice.command.id) + '**');
+                }
+            }
+            (slice.events || []).forEach(function(ev) {
+                var key = 'event:' + ev.id;
+                ensureNode(key, 'Event: ' + (ev.name || ev.id));
+                if (commandKey) {
+                    mermaid.push('    ' + nodeIdFor[commandKey] + ' --> ' + nodeIdFor[key]);
+                    bullets.push('- Command **' + (slice.command.name || slice.command.id) + '** \u2192 Event **' + (ev.name || ev.id) + '**');
+                }
+            });
+            if (slice.view) {
+                viewKey = 'view';
+                ensureNode(viewKey, 'View: ' + (slice.view.name || slice.view.id));
+            }
+            deps.internalEvents.concat(deps.externalEvents).forEach(function(ev) {
+                var key = 'depevent:' + ev.id;
+                ensureNode(key, 'Event: ' + (ev.name || ev.id) + (ev.external ? ' (external)' : ''));
+                if (viewKey) {
+                    mermaid.push('    ' + nodeIdFor[key] + ' --> ' + nodeIdFor[viewKey]);
+                    bullets.push('- Event **' + (ev.name || ev.id) + '**' + (ev.external ? ' _(external)_' : '') + ' \u2192 View **' + (slice.view.name || slice.view.id) + '** _(depended on)_');
+                }
+            });
+            deps.dependencyViews.forEach(function(v) {
+                var key = 'depview:' + v.id;
+                ensureNode(key, 'View: ' + (v.name || v.id));
+                if (triggerKey) {
+                    mermaid.push('    ' + nodeIdFor[key] + ' --> ' + nodeIdFor[triggerKey]);
+                    bullets.push('- View **' + (v.name || v.id) + '** \u2192 Trigger **' + (slice.trigger.name || slice.trigger.id) + '** _(depended on)_');
+                }
+            });
+
+            if (bullets.length === 0) bullets.push('_No relations for this slice._');
+            return { bullets: bullets, mermaid: mermaid.join('\n') };
+        }
+
+        function buildSliceMarkdown(orderStr, slice, pattern, deps) {
+            var lines = [];
+            lines.push('# ' + orderStr + '. ' + (slice.name || '(unnamed slice)'));
+            lines.push('');
+            lines.push('- **State:** ' + (slice.border || '_none_'));
+            lines.push('- **Pattern:** ' + pattern);
+            lines.push('');
+
+            [renderTriggerSection(slice.trigger), renderCommandSection(slice.command),
+             renderEventsSection(slice.events), renderViewSection(slice.view),
+             renderDependencySections(deps), renderTests(slice.tests)].forEach(function(section) {
+                if (section) lines.push(section, '');
+            });
+
+            var relations = buildRelations(slice, deps);
+            lines.push('## Relations', '');
+            lines.push(relations.bullets.join('\n'));
+            lines.push('', '```mermaid', relations.mermaid, '```', '');
+
+            return lines.join('\n').trim() + '\n';
+        }
+
+        function buildIndexMarkdown(title, entries) {
+            var lines = ['# ' + (title || 'Event Model') + ' \u2014 Task Index', '',
+                '| Order | File | Slice | Pattern | State |', '| --- | --- | --- | --- | --- |'];
+            entries.forEach(function(e) {
+                lines.push('| ' + e.order + ' | [' + e.fileName + '](' + e.fileName + ') | ' + e.name + ' | ' + e.pattern + ' | ' + (e.state || '_none_') + ' |');
+            });
+            return lines.join('\n') + '\n';
+        }
+
+        /**
+         * Structured equivalent of buildRelations()'s bullet list: the same edges,
+         * as plain {from, to, dependency} objects instead of rendered text — used
+         * by the JSON task file. "dependency: true" marks edges into/out of an
+         * element defined by *another* slice (fed via computeDependencies), same
+         * meaning as the "(depended on)"/"(external)" annotations in the Markdown.
+         */
+        function buildRelationEdges(slice, deps) {
+            var edges = [];
+            var triggerNode = slice.trigger ? { type: 'trigger', id: slice.trigger.id } : null;
+            var commandNode = slice.command ? { type: 'command', id: slice.command.id } : null;
+            var viewNode = slice.view ? { type: 'view', id: slice.view.id } : null;
+
+            if (triggerNode && commandNode) {
+                edges.push({ from: triggerNode, to: commandNode, dependency: false });
+            }
+            if (commandNode) {
+                (slice.events || []).forEach(function(ev) {
+                    edges.push({ from: commandNode, to: { type: 'event', id: ev.id }, dependency: false });
+                });
+            }
+            if (viewNode) {
+                deps.internalEvents.concat(deps.externalEvents).forEach(function(ev) {
+                    edges.push({ from: { type: 'event', id: ev.id }, to: viewNode, dependency: true });
+                });
+            }
+            if (triggerNode) {
+                deps.dependencyViews.forEach(function(v) {
+                    edges.push({ from: { type: 'view', id: v.id }, to: triggerNode, dependency: true });
+                });
+            }
+
+            return edges;
+        }
+
+        function buildSliceJson(order, slice, pattern, deps, relationEdges) {
+            return {
+                schemaVersion: TASK_JSON_SCHEMA_VERSION,
+                order: order,
+                id: slice.id,
+                name: slice.name || '',
+                state: slice.border || '',
+                pattern: patternToCode(pattern),
+                trigger: slice.trigger || null,
+                command: slice.command || null,
+                events: slice.events || [],
+                view: slice.view || null,
+                dependencies: {
+                    events: deps.internalEvents,
+                    externalEvents: deps.externalEvents,
+                    views: deps.dependencyViews
+                },
+                tests: slice.tests || [],
+                relations: relationEdges
+            };
+        }
+
+        function buildIndexJson(title, entries) {
+            return {
+                schemaVersion: TASK_JSON_SCHEMA_VERSION,
+                title: title || 'Event Model',
+                slices: entries.map(function(e) {
+                    return {
+                        order: e.order,
+                        id: e.id,
+                        name: e.name,
+                        pattern: patternToCode(e.pattern),
+                        state: e.state || '',
+                        files: { markdown: e.fileNameMd, json: e.fileNameJson }
+                    };
+                })
+            };
+        }
+
+        /**
+         * Main entry point: turns an enriched event model (from MODEL_CHANGED) into
+         * the full list of files to write — index.md + index.json plus, per
+         * deduplicated slice in order, a paired NNN-slicename.md (for humans/agents
+         * to read) and NNN-slicename.json (same information, structured for a
+         * code-gen tool to consume).
+         */
+        function generateExportFiles(model) {
+            var dedupedSlices = deduplicateSlices(model.slices);
+            var globalMaps = buildGlobalMaps(dedupedSlices);
+            var width = Math.max(3, String(dedupedSlices.length).length);
+            var files = [];
+            var indexEntries = [];
+
+            dedupedSlices.forEach(function(slice, i) {
+                var order = i + 1;
+                var orderStr = padOrder(order, width);
+                var pattern = classifySlicePattern(slice);
+                var deps = computeDependencies(slice, globalMaps);
+                var baseName = orderStr + '-' + sanitizeSliceName(slice.name);
+                var fileNameMd = baseName + '.md';
+                var fileNameJson = baseName + '.json';
+
+                files.push({ name: fileNameMd, content: buildSliceMarkdown(orderStr, slice, pattern, deps) });
+
+                var relationEdges = buildRelationEdges(slice, deps);
+                var json = buildSliceJson(order, slice, pattern, deps, relationEdges);
+                files.push({ name: fileNameJson, content: JSON.stringify(json, null, 2) + '\n' });
+
+                indexEntries.push({
+                    order: order, orderStr: orderStr, id: slice.id, name: slice.name || '(unnamed)', pattern: pattern, state: slice.border,
+                    fileNameMd: fileNameMd, fileNameJson: fileNameJson
+                });
+            });
+
+            files.unshift({ name: 'index.json', content: JSON.stringify(buildIndexJson(model.title, indexEntries), null, 2) + '\n' });
+            files.unshift({ name: 'index.md', content: buildIndexMarkdown(model.title, indexEntries.map(function(e) {
+                return { order: e.orderStr, fileName: e.fileNameMd, name: e.name, pattern: e.pattern, state: e.state };
+            })) });
+            return files;
+        }
+
+        // ----- DOM / EventBus wiring -----
+
+        var _currentModel = null;
+
+        EventBus.on(Events.MODEL_CHANGED, function(payload) {
+            _currentModel = payload ? payload.model : null;
+        });
+
+        function baseUrl() {
+            return window.location.origin;
+        }
+
+        var exportTasksBtn = document.getElementById('exportTasksBtn');
+
+        // The modal is appended directly to <body> (not left inside the toolbar),
+        // because the toolbar uses `backdrop-filter`, which creates a new containing
+        // block for `position: fixed` descendants and would confine the overlay to
+        // the toolbar's own height instead of covering the viewport (same reasoning
+        // as the root folder-browser modal in folder-browser-server.js).
+        var exportOverlay = document.createElement('div');
+        exportOverlay.className = 'export-folder-browser-overlay';
+        exportOverlay.innerHTML = `
+            <div class="export-folder-browser-modal">
+                <h2>Export as Tasks — Select Destination Folder</h2>
+                <div class="export-folder-browser-path" id="exportFolderBrowserPath"></div>
+                <div class="export-folder-browser-list" id="exportFolderBrowserList"></div>
+                <div class="export-folder-browser-error" id="exportFolderBrowserError"></div>
+                <div class="export-folder-browser-actions">
+                    <button id="exportFolderBrowserCancel">Cancel</button>
+                    <button id="exportFolderBrowserSelect">Export Here</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(exportOverlay);
+
+        var exportPathEl = exportOverlay.querySelector('#exportFolderBrowserPath');
+        var exportListEl = exportOverlay.querySelector('#exportFolderBrowserList');
+        var exportErrorEl = exportOverlay.querySelector('#exportFolderBrowserError');
+        var exportCancelBtn = exportOverlay.querySelector('#exportFolderBrowserCancel');
+        var exportSelectBtn = exportOverlay.querySelector('#exportFolderBrowserSelect');
+
+        var _exportBrowsePath = null; // folder currently shown in the browser ("" = drive list)
+        var EXPORT_LAST_FOLDER_KEY = 'exportTasksLastFolder';
+
+        function openExportFolderBrowser() {
+            exportErrorEl.textContent = '';
+            exportOverlay.classList.add('visible');
+            var lastFolder = localStorage.getItem(EXPORT_LAST_FOLDER_KEY) || '';
+            browseExportTo(lastFolder, /*fallbackToRootOnError*/ true);
+        }
+
+        function closeExportFolderBrowser() {
+            exportOverlay.classList.remove('visible');
+        }
+
+        async function browseExportTo(browsePath, fallbackToRootOnError) {
+            try {
+                const res = await fetch(`${baseUrl()}/root/browse?path=${encodeURIComponent(browsePath)}`);
+                if (!res.ok) {
+                    // Remembered folder may no longer exist (moved/deleted/different
+                    // machine) — fall back to the drive list instead of erroring out.
+                    if (fallbackToRootOnError && browsePath !== '') {
+                        browseExportTo('', false);
+                        return;
+                    }
+                    exportErrorEl.textContent = 'Could not browse that folder.';
+                    return;
+                }
+                const data = await res.json();
+                renderExportFolderBrowser(data);
+            } catch (e) {
+                if (fallbackToRootOnError && browsePath !== '') {
+                    browseExportTo('', false);
+                    return;
+                }
+                exportErrorEl.textContent = 'Error browsing folder: ' + e.message;
+            }
+        }
+
+        function renderExportFolderBrowser(data) {
+            exportErrorEl.textContent = '';
+            _exportBrowsePath = data.path;
+            exportPathEl.textContent = data.path === '' ? 'This PC' : data.path;
+            exportListEl.innerHTML = '';
+
+            if (data.parent !== null) {
+                const up = document.createElement('div');
+                up.className = 'export-folder-browser-item export-folder-browser-up';
+                up.textContent = '⬆ .. (Up)';
+                up.addEventListener('click', () => browseExportTo(data.parent));
+                exportListEl.appendChild(up);
+            }
+
+            data.folders.forEach(f => {
+                const item = document.createElement('div');
+                item.className = 'export-folder-browser-item';
+                item.textContent = '📁 ' + f.name;
+                item.addEventListener('click', () => browseExportTo(f.path));
+                exportListEl.appendChild(item);
+            });
+
+            exportSelectBtn.disabled = data.path === '';
+        }
+
+        exportTasksBtn.addEventListener('click', () => {
+            if (!_currentModel || !_currentModel.slices || _currentModel.slices.length === 0) {
+                alert('No event model loaded to export.');
+                return;
+            }
+            openExportFolderBrowser();
+        });
+
+        exportCancelBtn.addEventListener('click', closeExportFolderBrowser);
+
+        exportSelectBtn.addEventListener('click', async () => {
+            if (!_exportBrowsePath || !_currentModel) return;
+            const files = generateExportFiles(_currentModel);
+            try {
+                const res = await fetch(`${baseUrl()}/export`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: _exportBrowsePath, files })
+                });
+                if (!res.ok) {
+                    const msg = await res.text();
+                    exportErrorEl.textContent = 'Export failed: ' + msg;
+                    return;
+                }
+                const data = await res.json();
+                closeExportFolderBrowser();
+                localStorage.setItem(EXPORT_LAST_FOLDER_KEY, _exportBrowsePath);
+                alert('Wrote ' + data.written.length + ' file(s) to ' + _exportBrowsePath);
+            } catch (e) {
+                exportErrorEl.textContent = 'Error exporting: ' + e.message;
+            }
         });
 })();
 
@@ -6340,6 +7359,17 @@
                 const width = diagramDiv.offsetWidth;
                 const height = diagramDiv.offsetHeight;
 
+                // The app's base typography (font-family, color, etc.) is set on <body> and
+                // inherited from there. A standalone SVG document has no <body> element (its
+                // root is <svg>), so that rule never matches and text silently falls back to
+                // the browser's default serif font. Copy the live computed values onto the
+                // clone directly so the export is self-contained and typography matches
+                // what's shown on screen.
+                clone.style.fontFamily = styles.fontFamily;
+                clone.style.color = styles.color;
+                clone.style.fontSize = styles.fontSize;
+                clone.style.lineHeight = styles.lineHeight;
+
                 // Create SVG wrapper
                 const svgNS = 'http://www.w3.org/2000/svg';
                 const svg = document.createElementNS(svgNS, 'svg');
@@ -6645,6 +7675,27 @@
             updatePanelLayout();
             saveLayoutState();
         });
+})();
+
+
+(function() {
+const helpBtn = document.getElementById('helpBtn');
+const helpOverlay = document.getElementById('helpOverlay');
+const helpOverlayClose = document.getElementById('helpOverlayClose');
+
+function setHelpOpen(open) {
+    helpOverlay.hidden = !open;
+    helpBtn.classList.toggle('active', open);
+    helpBtn.setAttribute('aria-expanded', String(open));
+}
+
+helpBtn.addEventListener('click', () => {
+    setHelpOpen(helpOverlay.hidden);
+});
+
+helpOverlayClose.addEventListener('click', () => {
+    setHelpOpen(false);
+});
 })();
 
 

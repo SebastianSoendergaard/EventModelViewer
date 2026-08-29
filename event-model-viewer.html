@@ -260,6 +260,7 @@
             flex: 1;
             display: flex;
             overflow: hidden;
+            position: relative;
         }
 
         /* Smooth transitions for panel collapse/expand */
@@ -1636,6 +1637,151 @@
             background: rgba(0,0,0,0.1);
             margin: 5px 0;
         }
+
+.help-btn {
+    margin-left: 0.5rem;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.4);
+    background: rgba(255,255,255,0.12);
+    color: white;
+    font-weight: 700;
+    font-size: 0.95rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.help-btn:hover {
+    background: rgba(255,255,255,0.25);
+    transform: translateY(-1px);
+}
+
+.help-btn.active {
+    background: rgba(255,255,255,0.35);
+}
+
+.help-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 600px;
+    max-width: 90vw;
+    background: #ffffff;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.2);
+    border-left: 1px solid rgba(0,0,0,0.08);
+    z-index: 20000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.help-overlay[hidden] {
+    display: none;
+}
+
+.help-overlay-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    flex-shrink: 0;
+}
+
+.help-overlay-header h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.help-overlay-close {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 0.25rem;
+}
+
+.help-overlay-close:hover {
+    opacity: 0.7;
+}
+
+.help-overlay-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+}
+
+.help-section {
+    margin-bottom: 1.75rem;
+}
+
+.help-section h3 {
+    font-size: 0.95rem;
+    color: #1e3c72;
+    margin-bottom: 0.5rem;
+}
+
+.help-section p {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.help-links,
+.help-tips {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.help-links li,
+.help-tips li {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+    padding-left: 1rem;
+    position: relative;
+}
+
+.help-links li::before,
+.help-tips li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: #3498db;
+}
+
+.help-links a {
+    color: #2980b9;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.help-links a:hover {
+    text-decoration: underline;
+}
+
+.help-format-spec {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    background: #f4f6f8;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 6px;
+    padding: 0.75rem;
+    white-space: pre;
+    overflow-x: auto;
+    color: #2c3e50;
+}
     </style>
 </head>
 <body>
@@ -1646,7 +1792,8 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026082901</span>
+        <span class="build-number" title="Build number">Build 2026082923</span>
+<button class="help-btn" id="helpBtn" title="Help" aria-label="Open help" aria-expanded="false">?</button>
     </header>
 
     <div class="upload-section">
@@ -1737,6 +1884,114 @@
                 <button class="export-btn" id="exportSvgBtn" title="Export as SVG">SVG</button>
             </div>
         </div>
+<aside class="help-overlay" id="helpOverlay" hidden>
+    <div class="help-overlay-header">
+        <h2>Help</h2>
+        <button class="help-overlay-close" id="helpOverlayClose" title="Close help" aria-label="Close help">&times;</button>
+    </div>
+    <div class="help-overlay-body">
+        <section class="help-section">
+            <h3>What is Event Modeling?</h3>
+            <p>
+                Event Modeling is a method for describing systems by showing how information changes over time.
+                A model is built from four building blocks &mdash; <strong>triggers</strong>, <strong>commands</strong>,
+                <strong>events</strong> and <strong>views</strong> &mdash; arranged left-to-right as a timeline of
+                <strong>slices</strong>, one slice per use case.
+            </p>
+            <ul class="help-links">
+                <li>
+                    <a href="https://eventmodeling.org/" target="_blank" rel="noopener noreferrer">eventmodeling.org</a>
+                    &mdash; the official home of Event Modeling: its origin, articles, podcast and the
+                    Event Modeling &amp; Event Sourcing book.
+                </li>
+                <li>
+                    <a href="https://www.eventmodelers.ai/cheatsheet/" target="_blank" rel="noopener noreferrer">eventmodelers.ai cheat sheet</a>
+                    &mdash; a quick interactive reference for the building blocks, patterns and workshop steps.
+                </li>
+            </ul>
+        </section>
+
+        <section class="help-section">
+            <h3>Tips &amp; Tricks</h3>
+            <ul class="help-tips">
+                <li>One command should represent one intention &mdash; keep it focused.</li>
+                <li>Name events as business facts that already happened (past tense).</li>
+                <li>Use realistic, concrete example data instead of placeholders.</li>
+                <li>Only what is persisted as an event matters &mdash; skip transient UI details.</li>
+                <li>Arrange slices left-to-right in the order the use cases happen over time.</li>
+                <li>Keep names consistent with how the business talks about the domain.</li>
+            </ul>
+        </section>
+
+        <section class="help-section">
+            <h3>EMJ/EMY Format Specification</h3>
+            <pre class="help-format-spec">title: the title of the work flow
+slices: list of slices on the diagram
+  slice: a single slice
+    name: name of the slice
+    border: color to mark a slice and its state (e.g. black=&gt;draft, blue=&gt;todo, red=&gt;in progress, green=&gt;done)
+    trigger: something that triggers actions in the flow 
+      name: name of the trigger that initiates an action
+      type: type of the trigger e.g. ui or automation, see all options below
+      properties: list of properties for the trigger
+        name: name of a trigger property
+        value: value of a trigger property
+      swimlane: name of the swimlane (role/person/system) the trigger belongs to, if not defined it will be put in a default swimlane 
+      buttons: list of buttons to show on ui trigger
+      views: list of dependencies of views (id of view if defined, else name of view) 
+    command: a command
+      name: name of the command
+      id: unique id of a command, can be used for reference on name clashes, if not defined fallback to name property
+      properties: list of properties for the command
+        name: name of a command property
+        type: type of a command property
+      events: list of references to events (id of event if defined, else name of event) 
+    view: a view
+      name: name of the view
+      id: unique id of a view, can be used for reference on name clashes, if not defined fallback to name property
+      properties: list of properties for the view
+        name: name of a view property
+        type: type of a view property
+      events: list of dependencies of events (id of event if defined, else name of event) 
+    events: list of events 
+      name: name of an event
+      id: unique id of an event, can be used for reference on name clashes, if not defined fallback to name property
+      swimlane: name of the swimlane (aggregate/module/system) the event belongs to, if not defined it will be put in a default swimlane
+      external: true if the event is external
+      properties: list of properties for the event
+        name: name of an event property
+        type: type of an event property
+    tests: list of test cases for the slice
+      name: name of the test case
+      given: list of preconditional events
+        name: name of the event
+        properties: list of properties for the event
+          name: name of an event property
+          value: value of an event property
+      when: the action 
+        name: name of the command
+        properties: list of properties for the command
+          name: name of a command property
+          value: value of a command property
+      then: list of resulting events or views
+        name: name of the event or view
+        properties: list of properties for the event or view
+          name: name of an event or view property
+          value: value of an event or view property
+
+trigger types:
+  ui: shows properties as plain label/value rows
+  ui-input: properties as label + enabled text input field
+  ui-input-disabled: same as ui-input but disabled input (read-only appearance)
+  ui-table: displays tabular data with properties as column headers
+  ui-chart-line: displays a hardcoded example line chart (SVG)
+  ui-chart-column: displays a hardcoded example column/bar chart (SVG)
+  ui-chart-pie: displays a hardcoded example pie chart (SVG, 3 slices)
+  automation: represents an automated process trigger (no user interaction)
+  translation: represents a trigger that translates/relays events between systems (Translation Pattern)</pre>
+        </section>
+    </div>
+</aside>
     </div>
 
     <!-- Context Menu for Tree Items -->
@@ -5870,6 +6125,17 @@
                 const width = diagramDiv.offsetWidth;
                 const height = diagramDiv.offsetHeight;
 
+                // The app's base typography (font-family, color, etc.) is set on <body> and
+                // inherited from there. A standalone SVG document has no <body> element (its
+                // root is <svg>), so that rule never matches and text silently falls back to
+                // the browser's default serif font. Copy the live computed values onto the
+                // clone directly so the export is self-contained and typography matches
+                // what's shown on screen.
+                clone.style.fontFamily = styles.fontFamily;
+                clone.style.color = styles.color;
+                clone.style.fontSize = styles.fontSize;
+                clone.style.lineHeight = styles.lineHeight;
+
                 // Create SVG wrapper
                 const svgNS = 'http://www.w3.org/2000/svg';
                 const svg = document.createElementNS(svgNS, 'svg');
@@ -6175,6 +6441,27 @@
             updatePanelLayout();
             saveLayoutState();
         });
+})();
+
+
+(function() {
+const helpBtn = document.getElementById('helpBtn');
+const helpOverlay = document.getElementById('helpOverlay');
+const helpOverlayClose = document.getElementById('helpOverlayClose');
+
+function setHelpOpen(open) {
+    helpOverlay.hidden = !open;
+    helpBtn.classList.toggle('active', open);
+    helpBtn.setAttribute('aria-expanded', String(open));
+}
+
+helpBtn.addEventListener('click', () => {
+    setHelpOpen(helpOverlay.hidden);
+});
+
+helpOverlayClose.addEventListener('click', () => {
+    setHelpOpen(false);
+});
 })();
 
 

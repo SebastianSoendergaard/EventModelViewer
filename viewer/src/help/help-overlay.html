@@ -1,0 +1,45 @@
+<aside class="help-overlay" id="helpOverlay" hidden>
+    <div class="help-overlay-header">
+        <h2>Help</h2>
+        <button class="help-overlay-close" id="helpOverlayClose" title="Close help" aria-label="Close help">&times;</button>
+    </div>
+    <div class="help-overlay-body">
+        <section class="help-section">
+            <h3>What is Event Modeling?</h3>
+            <p>
+                Event Modeling is a method for describing systems by showing how information changes over time.
+                A model is built from four building blocks &mdash; <strong>triggers</strong>, <strong>commands</strong>,
+                <strong>events</strong> and <strong>views</strong> &mdash; arranged left-to-right as a timeline of
+                <strong>slices</strong>, one slice per use case.
+            </p>
+            <ul class="help-links">
+                <li>
+                    <a href="https://eventmodeling.org/" target="_blank" rel="noopener noreferrer">eventmodeling.org</a>
+                    &mdash; the official home of Event Modeling: its origin, articles, podcast and the
+                    Event Modeling &amp; Event Sourcing book.
+                </li>
+                <li>
+                    <a href="https://www.eventmodelers.ai/cheatsheet/" target="_blank" rel="noopener noreferrer">eventmodelers.ai cheat sheet</a>
+                    &mdash; a quick interactive reference for the building blocks, patterns and workshop steps.
+                </li>
+            </ul>
+        </section>
+
+        <section class="help-section">
+            <h3>Tips &amp; Tricks</h3>
+            <ul class="help-tips">
+                <li>One command should represent one intention &mdash; keep it focused.</li>
+                <li>Name events as business facts that already happened (past tense).</li>
+                <li>Use realistic, concrete example data instead of placeholders.</li>
+                <li>Only what is persisted as an event matters &mdash; skip transient UI details.</li>
+                <li>Arrange slices left-to-right in the order the use cases happen over time.</li>
+                <li>Keep names consistent with how the business talks about the domain.</li>
+            </ul>
+        </section>
+
+        <section class="help-section">
+            <h3>EMJ/EMY Format Specification</h3>
+            <pre class="help-format-spec"><!-- FORMAT_SPEC --></pre>
+        </section>
+    </div>
+</aside>

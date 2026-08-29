@@ -76,9 +76,12 @@
             flex: 1;
             display: flex;
             overflow: hidden;
+            position: relative;
         }
 
         /* RESIZER_CSS */
+
+        /* HELP_CSS */
     </style>
 </head>
 <body>
@@ -90,12 +93,14 @@
         </div>
         <h1>Event Model Viewer</h1>
         <span class="build-number" title="Build number">Build <!-- BUILD_NUMBER --></span>
+        <!-- HELP_BUTTON_HTML -->
     </header>
 
     <!-- TOOLBAR_HTML -->
 
     <div class="main-container">
         <!-- RESIZER_HTML -->
+        <!-- HELP_OVERLAY_HTML -->
     </div>
 
     <!-- Context Menu for Tree Items -->
@@ -159,6 +164,9 @@
 
 
         // RESIZER_JS
+
+
+        // HELP_JS
 
 
         // Initialize: emit APP_INIT so all modules self-initialize
