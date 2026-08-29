@@ -409,6 +409,78 @@ public class EndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    // ── POST /export ─────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task PostExport_Writes_Files_To_Target_Folder()
+    {
+        var target = Path.Combine(_tempRoot, "export-out");
+        Directory.CreateDirectory(target);
+
+        var response = await _client.PostAsJsonAsync("/export", new
+        {
+            path = target,
+            files = new[]
+            {
+                new { name = "index.md", content = "# Index" },
+                new { name = "001-add-item.md", content = "# Add item" }
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var doc = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var written = doc.GetProperty("written").EnumerateArray().Select(e => e.GetString()).ToList();
+        Assert.Contains("index.md", written);
+        Assert.Contains("001-add-item.md", written);
+        Assert.Equal("# Index", await File.ReadAllTextAsync(Path.Combine(target, "index.md")));
+    }
+
+    [Fact]
+    public async Task PostExport_Returns_BadRequest_For_Nonexistent_Folder()
+    {
+        var missing = Path.Combine(_tempRoot, "does-not-exist");
+        var response = await _client.PostAsJsonAsync("/export", new
+        {
+            path = missing,
+            files = new[] { new { name = "a.md", content = "x" } }
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostExport_Returns_BadRequest_When_Path_Missing()
+    {
+        var response = await _client.PostAsJsonAsync("/export", new
+        {
+            files = new[] { new { name = "a.md", content = "x" } }
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostExport_Returns_BadRequest_When_Files_Missing()
+    {
+        var response = await _client.PostAsJsonAsync("/export", new { path = _tempRoot });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostExport_Overwrites_Existing_File()
+    {
+        var target = Path.Combine(_tempRoot, "export-out2");
+        Directory.CreateDirectory(target);
+        await File.WriteAllTextAsync(Path.Combine(target, "index.md"), "old");
+
+        var response = await _client.PostAsJsonAsync("/export", new
+        {
+            path = target,
+            files = new[] { new { name = "index.md", content = "new" } }
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("new", await File.ReadAllTextAsync(Path.Combine(target, "index.md")));
+    }
+
     public void Dispose()
     {
         _client.Dispose();

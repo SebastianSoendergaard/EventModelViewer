@@ -152,10 +152,13 @@ function buildServer() {
     const folderBrowserServerHtml = readFile('src/toolbar/folder-browser-server/folder-browser-server.html');
     const folderBrowserServerCss  = readFile('src/toolbar/folder-browser-server/folder-browser-server.css');
     const folderBrowserServerJs   = readFile('src/toolbar/folder-browser-server/folder-browser-server.js');
+    const exportTasksHtml = readFile('src/toolbar/export-tasks/export-tasks.html');
+    const exportTasksCss  = readFile('src/toolbar/export-tasks/export-tasks.css');
+    const exportTasksJs   = readFile('src/toolbar/export-tasks/export-tasks.js');
 
-    // Inject New button + file dropdown + folder browser into the FILE_BUTTONS_HTML slot
+    // Inject New button + file dropdown + folder browser + export-as-tasks into the FILE_BUTTONS_HTML slot
     const combinedFileAreaHtml = fileButtonsServerHtml.trimEnd() + '\n        ' + serverIntegrationHtml.trimEnd() +
-        '\n        ' + folderBrowserServerHtml.trimEnd();
+        '\n        ' + folderBrowserServerHtml.trimEnd() + '\n        ' + exportTasksHtml.trimEnd();
 
     let toolbarHtml = readFile('src/toolbar/toolbar.html');
     toolbarHtml = toolbarHtml.replace('        <!-- FILE_BUTTONS_HTML -->', combinedFileAreaHtml);
@@ -164,9 +167,11 @@ function buildServer() {
         html: toolbarHtml,
         css:  toolbarCss.trimEnd() + '\n\n' + fileButtonsServerCss.trimEnd() + '\n\n' +
               serverIntegrationCss.trimEnd() + '\n\n' + folderBrowserServerCss.trimEnd() + '\n\n' +
+              exportTasksCss.trimEnd() + '\n\n' +
               filterTogglesCss.trimEnd() + '\n\n' + formatPickerCss.trimEnd(),
         js:   iife(toolbarJs) + '\n\n' + iife(serverIntegrationJs) + '\n\n' +
               iife(fileButtonsServerJs) + '\n\n' + iife(folderBrowserServerJs) + '\n\n' +
+              iife(exportTasksJs) + '\n\n' +
               iife(filterTogglesJs) + '\n\n' + iife(formatPickerJs),
     };
 

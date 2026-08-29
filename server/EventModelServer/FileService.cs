@@ -283,6 +283,69 @@ public class FileService : IDisposable
 
     public string? SelectedRelative => _selectedRelative;
 
+    /// <summary>
+    /// Writes a batch of generated files (e.g. the "Export as Tasks" Markdown files)
+    /// into an arbitrary destination folder — independent of <see cref="Root"/>; does
+    /// not touch the active root or its watchers. The destination must already exist
+    /// (it's chosen via the same folder-browse flow used elsewhere). Overwrites
+    /// existing files with the same name by design — this is expected to be a
+    /// generated-output folder. Validates every file name before writing any of them,
+    /// so a bad entry doesn't leave a partial batch on disk.
+    /// </summary>
+    public bool TryExportFiles(string targetFolder, IReadOnlyList<(string Name, string Content)> files, out string error, out IReadOnlyList<string> written)
+    {
+        written = [];
+
+        if (string.IsNullOrWhiteSpace(targetFolder))
+        {
+            error = "Target folder cannot be empty";
+            return false;
+        }
+
+        string full;
+        try { full = Path.GetFullPath(targetFolder); }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            error = "Invalid target folder";
+            return false;
+        }
+
+        if (!Directory.Exists(full))
+        {
+            error = $"Folder not found: {full}";
+            return false;
+        }
+
+        if (files.Count == 0)
+        {
+            error = "No files to write";
+            return false;
+        }
+
+        foreach (var (name, _) in files)
+        {
+            if (string.IsNullOrWhiteSpace(name)
+                || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+                || name.Contains('/')
+                || name.Contains('\\'))
+            {
+                error = $"Invalid file name: {name}";
+                return false;
+            }
+        }
+
+        var writtenNames = new List<string>();
+        foreach (var (name, content) in files)
+        {
+            File.WriteAllText(Path.Combine(full, name), content);
+            writtenNames.Add(name);
+        }
+
+        written = writtenNames;
+        error = string.Empty;
+        return true;
+    }
+
     private string FullPath(string relative) =>
         Path.GetFullPath(Path.Combine(_root, relative));
 

@@ -15,3 +15,7 @@ _Avoid_: emj format, JSON file
 **.emy (YAML encoding)**:
 An Event Model written as YAML text — the same schema as `.emj`, just YAML syntax.
 _Avoid_: emy format, YAML file
+
+**Deduplicated Slice**:
+The logical slice formed by merging every raw `slices[]` entry that shares an id (or name, when no id is set). Multiple raw entries with the same id are fragments of one slice — the layout mechanic places a fragment next to whichever elements feed it — not distinct slices. Merging unions their `events`/`tests` and fills in `trigger`/`command`/`view`/`border` from whichever fragment defines them.
+_Avoid_: duplicate slice (ambiguous about which side of the merge is meant)

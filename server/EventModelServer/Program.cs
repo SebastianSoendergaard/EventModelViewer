@@ -132,6 +132,33 @@ app.MapPost("/files", async (HttpRequest request) =>
     return Results.Created($"/files/{Uri.EscapeDataString(name)}", new { path = name });
 });
 
+// POST /export — body: { "path": "C:\\out", "files": [{ "name": "001-add-item.md", "content": "..." }] }
+// Writes the "Export as Tasks" Markdown files into an arbitrary destination folder,
+// chosen via the same folder-browse flow as /root/browse. Independent of the active
+// root — does not touch FileService.Root or its watchers.
+app.MapPost("/export", async (HttpRequest request) =>
+{
+    using var doc = await JsonDocument.ParseAsync(request.Body);
+    if (!doc.RootElement.TryGetProperty("path", out var pathEl))
+        return Results.BadRequest("Missing 'path'");
+    if (!doc.RootElement.TryGetProperty("files", out var filesEl) || filesEl.ValueKind != JsonValueKind.Array)
+        return Results.BadRequest("Missing 'files'");
+
+    var path = pathEl.GetString() ?? string.Empty;
+    var files = new List<(string Name, string Content)>();
+    foreach (var f in filesEl.EnumerateArray())
+    {
+        if (!f.TryGetProperty("name", out var nameEl) || !f.TryGetProperty("content", out var contentEl))
+            return Results.BadRequest("Each file requires 'name' and 'content'");
+        files.Add((nameEl.GetString() ?? string.Empty, contentEl.GetString() ?? string.Empty));
+    }
+
+    if (!fileService.TryExportFiles(path, files, out var error, out var written))
+        return Results.BadRequest(error);
+
+    return Results.Ok(new { written });
+});
+
 // GET /events — SSE stream
 app.MapGet("/events", async (HttpContext ctx, CancellationToken ct) =>
 {

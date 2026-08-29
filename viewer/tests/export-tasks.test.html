@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Export Tasks Tests</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 20px auto; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
+        .test-section h3 { margin-top: 0; color: #333; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 3px; }
+        .test-result.pass { background: #d4edda; color: #155724; }
+        .test-result.fail { background: #f8d7da; color: #721c24; }
+        .summary { margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 4px; font-size: 18px; font-weight: bold; }
+        .summary.all-pass { background: #d4edda; color: #155724; }
+        .summary.some-fail { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Export Tasks Tests</h1>
+    <p>Tests for the pure calculation functions in <code>src/toolbar/export-tasks/export-tasks.js</code></p>
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <script>
+        // =====================================================================
+        // Standalone copy of pure calculation functions from export-tasks.js
+        // (These mirror the implementations — update both if rules change)
+        // =====================================================================
+
+        function sanitizeSliceName(name) {
+            return (name || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .substring(0, 50) || 'slice';
+        }
+
+        function padOrder(n, width) {
+            var s = String(n);
+            while (s.length < width) s = '0' + s;
+            return s;
+        }
+
+        function unionRefs(existing, incoming) {
+            var result = (existing || []).slice();
+            (incoming || []).forEach(function(ref) {
+                if (result.indexOf(ref) === -1) result.push(ref);
+            });
+            return result;
+        }
+
+        function mergeReferencingElement(merged, incoming, refField) {
+            if (!incoming) return merged;
+            if (!merged) return Object.assign({}, incoming);
+            var result = Object.assign({}, merged);
+            result[refField] = unionRefs(merged[refField], incoming[refField]);
+            return result;
+        }
+
+        function deduplicateSlices(slices) {
+            var order = [];
+            var byKey = new Map();
+
+            (slices || []).forEach(function(slice, index) {
+                var key = slice.id || ('__slice_' + index);
+                var merged = byKey.get(key);
+                if (!merged) {
+                    merged = {
+                        id: slice.id || key,
+                        name: slice.name || '',
+                        border: slice.border || '',
+                        trigger: null,
+                        command: null,
+                        view: null,
+                        events: [],
+                        tests: []
+                    };
+                    byKey.set(key, merged);
+                    order.push(key);
+                }
+
+                if (!merged.name && slice.name) merged.name = slice.name;
+                if (!merged.border && slice.border) merged.border = slice.border;
+                merged.trigger = mergeReferencingElement(merged.trigger, slice.trigger, 'views');
+                merged.command = mergeReferencingElement(merged.command, slice.command, 'events');
+                merged.view = mergeReferencingElement(merged.view, slice.view, 'events');
+
+                (slice.events || []).forEach(function(ev) {
+                    if (!merged.events.some(function(e) { return e.id === ev.id; })) {
+                        merged.events.push(ev);
+                    }
+                });
+                (slice.tests || []).forEach(function(t) { merged.tests.push(t); });
+            });
+
+            return order.map(function(key) { return byKey.get(key); });
+        }
+
+        function classifySlicePattern(slice) {
+            var triggerType = slice.trigger ? String(slice.trigger.type || '').toLowerCase() : '';
+            if (triggerType === 'automation') return 'Automation';
+            if (triggerType === 'translation') return 'Translation';
+            if (slice.trigger && slice.command) return 'State Change';
+            if (slice.view) return 'State View';
+            if (slice.command) return 'State Change';
+            return 'Unclassified';
+        }
+
+        function buildGlobalMaps(dedupedSlices) {
+            var eventsById = new Map();
+            var viewsById = new Map();
+            dedupedSlices.forEach(function(slice) {
+                (slice.events || []).forEach(function(ev) { if (ev.id) eventsById.set(ev.id, ev); });
+                if (slice.view && slice.view.id) viewsById.set(slice.view.id, slice.view);
+            });
+            return { eventsById: eventsById, viewsById: viewsById };
+        }
+
+        function computeDependencies(slice, globalMaps) {
+            var ownEventIds = new Set((slice.events || []).map(function(e) { return e.id; }));
+            var internalEvents = [];
+            var externalEvents = [];
+            var seenEventIds = new Set();
+
+            if (slice.view && Array.isArray(slice.view.events)) {
+                slice.view.events.forEach(function(refId) {
+                    if (ownEventIds.has(refId) || seenEventIds.has(refId)) return;
+                    var ev = globalMaps.eventsById.get(refId);
+                    if (!ev) return;
+                    seenEventIds.add(refId);
+                    if (ev.external) externalEvents.push(ev); else internalEvents.push(ev);
+                });
+            }
+
+            var dependencyViews = [];
+            var seenViewIds = new Set();
+            if (slice.trigger && Array.isArray(slice.trigger.views)) {
+                slice.trigger.views.forEach(function(refId) {
+                    if (slice.view && slice.view.id === refId) return;
+                    if (seenViewIds.has(refId)) return;
+                    var view = globalMaps.viewsById.get(refId);
+                    if (!view) return;
+                    seenViewIds.add(refId);
+                    dependencyViews.push(view);
+                });
+            }
+
+            return { internalEvents: internalEvents, externalEvents: externalEvents, dependencyViews: dependencyViews };
+        }
+
+        function mdTable(headers, rows) {
+            if (!rows || rows.length === 0) return '_None_';
+            var lines = ['| ' + headers.join(' | ') + ' |', '| ' + headers.map(function() { return '---'; }).join(' | ') + ' |'];
+            rows.forEach(function(row) { lines.push('| ' + row.join(' | ') + ' |'); });
+            return lines.join('\n');
+        }
+
+        function renderTriggerSection(trigger) {
+            if (!trigger) return '';
+            var lines = ['## Trigger', ''];
+            lines.push('- **Name:** ' + (trigger.name || trigger.id || '_unnamed_'));
+            lines.push('- **Type:** ' + (trigger.type || 'ui'));
+            if (trigger.swimlane) lines.push('- **Swimlane:** ' + trigger.swimlane);
+            lines.push('');
+            lines.push('**Properties:**', '', mdTable(['Name', 'Value'], (trigger.properties || []).map(function(p) {
+                return [p.name || '', p.value !== undefined ? String(p.value) : ''];
+            })));
+            if (trigger.buttons && trigger.buttons.length) {
+                lines.push('', '- **Buttons:** ' + trigger.buttons.join(', '));
+            }
+            return lines.join('\n');
+        }
+
+        function renderCommandSection(command) {
+            if (!command) return '';
+            var lines = ['## Command', '', '**' + (command.name || command.id) + '**', ''];
+            lines.push('**Properties:**', '', mdTable(['Name', 'Type'], (command.properties || []).map(function(p) {
+                return [p.name || '', p.type || ''];
+            })));
+            if (command.events && command.events.length) {
+                lines.push('', '**Produces events:** ' + command.events.join(', '));
+            }
+            return lines.join('\n');
+        }
+
+        function renderEventSubsection(ev, headingLevel) {
+            var h = headingLevel || 3;
+            var prefix = new Array(h + 1).join('#');
+            var lines = [prefix + ' ' + (ev.name || ev.id)];
+            if (ev.swimlane) lines.push('- **Swimlane:** ' + ev.swimlane);
+            if (ev.external) lines.push('- **External:** yes');
+            lines.push('', '**Properties:**', '', mdTable(['Name', 'Type'], (ev.properties || []).map(function(p) {
+                return [p.name || '', p.type || ''];
+            })));
+            return lines.join('\n');
+        }
+
+        function renderEventsSection(events) {
+            if (!events || events.length === 0) return '';
+            var lines = ['## Events', ''];
+            events.forEach(function(ev) { lines.push(renderEventSubsection(ev, 3), ''); });
+            return lines.join('\n').trim();
+        }
+
+        function renderViewSubsection(view, headingLevel) {
+            var h = headingLevel || 3;
+            var prefix = new Array(h + 1).join('#');
+            var lines = [prefix + ' ' + (view.name || view.id)];
+            lines.push('', '**Properties:**', '', mdTable(['Name', 'Type'], (view.properties || []).map(function(p) {
+                return [p.name || '', p.type || ''];
+            })));
+            if (view.events && view.events.length) {
+                lines.push('', '**Built from events:** ' + view.events.join(', '));
+            }
+            return lines.join('\n');
+        }
+
+        function renderViewSection(view) {
+            if (!view) return '';
+            return ['## View', '', renderViewSubsection(view, 3)].join('\n');
+        }
+
+        function renderDependencySections(deps) {
+            var out = [];
+            if (deps.internalEvents.length) {
+                out.push(['## Depends on Events', '',
+                    '_Produced by other slices — full definitions are included here so this slice can be implemented even if the producing slice isn\u2019t implemented yet._',
+                    ''].concat(deps.internalEvents.map(function(ev) { return renderEventSubsection(ev, 3); })).join('\n\n'));
+            }
+            if (deps.externalEvents.length) {
+                out.push(['## External Events', '',
+                    '_Originate outside this system (integration/webhook events) — not implemented as part of this model._',
+                    ''].concat(deps.externalEvents.map(function(ev) { return renderEventSubsection(ev, 3); })).join('\n\n'));
+            }
+            if (deps.dependencyViews.length) {
+                out.push(['## Depends on View', ''].concat(deps.dependencyViews.map(function(v) { return renderViewSubsection(v, 3); })).join('\n\n'));
+            }
+            return out.join('\n\n');
+        }
+
+        function renderTestElementRef(ref) {
+            if (!ref) return '';
+            var label = ref.name || ref.id || '';
+            if (ref.properties && ref.properties.length) {
+                label += ' (' + ref.properties.map(function(p) { return p.name + '=' + p.value; }).join(', ') + ')';
+            }
+            return label;
+        }
+
+        function renderGivenWhenThenPart(part) {
+            var pieces = [];
+            if (part.events) pieces.push('events: ' + part.events.map(renderTestElementRef).join('; '));
+            if (part.views) pieces.push('views: ' + part.views.map(renderTestElementRef).join('; '));
+            if (part.command) pieces.push('command: ' + renderTestElementRef(part.command));
+            if (part.error) pieces.push('error: "' + part.error + '"');
+            return pieces.join(', ');
+        }
+
+        function renderTests(tests) {
+            if (!tests || tests.length === 0) return '';
+            var lines = ['## Test Cases', ''];
+            tests.forEach(function(t, i) {
+                lines.push('### ' + (i + 1) + '. ' + (t.name || 'Test ' + (i + 1)));
+                if (t.given) lines.push('- **Given:** ' + renderGivenWhenThenPart(t.given));
+                if (t.when) lines.push('- **When:** ' + renderGivenWhenThenPart(t.when));
+                if (t.then) lines.push('- **Then:** ' + renderGivenWhenThenPart(t.then));
+                lines.push('');
+            });
+            return lines.join('\n').trim();
+        }
+
+        function buildRelations(slice, deps) {
+            var mermaid = ['flowchart LR'];
+            var bullets = [];
+            var counter = 0;
+            var nodeIdFor = {};
+
+            function ensureNode(key, label) {
+                if (!nodeIdFor[key]) {
+                    counter++;
+                    nodeIdFor[key] = 'N' + counter;
+                    mermaid.push('    ' + nodeIdFor[key] + '["' + String(label).replace(/"/g, '\'') + '"]');
+                }
+                return nodeIdFor[key];
+            }
+
+            var triggerKey = null, commandKey = null, viewKey = null;
+
+            if (slice.trigger) {
+                triggerKey = 'trigger';
+                ensureNode(triggerKey, 'Trigger: ' + (slice.trigger.name || slice.trigger.id || '(unnamed)'));
+            }
+            if (slice.command) {
+                commandKey = 'command';
+                ensureNode(commandKey, 'Command: ' + (slice.command.name || slice.command.id));
+                if (triggerKey) {
+                    mermaid.push('    ' + nodeIdFor[triggerKey] + ' --> ' + nodeIdFor[commandKey]);
+                    bullets.push('- Trigger **' + (slice.trigger.name || slice.trigger.id) + '** \u2192 Command **' + (slice.command.name || slice.command.id) + '**');
+                }
+            }
+            (slice.events || []).forEach(function(ev) {
+                var key = 'event:' + ev.id;
+                ensureNode(key, 'Event: ' + (ev.name || ev.id));
+                if (commandKey) {
+                    mermaid.push('    ' + nodeIdFor[commandKey] + ' --> ' + nodeIdFor[key]);
+                    bullets.push('- Command **' + (slice.command.name || slice.command.id) + '** \u2192 Event **' + (ev.name || ev.id) + '**');
+                }
+            });
+            if (slice.view) {
+                viewKey = 'view';
+                ensureNode(viewKey, 'View: ' + (slice.view.name || slice.view.id));
+            }
+            deps.internalEvents.concat(deps.externalEvents).forEach(function(ev) {
+                var key = 'depevent:' + ev.id;
+                ensureNode(key, 'Event: ' + (ev.name || ev.id) + (ev.external ? ' (external)' : ''));
+                if (viewKey) {
+                    mermaid.push('    ' + nodeIdFor[key] + ' --> ' + nodeIdFor[viewKey]);
+                    bullets.push('- Event **' + (ev.name || ev.id) + '**' + (ev.external ? ' _(external)_' : '') + ' \u2192 View **' + (slice.view.name || slice.view.id) + '** _(depended on)_');
+                }
+            });
+            deps.dependencyViews.forEach(function(v) {
+                var key = 'depview:' + v.id;
+                ensureNode(key, 'View: ' + (v.name || v.id));
+                if (triggerKey) {
+                    mermaid.push('    ' + nodeIdFor[key] + ' --> ' + nodeIdFor[triggerKey]);
+                    bullets.push('- View **' + (v.name || v.id) + '** \u2192 Trigger **' + (slice.trigger.name || slice.trigger.id) + '** _(depended on)_');
+                }
+            });
+
+            if (bullets.length === 0) bullets.push('_No relations for this slice._');
+            return { bullets: bullets, mermaid: mermaid.join('\n') };
+        }
+
+        function buildSliceMarkdown(orderStr, slice, pattern, deps) {
+            var lines = [];
+            lines.push('# ' + orderStr + '. ' + (slice.name || '(unnamed slice)'));
+            lines.push('');
+            lines.push('- **State:** ' + (slice.border || '_none_'));
+            lines.push('- **Pattern:** ' + pattern);
+            lines.push('');
+
+            [renderTriggerSection(slice.trigger), renderCommandSection(slice.command),
+             renderEventsSection(slice.events), renderViewSection(slice.view),
+             renderDependencySections(deps), renderTests(slice.tests)].forEach(function(section) {
+                if (section) lines.push(section, '');
+            });
+
+            var relations = buildRelations(slice, deps);
+            lines.push('## Relations', '');
+            lines.push(relations.bullets.join('\n'));
+            lines.push('', '```mermaid', relations.mermaid, '```', '');
+
+            return lines.join('\n').trim() + '\n';
+        }
+
+        function buildIndexMarkdown(title, entries) {
+            var lines = ['# ' + (title || 'Event Model') + ' \u2014 Task Index', '',
+                '| Order | File | Slice | Pattern | State |', '| --- | --- | --- | --- | --- |'];
+            entries.forEach(function(e) {
+                lines.push('| ' + e.order + ' | [' + e.fileName + '](' + e.fileName + ') | ' + e.name + ' | ' + e.pattern + ' | ' + (e.state || '_none_') + ' |');
+            });
+            return lines.join('\n') + '\n';
+        }
+
+        function generateExportFiles(model) {
+            var dedupedSlices = deduplicateSlices(model.slices);
+            var globalMaps = buildGlobalMaps(dedupedSlices);
+            var width = Math.max(3, String(dedupedSlices.length).length);
+            var files = [];
+            var indexEntries = [];
+
+            dedupedSlices.forEach(function(slice, i) {
+                var orderStr = padOrder(i + 1, width);
+                var pattern = classifySlicePattern(slice);
+                var deps = computeDependencies(slice, globalMaps);
+                var fileName = orderStr + '-' + sanitizeSliceName(slice.name) + '.md';
+                var content = buildSliceMarkdown(orderStr, slice, pattern, deps);
+                files.push({ name: fileName, content: content });
+                indexEntries.push({ order: orderStr, fileName: fileName, name: slice.name || '(unnamed)', pattern: pattern, state: slice.border });
+            });
+
+            files.unshift({ name: 'index.md', content: buildIndexMarkdown(model.title, indexEntries) });
+            return files;
+        }
+
+        // =====================================================================
+        // Test framework (same pattern as other tests/*.test.html files)
+        // =====================================================================
+        const results = [];
+        let currentSection = null;
+
+        function section(name) {
+            currentSection = name;
+        }
+
+        function test(name, fn) {
+            const fullName = currentSection ? `${currentSection}: ${name}` : name;
+            try {
+                fn();
+                results.push({ name: fullName, status: 'pass', error: null });
+            } catch (error) {
+                results.push({ name: fullName, status: 'fail', error: error.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) throw new Error(message || 'Assertion failed');
+        }
+
+        function assertEquals(actual, expected, message) {
+            if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+                throw new Error(message || `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+            }
+        }
+
+        // =====================================================================
+        // Tests: sanitizeSliceName / padOrder
+        // =====================================================================
+        section('sanitizeSliceName');
+
+        test('lowercases and hyphenates', () => {
+            assertEquals(sanitizeSliceName('Add Item'), 'add-item');
+        });
+
+        test('strips punctuation and trims hyphens', () => {
+            assertEquals(sanitizeSliceName('  Cart (items)! '), 'cart-items');
+        });
+
+        test('falls back to "slice" for empty/null name', () => {
+            assertEquals(sanitizeSliceName(''), 'slice');
+            assertEquals(sanitizeSliceName(null), 'slice');
+        });
+
+        section('padOrder');
+
+        test('zero-pads to the requested width', () => {
+            assertEquals(padOrder(1, 3), '001');
+            assertEquals(padOrder(42, 3), '042');
+        });
+
+        test('does not truncate numbers wider than the requested width', () => {
+            assertEquals(padOrder(1234, 3), '1234');
+        });
+
+        // =====================================================================
+        // Tests: deduplicateSlices
+        // =====================================================================
+        section('deduplicateSlices');
+
+        test('merges fragments sharing the same id into one slice', () => {
+            const slices = [
+                { id: '2', name: 'Cart items', view: { id: 'Cart items', events: ['Item added'] }, tests: [{ name: 't1' }] },
+                { id: '2', name: 'Cart items', view: { id: 'Cart items', events: ['Item removed'] }, tests: [{ name: 't2' }] }
+            ];
+            const deduped = deduplicateSlices(slices);
+            assertEquals(deduped.length, 1);
+            assertEquals(deduped[0].view.events, ['Item added', 'Item removed']);
+            assertEquals(deduped[0].tests.map(t => t.name), ['t1', 't2']);
+        });
+
+        test('unions command.events and trigger.views across fragments', () => {
+            const slices = [
+                { id: 'A', trigger: { id: 't', views: ['View1'] }, command: { id: 'c', events: ['Ev1'] } },
+                { id: 'A', trigger: { id: 't', views: ['View2'] }, command: { id: 'c', events: ['Ev2'] } }
+            ];
+            const deduped = deduplicateSlices(slices);
+            assertEquals(deduped[0].trigger.views, ['View1', 'View2']);
+            assertEquals(deduped[0].command.events, ['Ev1', 'Ev2']);
+        });
+
+        test('does not duplicate an identical ref repeated across fragments', () => {
+            const slices = [
+                { id: 'A', view: { id: 'v', events: ['Ev1'] } },
+                { id: 'A', view: { id: 'v', events: ['Ev1'] } }
+            ];
+            const deduped = deduplicateSlices(slices);
+            assertEquals(deduped[0].view.events, ['Ev1']);
+        });
+
+        test('unions own events by id, skipping duplicates', () => {
+            const slices = [
+                { id: 'A', events: [{ id: 'E1', name: 'E1' }] },
+                { id: 'A', events: [{ id: 'E1', name: 'E1' }, { id: 'E2', name: 'E2' }] }
+            ];
+            const deduped = deduplicateSlices(slices);
+            assertEquals(deduped[0].events.map(e => e.id), ['E1', 'E2']);
+        });
+
+        test('slices with no id at all are treated as distinct (name-as-id fallback happens upstream in event-model.js\'s calcId, before deduplicateSlices ever runs)', () => {
+            const slices = [{ name: 'Cart items' }, { name: 'Cart items' }];
+            const deduped = deduplicateSlices(slices);
+            assertEquals(deduped.length, 2);
+        });
+
+        test('once event-model.js has assigned matching ids (its name-fallback calcId), fragments merge as expected', () => {
+            const slices = [{ id: 'Cart items', name: 'Cart items' }, { id: 'Cart items', name: 'Cart items' }];
+            const deduped = deduplicateSlices(slices);
+            assertEquals(deduped.length, 1);
+        });
+
+        test('distinct ids remain distinct slices, in order of first appearance', () => {
+            const slices = [{ id: '1', name: 'One' }, { id: '2', name: 'Two' }, { id: '1', name: 'One' }];
+            const deduped = deduplicateSlices(slices);
+            assertEquals(deduped.map(s => s.id), ['1', '2']);
+        });
+
+        test('handles empty slices array', () => {
+            assertEquals(deduplicateSlices([]), []);
+            assertEquals(deduplicateSlices(null), []);
+        });
+
+        // =====================================================================
+        // Tests: classifySlicePattern
+        // =====================================================================
+        section('classifySlicePattern');
+
+        test('trigger + command -> State Change', () => {
+            assertEquals(classifySlicePattern({ trigger: { type: 'ui-input' }, command: {} }), 'State Change');
+        });
+
+        test('view only -> State View', () => {
+            assertEquals(classifySlicePattern({ view: {} }), 'State View');
+        });
+
+        test('trigger.type automation -> Automation, even with command present', () => {
+            assertEquals(classifySlicePattern({ trigger: { type: 'automation' }, command: {} }), 'Automation');
+        });
+
+        test('trigger.type translation -> Translation', () => {
+            assertEquals(classifySlicePattern({ trigger: { type: 'translation' }, command: {} }), 'Translation');
+        });
+
+        test('type match is case-insensitive', () => {
+            assertEquals(classifySlicePattern({ trigger: { type: 'AUTOMATION' }, command: {} }), 'Automation');
+        });
+
+        test('command only (no trigger) -> State Change', () => {
+            assertEquals(classifySlicePattern({ command: {} }), 'State Change');
+        });
+
+        test('nothing present -> Unclassified', () => {
+            assertEquals(classifySlicePattern({}), 'Unclassified');
+        });
+
+        // =====================================================================
+        // Tests: computeDependencies
+        // =====================================================================
+        section('computeDependencies');
+
+        test('splits view dependencies into internal vs external, excluding own events', () => {
+            const globalMaps = {
+                eventsById: new Map([
+                    ['OwnEv', { id: 'OwnEv', name: 'OwnEv' }],
+                    ['OtherEv', { id: 'OtherEv', name: 'OtherEv', external: false }],
+                    ['ExtEv', { id: 'ExtEv', name: 'ExtEv', external: true }]
+                ]),
+                viewsById: new Map()
+            };
+            const slice = { events: [{ id: 'OwnEv' }], view: { events: ['OwnEv', 'OtherEv', 'ExtEv'] } };
+            const deps = computeDependencies(slice, globalMaps);
+            assertEquals(deps.internalEvents.map(e => e.id), ['OtherEv']);
+            assertEquals(deps.externalEvents.map(e => e.id), ['ExtEv']);
+        });
+
+        test('resolves trigger.views dependency, excluding this slice\'s own view', () => {
+            const globalMaps = {
+                eventsById: new Map(),
+                viewsById: new Map([
+                    ['OwnView', { id: 'OwnView' }],
+                    ['OtherView', { id: 'OtherView' }]
+                ])
+            };
+            const slice = { view: { id: 'OwnView' }, trigger: { views: ['OwnView', 'OtherView'] } };
+            const deps = computeDependencies(slice, globalMaps);
+            assertEquals(deps.dependencyViews.map(v => v.id), ['OtherView']);
+        });
+
+        test('unresolvable refs (missing from global maps) are silently skipped', () => {
+            const globalMaps = { eventsById: new Map(), viewsById: new Map() };
+            const slice = { view: { events: ['Ghost'] }, trigger: { views: ['GhostView'] } };
+            const deps = computeDependencies(slice, globalMaps);
+            assertEquals(deps.internalEvents, []);
+            assertEquals(deps.dependencyViews, []);
+        });
+
+        test('no view/trigger -> empty dependency lists', () => {
+            const deps = computeDependencies({}, { eventsById: new Map(), viewsById: new Map() });
+            assertEquals(deps.internalEvents, []);
+            assertEquals(deps.externalEvents, []);
+            assertEquals(deps.dependencyViews, []);
+        });
+
+        // =====================================================================
+        // Tests: generateExportFiles (end-to-end, small model)
+        // =====================================================================
+        section('generateExportFiles');
+
+        test('produces index.md plus one file per deduplicated slice, in order', () => {
+            const model = {
+                title: 'Test Model',
+                slices: [
+                    { id: '1', name: 'Add item', border: 'green', trigger: { id: 't1', name: 'Add' }, command: { id: 'c1', name: 'Add item', events: ['Cart created'] },
+                      events: [{ id: 'Cart created', name: 'Cart created', properties: [] }] },
+                    { id: '2', name: 'Cart items', border: 'red', view: { id: 'Cart items', name: 'Cart items', events: ['Cart created'] } }
+                ]
+            };
+            const files = generateExportFiles(model);
+            assertEquals(files.map(f => f.name), ['index.md', '001-add-item.md', '002-cart-items.md']);
+            assert(files[0].content.includes('Test Model'), 'index.md should include the model title');
+            assert(files[0].content.includes('| 001 | [001-add-item.md]'), 'index.md should list slice 1');
+            assert(files[2].content.includes('**State:** red'), 'slice 2 file should show its border as State');
+            assert(files[2].content.includes('**Pattern:** State View'), 'slice 2 should be classified as State View');
+        });
+
+        test('State View slice embeds the full upstream event even though it is defined in another slice', () => {
+            const model = {
+                title: 'Test Model',
+                slices: [
+                    { id: '1', name: 'Add item', command: { id: 'c1', events: ['Cart created'] },
+                      events: [{ id: 'Cart created', name: 'Cart created', properties: [{ name: 'CartId', type: 'Guid' }] }] },
+                    { id: '2', name: 'Cart items', view: { id: 'Cart items', events: ['Cart created'] } }
+                ]
+            };
+            const files = generateExportFiles(model);
+            const cartItemsFile = files.find(f => f.name === '002-cart-items.md');
+            assert(cartItemsFile.content.includes('## Depends on Events'), 'should have a Depends on Events section');
+            assert(cartItemsFile.content.includes('### Cart created'), 'should embed the full dependency event');
+            assert(cartItemsFile.content.includes('| CartId | Guid |'), 'should embed the dependency event\'s properties');
+        });
+
+        test('zero-pads file order width to fit the total slice count', () => {
+            const slices = [];
+            for (let i = 0; i < 12; i++) slices.push({ id: String(i), name: 'Slice ' + i, command: {} });
+            const files = generateExportFiles({ title: 'Big Model', slices });
+            assert(files[1].name.startsWith('001-'), 'first slice file should use 3-digit padding');
+            assert(files[12].name.startsWith('012-'), 'last slice file should use 3-digit padding');
+        });
+
+        // =====================================================================
+        // Render results
+        // =====================================================================
+        const container = document.getElementById('results');
+        let sectionMap = {};
+        results.forEach(r => {
+            const sectionName = r.name.includes(':') ? r.name.split(':')[0].trim() : 'General';
+            if (!sectionMap[sectionName]) {
+                const sectionDiv = document.createElement('div');
+                sectionDiv.className = 'test-section';
+                sectionDiv.innerHTML = `<h3>${sectionName}</h3>`;
+                container.appendChild(sectionDiv);
+                sectionMap[sectionName] = sectionDiv;
+            }
+            const div = document.createElement('div');
+            div.className = `test-result ${r.status}`;
+            div.textContent = `${r.status === 'pass' ? '✅' : '❌'} ${r.name.includes(':') ? r.name.split(':').slice(1).join(':').trim() : r.name}${r.error ? ': ' + r.error : ''}`;
+            sectionMap[sectionName].appendChild(div);
+        });
+
+        const passed = results.filter(r => r.status === 'pass').length;
+        const failed = results.filter(r => r.status === 'fail').length;
+        const summary = document.getElementById('summary');
+        summary.className = `summary ${failed === 0 ? 'all-pass' : 'some-fail'}`;
+        summary.textContent = `${passed} passed, ${failed} failed out of ${results.length} tests`;
+    </script>
+</body>
+</html>

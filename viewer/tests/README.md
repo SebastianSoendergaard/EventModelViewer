@@ -172,6 +172,21 @@ start history.test.html
 
 ---
 
+### [export-tasks.test.html](export-tasks.test.html)
+Comprehensive test suite for the "Export as Tasks" feature in `src/toolbar/export-tasks/export-tasks.js` (server mode only) — exports the loaded event model as one Markdown task file per deduplicated slice.
+
+**Test Coverage:**
+- ✅ `sanitizeSliceName()` — lowercasing/hyphenation, punctuation stripping, empty/null fallback to "slice"
+- ✅ `padOrder()` — zero-padding to requested width, no truncation for wider numbers
+- ✅ `deduplicateSlices()` — merges fragments sharing the same `id` into one slice; unions `view.events`/`command.events`/`trigger.views` reference arrays across fragments (regression test for a real bug where "first fragment wins" silently dropped dependency events); avoids duplicate refs; unions own `events` by id; unions `tests`; slices with no id at all remain distinct (name→id fallback happens upstream in `event-model.js`'s `calcId`, not in this function); distinct ids stay distinct, in order of first appearance; empty input handling
+- ✅ `classifySlicePattern()` — State Change (trigger+command, command-only), State View (view-only), Automation/Translation take priority over the generic trigger+command check (case-insensitive type match), Unclassified fallback
+- ✅ `computeDependencies()` — splits view's upstream events into internal vs. external, excludes the slice's own events, resolves trigger's dependency view excluding its own view, one-hop-only, silently skips unresolvable refs, empty trigger/view handling
+- ✅ `generateExportFiles()` — end-to-end: `index.md` + one file per deduplicated slice in order, correct filename format/padding (`001-add-item.md`), border rendered as `**State:**`, correct pattern classification, full embedding of a dependency event (including its properties) defined in another slice, zero-padding width scales with slice count (12 slices → 3-digit padding)
+
+**Status:** ✅ All 27 tests passing
+
+---
+
 ## Test Results Summary
 
 Last test run: 2026-02-11

@@ -263,6 +263,95 @@ public class FileServiceTests : IDisposable
         Assert.Null(_svc.Browse(missing));
     }
 
+    // ── TryExportFiles ───────────────────────────────────────────────────────
+
+    [Fact]
+    public void TryExportFiles_Writes_All_Files_To_Target_Folder()
+    {
+        var target = Path.Combine(_root, "export-out");
+        Directory.CreateDirectory(target);
+
+        var files = new List<(string Name, string Content)>
+        {
+            ("index.md", "# Index"),
+            ("001-add-item.md", "# Add item")
+        };
+
+        var result = _svc.TryExportFiles(target, files, out var error, out var written);
+
+        Assert.True(result);
+        Assert.Empty(error);
+        Assert.Equal(new[] { "index.md", "001-add-item.md" }, written);
+        Assert.Equal("# Index", File.ReadAllText(Path.Combine(target, "index.md")));
+        Assert.Equal("# Add item", File.ReadAllText(Path.Combine(target, "001-add-item.md")));
+    }
+
+    [Fact]
+    public void TryExportFiles_Overwrites_Existing_Files()
+    {
+        var target = Path.Combine(_root, "export-out");
+        Directory.CreateDirectory(target);
+        File.WriteAllText(Path.Combine(target, "index.md"), "old content");
+
+        var result = _svc.TryExportFiles(target, new List<(string, string)> { ("index.md", "new content") }, out _, out _);
+
+        Assert.True(result);
+        Assert.Equal("new content", File.ReadAllText(Path.Combine(target, "index.md")));
+    }
+
+    [Fact]
+    public void TryExportFiles_Fails_For_Nonexistent_Folder()
+    {
+        var missing = Path.Combine(_root, "does-not-exist");
+        var result = _svc.TryExportFiles(missing, new List<(string, string)> { ("a.md", "x") }, out var error, out _);
+
+        Assert.False(result);
+        Assert.NotEmpty(error);
+    }
+
+    [Fact]
+    public void TryExportFiles_Fails_For_Empty_Path()
+    {
+        var result = _svc.TryExportFiles("", new List<(string, string)> { ("a.md", "x") }, out var error, out _);
+        Assert.False(result);
+        Assert.NotEmpty(error);
+    }
+
+    [Fact]
+    public void TryExportFiles_Fails_For_Empty_File_List()
+    {
+        var result = _svc.TryExportFiles(_root, new List<(string, string)>(), out var error, out _);
+        Assert.False(result);
+        Assert.NotEmpty(error);
+    }
+
+    [Fact]
+    public void TryExportFiles_Fails_For_Path_Traversal_In_File_Name()
+    {
+        var result = _svc.TryExportFiles(_root, new List<(string, string)> { ("../escape.md", "x") }, out var error, out _);
+        Assert.False(result);
+        Assert.NotEmpty(error);
+    }
+
+    [Fact]
+    public void TryExportFiles_Does_Not_Write_Any_File_When_One_Name_Is_Invalid()
+    {
+        var target = Path.Combine(_root, "export-out2");
+        Directory.CreateDirectory(target);
+
+        var files = new List<(string Name, string Content)>
+        {
+            ("good.md", "ok"),
+            ("bad/name.md", "bad")
+        };
+
+        var result = _svc.TryExportFiles(target, files, out var error, out _);
+
+        Assert.False(result);
+        Assert.NotEmpty(error);
+        Assert.False(File.Exists(Path.Combine(target, "good.md")));
+    }
+
     public void Dispose()
     {
         _svc.Dispose();
