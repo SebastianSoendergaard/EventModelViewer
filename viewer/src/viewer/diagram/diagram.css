@@ -343,6 +343,12 @@
             transition: none;
         }
 
+        .hotspot .element-text {
+            font-size: 12px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+
         .element.hotspot:hover {
             transform: none;
             box-shadow: 0 6px 20px rgba(0,0,0,0.15);

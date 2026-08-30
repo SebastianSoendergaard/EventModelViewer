@@ -670,7 +670,11 @@
         // ===== END GRID LAYOUT HELPERS =====
 
         function generateHotspot(hotspot) {
-            return `<div class="element hotspot"><div class="element-title">${escapeHtml(hotspot)}</div></div>`;
+            let html = '<div class="element hotspot">';
+            html += '<div class="element-title">Hot Spot!</div>';
+            html += `<div class="element-text">${escapeHtml(hotspot)}</div>`;
+            html += '</div>';
+            return html;
         }
 
         function generateHotspotGroup(hotspots, className) {

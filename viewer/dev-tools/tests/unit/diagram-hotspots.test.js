@@ -58,7 +58,9 @@ describe('hotspot diagram rendering', () => {
 
     const modelHotspots = document.querySelector('.model-hotspots');
     expect(modelHotspots).not.toBeNull();
-    expect([...modelHotspots.querySelectorAll('.element.hotspot')].map(el => el.textContent))
+    expect([...modelHotspots.querySelectorAll('.element-title')].map(el => el.textContent))
+      .toEqual(['Hot Spot!', 'Hot Spot!']);
+    expect([...modelHotspots.querySelectorAll('.element-text')].map(el => el.textContent))
       .toEqual(['Workflow starts', 'Workflow completes']);
     expect(html.indexOf('model-hotspots')).toBeLessThan(html.indexOf('swimlane-grid'));
     expect(modelHotspots.querySelector('h2, h3, h4')).toBeNull();
@@ -71,7 +73,9 @@ describe('hotspot diagram rendering', () => {
     const hotspotGroups = document.querySelectorAll('.slice-hotspots-group');
 
     expect(hotspotGroups).toHaveLength(1);
-    expect([...hotspotGroups[0].querySelectorAll('.element.hotspot')].map(el => el.textContent))
+    expect([...hotspotGroups[0].querySelectorAll('.element-title')].map(el => el.textContent))
+      .toEqual(['Hot Spot!', 'Hot Spot!']);
+    expect([...hotspotGroups[0].querySelectorAll('.element-text')].map(el => el.textContent))
       .toEqual(['Input received', 'Validation passed']);
     expect(hotspotGroups[0].parentElement.getAttribute('style')).toContain('grid-row: 2');
     expect(document.querySelector('.hotspot-lane-header')).not.toBeNull();
@@ -99,7 +103,7 @@ describe('hotspot diagram rendering', () => {
 
     const document = new JSDOM(renderer(model)).window.document;
 
-    expect(document.querySelector('.model-hotspots .element-title').textContent)
+    expect(document.querySelector('.model-hotspots .element-text').textContent)
       .toBe('<script>alert(1)</script>');
     expect(document.querySelector('.model-hotspots').innerHTML).not.toContain('<script>');
   });
