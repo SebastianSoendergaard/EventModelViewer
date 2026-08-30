@@ -23,6 +23,19 @@
             return '';
         }
 
+        function validateSliceHints(json) {
+            if (!json || typeof json !== 'object' || !Array.isArray(json.slices)) return;
+            json.slices.forEach(function(slice, index) {
+                if (!slice || typeof slice !== 'object' || !Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                    return;
+                }
+                if (!Array.isArray(slice.hints) || slice.hints.some(function(hint) { return typeof hint !== 'string'; })) {
+                    var label = slice.name ? ' "' + slice.name + '"' : ' at index ' + index;
+                    throw new Error('Invalid hints for slice' + label + ': expected a list of strings');
+                }
+            });
+        }
+
         /**
          * Enriches a trigger object:
          *   - Adds calculated id
@@ -270,10 +283,11 @@
          */
         function buildEventModel(json) {
             if (!json) return null;
+            validateSliceHints(json);
 
             // --- Pass 1: Enrich element fields ---
             var slices = Array.isArray(json.slices) ? json.slices.map(function(slice) {
-                return {
+                var enrichedSlice = {
                     id:      calcId(slice),
                     name:    slice.name   || '',
                     border:  slice.border || '',
@@ -284,6 +298,10 @@
                     view:    slice.view     ? enrichView(slice.view)         : null,
                     tests:   Array.isArray(slice.tests) ? slice.tests : []
                 };
+                if (Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                    enrichedSlice.hints = slice.hints.slice();
+                }
+                return enrichedSlice;
             }) : [];
 
             // --- Pass 2: Build global lookup maps, then resolve cross-references ---

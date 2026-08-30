@@ -179,13 +179,14 @@ Comprehensive test suite for the "Export as Tasks" feature in `src/toolbar/expor
 - ✅ `sanitizeSliceName()` — lowercasing/hyphenation, punctuation stripping, empty/null fallback to "slice"
 - ✅ `padOrder()` — zero-padding to requested width, no truncation for wider numbers
 - ✅ `deduplicateSlices()` — merges fragments sharing the same `id` into one slice; unions `view.events`/`command.events`/`trigger.views` reference arrays across fragments (regression test for a real bug where "first fragment wins" silently dropped dependency events); avoids duplicate refs; unions own `events` by id; unions `tests`; slices with no id at all remain distinct (name→id fallback happens upstream in `event-model.js`'s `calcId`, not in this function); distinct ids stay distinct, in order of first appearance; empty input handling
+- ✅ Slice hints — merges distinct hints across deduplicated fragments in stable order; preserves absent versus explicit empty hints; exports non-empty hints to Markdown and JSON while omitting empty Markdown sections
 - ✅ `classifySlicePattern()` — State Change (trigger+command, command-only), State View (view-only), Automation/Translation take priority over the generic trigger+command check (case-insensitive type match), Unclassified fallback
 - ✅ `patternToCode()` — maps each Title Case pattern to its stable kebab-case JSON code (`"State Change"` → `"state-change"`, etc.), empty/null handling
 - ✅ `computeDependencies()` — splits view's upstream events into internal vs. external, excludes the slice's own events, resolves trigger's dependency view excluding its own view, one-hop-only, silently skips unresolvable refs, empty trigger/view handling
 - ✅ `buildRelationEdges()` — structured `{from, to, dependency}` edge list mirroring the Markdown Relations section: trigger→command and command→event edges (`dependency: false`), dependency-event→view and dependency-view→trigger edges (`dependency: true`), empty slice produces no edges
 - ✅ `generateExportFiles()` — end-to-end: `index.md` + `index.json` + a paired `.md`/`.json` file per deduplicated slice in order, correct filename format/padding (`001-add-item.md`/`.json`), border rendered as `**State:**` (Markdown) / `state` (JSON), correct pattern classification (Title Case in Markdown, kebab-case code in JSON), full embedding of a dependency event (including its properties) defined in another slice in both formats, flattened `events`/`externalEvents`/`views` arrays in JSON, trigger normalization to `swimlane`/`type`, removal of export metadata and relation edges, `tests` passed through into JSON unmodified (structured given/when/then, not flattened strings), `index.json` lists every slice with kebab-case `pattern` and both file names, zero-padding width scales with slice count (12 slices → 3-digit padding)
 
-**Status:** ✅ All 36 tests passing
+**Status:** ✅ All 38 tests passing
 
 ---
 

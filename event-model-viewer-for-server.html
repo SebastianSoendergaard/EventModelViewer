@@ -2101,7 +2101,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026083012</span>
+        <span class="build-number" title="Build number">Build 2026083013</span>
 <button class="help-btn" id="helpBtn" title="Help" aria-label="Open help" aria-expanded="false">?</button>
     </header>
 
@@ -2252,6 +2252,7 @@ slices: list of slices on the diagram
     id: unique id of the slice, can be used for reference on name clashes, if not defined fallback to name property
     border: color to mark a slice and its state (e.g. black=&gt;draft, blue=&gt;todo, red=&gt;in progress, green=&gt;done)
     hotspots: list of strings representing important points or highlights in the slice
+    hints: optional list of strings with implementation guidance e.g. spesific code generation startegy or entire AI instructions
     trigger: something that triggers actions in the flow 
       name: name of the trigger that initiates an action
       type: type of the trigger e.g. ui or automation, see all options below
@@ -2323,7 +2324,7 @@ trigger types:
 
         <section class="help-section">
             <h3>About</h3>
-            <p>Build <strong>2026083012</strong></p>
+            <p>Build <strong>2026083013</strong></p>
             <p><a href="https://github.com/SebastianSoendergaard/EventModelViewer" target="_blank" rel="noopener noreferrer">GitHub repository</a></p>
         </section>
     </div>
@@ -2454,6 +2455,23 @@ trigger types:
             JSON: 'json',
             YAML: 'yaml',
 
+            validate(json) {
+                if (!json || typeof json !== 'object' || !Array.isArray(json.slices)) {
+                    return json;
+                }
+
+                json.slices.forEach((slice, index) => {
+                    if (!slice || typeof slice !== 'object' || !Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                        return;
+                    }
+                    if (!Array.isArray(slice.hints) || slice.hints.some(hint => typeof hint !== 'string')) {
+                        const label = slice.name ? ` "${slice.name}"` : ` at index ${index}`;
+                        throw new Error(`Invalid hints for slice${label}: expected a list of strings`);
+                    }
+                });
+                return json;
+            },
+
             extensionFor(format) {
                 return format === Codec.YAML ? 'emy' : 'emj';
             },
@@ -2463,10 +2481,13 @@ trigger types:
             },
 
             parse(text, format) {
+                let json;
                 if (format === Codec.YAML) {
-                    return jsyaml.load(text) ?? {};
+                    json = jsyaml.load(text) ?? {};
+                } else {
+                    json = JSON.parse(text);
                 }
-                return JSON.parse(text);
+                return Codec.validate(json);
             },
 
             stringify(json, format) {
@@ -3045,6 +3066,14 @@ trigger types:
             return result;
         }
 
+        function mergeHints(existing, incoming) {
+            var result = (existing || []).slice();
+            (incoming || []).forEach(function(hint) {
+                if (result.indexOf(hint) === -1) result.push(hint);
+            });
+            return result;
+        }
+
         function mergeReferencingElement(merged, incoming, refField) {
             if (!incoming) return merged;
             if (!merged) return Object.assign({}, incoming);
@@ -3075,6 +3104,10 @@ trigger types:
                     order.push(key);
                 }
 
+                if (Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                    if (!Object.prototype.hasOwnProperty.call(merged, 'hints')) merged.hints = [];
+                    merged.hints = mergeHints(merged.hints, slice.hints);
+                }
                 if (!merged.name && slice.name) merged.name = slice.name;
                 if (!merged.border && slice.border) merged.border = slice.border;
                 merged.trigger = mergeReferencingElement(merged.trigger, slice.trigger, 'views');
@@ -3312,6 +3345,13 @@ trigger types:
             return out.join('\n\n');
         }
 
+        function renderHints(hints) {
+            if (!Array.isArray(hints) || hints.length === 0) return '';
+            return ['## Hints', ''].concat(hints.map(function(hint) {
+                return '- ' + hint;
+            })).join('\n');
+        }
+
         function renderTestElementRef(ref) {
             if (!ref) return '';
             var label = ref.name || ref.id || '';
@@ -3420,7 +3460,7 @@ trigger types:
             lines.push('- **Pattern:** ' + pattern);
             lines.push('');
 
-            [renderTriggerSection(slice.trigger), renderCommandSection(slice.command),
+            [renderHints(slice.hints), renderTriggerSection(slice.trigger), renderCommandSection(slice.command),
              renderEventsSection(slice.events), renderViewSection(slice.view),
              renderDependencySections(deps), renderTests(slice.tests)].forEach(function(section) {
                 if (section) lines.push(section, '');
@@ -3458,6 +3498,9 @@ trigger types:
                 tests: slice.tests || []
             };
             if (!slice.trigger) delete json.trigger;
+            if (Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                json.hints = slice.hints.slice();
+            }
             return json;
         }
 
@@ -5496,6 +5539,7 @@ trigger types:
             return {
                 "name": "New Slice",
                 "border": "#000000",
+                "hints": [],
                 "trigger": {
                     "swimlane": "User",
                     "type": "input-ui",
@@ -5553,6 +5597,7 @@ trigger types:
         function createEventOnlySliceTemplate() {
             return {
                 "name": "New Slice",
+                "hints": [],
                 "events": [
                     {
                         "name": "New Event",
@@ -5682,6 +5727,19 @@ trigger types:
             if (element.id) return element.id;
             if (element.name) return element.name;
             return '';
+        }
+
+        function validateSliceHints(json) {
+            if (!json || typeof json !== 'object' || !Array.isArray(json.slices)) return;
+            json.slices.forEach(function(slice, index) {
+                if (!slice || typeof slice !== 'object' || !Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                    return;
+                }
+                if (!Array.isArray(slice.hints) || slice.hints.some(function(hint) { return typeof hint !== 'string'; })) {
+                    var label = slice.name ? ' "' + slice.name + '"' : ' at index ' + index;
+                    throw new Error('Invalid hints for slice' + label + ': expected a list of strings');
+                }
+            });
         }
 
         /**
@@ -5931,10 +5989,11 @@ trigger types:
          */
         function buildEventModel(json) {
             if (!json) return null;
+            validateSliceHints(json);
 
             // --- Pass 1: Enrich element fields ---
             var slices = Array.isArray(json.slices) ? json.slices.map(function(slice) {
-                return {
+                var enrichedSlice = {
                     id:      calcId(slice),
                     name:    slice.name   || '',
                     border:  slice.border || '',
@@ -5945,6 +6004,10 @@ trigger types:
                     view:    slice.view     ? enrichView(slice.view)         : null,
                     tests:   Array.isArray(slice.tests) ? slice.tests : []
                 };
+                if (Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                    enrichedSlice.hints = slice.hints.slice();
+                }
+                return enrichedSlice;
             }) : [];
 
             // --- Pass 2: Build global lookup maps, then resolve cross-references ---

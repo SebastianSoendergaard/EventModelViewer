@@ -57,6 +57,14 @@
             return result;
         }
 
+        function mergeHints(existing, incoming) {
+            var result = (existing || []).slice();
+            (incoming || []).forEach(function(hint) {
+                if (result.indexOf(hint) === -1) result.push(hint);
+            });
+            return result;
+        }
+
         function mergeReferencingElement(merged, incoming, refField) {
             if (!incoming) return merged;
             if (!merged) return Object.assign({}, incoming);
@@ -87,6 +95,10 @@
                     order.push(key);
                 }
 
+                if (Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                    if (!Object.prototype.hasOwnProperty.call(merged, 'hints')) merged.hints = [];
+                    merged.hints = mergeHints(merged.hints, slice.hints);
+                }
                 if (!merged.name && slice.name) merged.name = slice.name;
                 if (!merged.border && slice.border) merged.border = slice.border;
                 merged.trigger = mergeReferencingElement(merged.trigger, slice.trigger, 'views');
@@ -324,6 +336,13 @@
             return out.join('\n\n');
         }
 
+        function renderHints(hints) {
+            if (!Array.isArray(hints) || hints.length === 0) return '';
+            return ['## Hints', ''].concat(hints.map(function(hint) {
+                return '- ' + hint;
+            })).join('\n');
+        }
+
         function renderTestElementRef(ref) {
             if (!ref) return '';
             var label = ref.name || ref.id || '';
@@ -432,7 +451,7 @@
             lines.push('- **Pattern:** ' + pattern);
             lines.push('');
 
-            [renderTriggerSection(slice.trigger), renderCommandSection(slice.command),
+            [renderHints(slice.hints), renderTriggerSection(slice.trigger), renderCommandSection(slice.command),
              renderEventsSection(slice.events), renderViewSection(slice.view),
              renderDependencySections(deps), renderTests(slice.tests)].forEach(function(section) {
                 if (section) lines.push(section, '');
@@ -470,6 +489,9 @@
                 tests: slice.tests || []
             };
             if (!slice.trigger) delete json.trigger;
+            if (Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                json.hints = slice.hints.slice();
+            }
             return json;
         }
 

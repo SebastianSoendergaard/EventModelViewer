@@ -8,6 +8,23 @@
             JSON: 'json',
             YAML: 'yaml',
 
+            validate(json) {
+                if (!json || typeof json !== 'object' || !Array.isArray(json.slices)) {
+                    return json;
+                }
+
+                json.slices.forEach((slice, index) => {
+                    if (!slice || typeof slice !== 'object' || !Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                        return;
+                    }
+                    if (!Array.isArray(slice.hints) || slice.hints.some(hint => typeof hint !== 'string')) {
+                        const label = slice.name ? ` "${slice.name}"` : ` at index ${index}`;
+                        throw new Error(`Invalid hints for slice${label}: expected a list of strings`);
+                    }
+                });
+                return json;
+            },
+
             extensionFor(format) {
                 return format === Codec.YAML ? 'emy' : 'emj';
             },
@@ -17,10 +34,13 @@
             },
 
             parse(text, format) {
+                let json;
                 if (format === Codec.YAML) {
-                    return jsyaml.load(text) ?? {};
+                    json = jsyaml.load(text) ?? {};
+                } else {
+                    json = JSON.parse(text);
                 }
-                return JSON.parse(text);
+                return Codec.validate(json);
             },
 
             stringify(json, format) {

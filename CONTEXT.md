@@ -32,6 +32,10 @@ _Avoid_: server viewer
 The logical slice formed by merging every raw `slices[]` entry that shares an id (or name, when no id is set). Multiple raw entries with the same id are fragments of one slice — the layout mechanic places a fragment next to whichever elements feed it — not distinct slices. Merging unions their `events`/`tests` and fills in `trigger`/`command`/`view`/`border` from whichever fragment defines them.
 _Avoid_: duplicate slice (ambiguous about which side of the merge is meant)
 
+**Slice Hint**:
+Optional implementation guidance for one slice. Slice hints are carried with the slice into its task export and remain separate from tests, acceptance criteria, and workflow notes.
+_Avoid_: task hint (does not identify the slice boundary)
+
 **Task File Pair**:
 The `.md`/`.json` pair exported per Deduplicated Slice by "Export as Tasks" (server mode), named `NNN-slicename.md`/`NNN-slicename.json`. Both describe the exact same slice — its pattern, own elements, one-hop-back dependencies, tests, and relations — the Markdown for a human or AI agent to read, the JSON (versioned via `schemaVersion`, see `docs/adr/0004-versioned-json-schema-for-exported-task-files.md`) for a code-generation tool to parse programmatically. `index.md`/`index.json` are the equivalent pair for the whole export's manifest.
 _Avoid_: task file (ambiguous about which half of the pair is meant)

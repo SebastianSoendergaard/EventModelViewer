@@ -50,6 +50,14 @@
             return result;
         }
 
+        function mergeHints(existing, incoming) {
+            var result = (existing || []).slice();
+            (incoming || []).forEach(function(hint) {
+                if (result.indexOf(hint) === -1) result.push(hint);
+            });
+            return result;
+        }
+
         function mergeReferencingElement(merged, incoming, refField) {
             if (!incoming) return merged;
             if (!merged) return Object.assign({}, incoming);
@@ -80,6 +88,10 @@
                     order.push(key);
                 }
 
+                if (Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                    if (!Object.prototype.hasOwnProperty.call(merged, 'hints')) merged.hints = [];
+                    merged.hints = mergeHints(merged.hints, slice.hints);
+                }
                 if (!merged.name && slice.name) merged.name = slice.name;
                 if (!merged.border && slice.border) merged.border = slice.border;
                 merged.trigger = mergeReferencingElement(merged.trigger, slice.trigger, 'views');
@@ -294,6 +306,13 @@
             return out.join('\n\n');
         }
 
+        function renderHints(hints) {
+            if (!Array.isArray(hints) || hints.length === 0) return '';
+            return ['## Hints', ''].concat(hints.map(function(hint) {
+                return '- ' + hint;
+            })).join('\n');
+        }
+
         function renderTestElementRef(ref) {
             if (!ref) return '';
             var label = ref.name || ref.id || '';
@@ -395,7 +414,7 @@
             lines.push('- **Pattern:** ' + pattern);
             lines.push('');
 
-            [renderTriggerSection(slice.trigger), renderCommandSection(slice.command),
+            [renderHints(slice.hints), renderTriggerSection(slice.trigger), renderCommandSection(slice.command),
              renderEventsSection(slice.events), renderViewSection(slice.view),
              renderDependencySections(deps), renderTests(slice.tests)].forEach(function(section) {
                 if (section) lines.push(section, '');
@@ -433,6 +452,9 @@
                 tests: slice.tests || []
             };
             if (!slice.trigger) delete json.trigger;
+            if (Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                json.hints = slice.hints.slice();
+            }
             return json;
         }
 
@@ -611,6 +633,28 @@
             assertEquals(deduplicateSlices(null), []);
         });
 
+        test('merges distinct hints across fragments in stable order', () => {
+            const slices = [
+                { id: 'A', hints: ['Use the existing aggregate', 'Add a command handler'] },
+                { id: 'A', hints: ['Add a command handler', 'Cover the failure case'] },
+                { id: 'A' }
+            ];
+            const deduped = deduplicateSlices(slices);
+            assertEquals(deduped[0].hints, [
+                'Use the existing aggregate',
+                'Add a command handler',
+                'Cover the failure case'
+            ]);
+        });
+
+        test('preserves whether hints were absent or explicitly empty', () => {
+            const absent = deduplicateSlices([{ id: 'A' }])[0];
+            const empty = deduplicateSlices([{ id: 'B', hints: [] }])[0];
+            assert(!Object.prototype.hasOwnProperty.call(absent, 'hints'), 'absent hints should remain absent');
+            assert(Object.prototype.hasOwnProperty.call(empty, 'hints'), 'explicit empty hints should remain present');
+            assertEquals(empty.hints, []);
+        });
+
         // =====================================================================
         // Tests: classifySlicePattern
         // =====================================================================
@@ -732,6 +776,40 @@
             const cartItemsMd = files.find(f => f.name === '002-cart-items.md').content;
             assert(cartItemsMd.includes('**State:** red'), 'slice 2 file should show its border as State');
             assert(cartItemsMd.includes('**Pattern:** State View'), 'slice 2 should be classified as State View (human-readable Title Case in Markdown)');
+        });
+
+        test('exports non-empty hints in Markdown and JSON', () => {
+            const model = {
+                title: 'Test Model',
+                slices: [{
+                    id: '1',
+                    name: 'Add item',
+                    hints: ['Reuse the cart aggregate', 'Add a handler test']
+                }]
+            };
+            const files = generateExportFiles(model);
+            const markdown = files.find(f => f.name === '001-add-item.md').content;
+            const json = JSON.parse(files.find(f => f.name === '001-add-item.json').content);
+            assert(markdown.includes('## Hints'), 'Markdown should include a Hints section');
+            assert(markdown.includes('- Reuse the cart aggregate'), 'Markdown should render each hint as a bullet');
+            assert(markdown.includes('- Add a handler test'), 'Markdown should render all hints');
+            assertEquals(json.hints, ['Reuse the cart aggregate', 'Add a handler test']);
+        });
+
+        test('omits the Markdown Hints section for empty hints and preserves JSON optionality', () => {
+            const files = generateExportFiles({
+                title: 'Test Model',
+                slices: [
+                    { id: '1', name: 'Empty', hints: [] },
+                    { id: '2', name: 'Absent' }
+                ]
+            });
+            const emptyMarkdown = files.find(f => f.name === '001-empty.md').content;
+            const emptyJson = JSON.parse(files.find(f => f.name === '001-empty.json').content);
+            const absentJson = JSON.parse(files.find(f => f.name === '002-absent.json').content);
+            assert(!emptyMarkdown.includes('## Hints'), 'empty hints should not render an empty Markdown section');
+            assertEquals(emptyJson.hints, []);
+            assert(!Object.prototype.hasOwnProperty.call(absentJson, 'hints'), 'absent hints should stay absent in JSON');
         });
 
         test('State View slice embeds the full upstream event even though it is defined in another slice (Markdown)', () => {
