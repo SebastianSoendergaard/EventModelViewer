@@ -31,6 +31,17 @@ Comprehensive test suite for type-based trigger rendering in `src/viewer/diagram
 
 ---
 
+### [note-rendering.test.html](note-rendering.test.html)
+Focused browser tests for slice Note rendering in the command/view row.
+
+**Test Coverage:**
+- ✅ Fixed `Note` title and model text
+- ✅ Note element class and HTML escaping
+- ✅ Note → View → Command ordering
+- ✅ Note-only slices
+
+---
+
 
 Test suite for the arrow routing logic in `src/viewer/diagram/diagram.js`.
 

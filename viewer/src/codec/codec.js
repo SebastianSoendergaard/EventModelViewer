@@ -22,6 +22,16 @@
                         throw new Error(`Invalid hints for slice${label}: expected a list of strings`);
                     }
                 });
+
+                json.slices.forEach((slice, index) => {
+                    if (!slice || typeof slice !== 'object' || !Object.prototype.hasOwnProperty.call(slice, 'note')) {
+                        return;
+                    }
+                    if (typeof slice.note !== 'string') {
+                        const label = slice.name ? ` "${slice.name}"` : ` at index ${index}`;
+                        throw new Error(`Invalid note for slice${label}: expected a string`);
+                    }
+                });
                 return json;
             },
 

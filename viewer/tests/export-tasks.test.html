@@ -58,6 +58,11 @@
             return result;
         }
 
+        function addNotePart(parts, note) {
+            if (typeof note !== 'string' || !note.trim() || parts.indexOf(note) !== -1) return;
+            parts.push(note);
+        }
+
         function mergeReferencingElement(merged, incoming, refField) {
             if (!incoming) return merged;
             if (!merged) return Object.assign({}, incoming);
@@ -82,7 +87,8 @@
                         command: null,
                         view: null,
                         events: [],
-                        tests: []
+                        tests: [],
+                        noteParts: []
                     };
                     byKey.set(key, merged);
                     order.push(key);
@@ -94,6 +100,7 @@
                 }
                 if (!merged.name && slice.name) merged.name = slice.name;
                 if (!merged.border && slice.border) merged.border = slice.border;
+                addNotePart(merged.noteParts, slice.note);
                 merged.trigger = mergeReferencingElement(merged.trigger, slice.trigger, 'views');
                 merged.command = mergeReferencingElement(merged.command, slice.command, 'events');
                 merged.view = mergeReferencingElement(merged.view, slice.view, 'events');
@@ -106,7 +113,14 @@
                 (slice.tests || []).forEach(function(t) { merged.tests.push(t); });
             });
 
-            return order.map(function(key) { return byKey.get(key); });
+            return order.map(function(key) {
+                var merged = byKey.get(key);
+                if (merged.noteParts.length > 0) {
+                    merged.note = merged.noteParts.join('\n');
+                }
+                delete merged.noteParts;
+                return merged;
+            });
         }
 
         var TASK_JSON_SCHEMA_VERSION = 1;
@@ -313,6 +327,11 @@
             })).join('\n');
         }
 
+        function renderNoteSection(note) {
+            if (!note) return '';
+            return ['## Note', '', note].join('\n');
+        }
+
         function renderTestElementRef(ref) {
             if (!ref) return '';
             var label = ref.name || ref.id || '';
@@ -414,7 +433,7 @@
             lines.push('- **Pattern:** ' + pattern);
             lines.push('');
 
-            [renderHints(slice.hints), renderTriggerSection(slice.trigger), renderCommandSection(slice.command),
+            [renderNoteSection(slice.note), renderHints(slice.hints), renderTriggerSection(slice.trigger), renderCommandSection(slice.command),
              renderEventsSection(slice.events), renderViewSection(slice.view),
              renderDependencySections(deps), renderTests(slice.tests)].forEach(function(section) {
                 if (section) lines.push(section, '');
@@ -443,6 +462,7 @@
                 name: slice.name || '',
                 state: slice.border || '',
                 pattern: patternToCode(pattern),
+                note: slice.note || undefined,
                 trigger: exportTrigger(slice.trigger),
                 command: withoutId(slice.command),
                 view: withDefaultId(slice.view),
@@ -452,6 +472,7 @@
                 tests: slice.tests || []
             };
             if (!slice.trigger) delete json.trigger;
+            if (!slice.note) delete json.note;
             if (Object.prototype.hasOwnProperty.call(slice, 'hints')) {
                 json.hints = slice.hints.slice();
             }
@@ -647,6 +668,22 @@
             ]);
         });
 
+        test('combines distinct fragment notes in source order and removes exact duplicates', () => {
+            const deduped = deduplicateSlices([
+                { id: 'A', note: 'First' },
+                { id: 'A', note: 'Second' },
+                { id: 'A', note: 'First' }
+            ]);
+            assertEquals(deduped[0].note, 'First\nSecond');
+        });
+
+        test('preserves absent notes and omits empty notes', () => {
+            const absent = deduplicateSlices([{ id: 'A' }])[0];
+            const empty = deduplicateSlices([{ id: 'B', note: '   ' }])[0];
+            assert(!Object.prototype.hasOwnProperty.call(absent, 'note'), 'absent note should stay absent');
+            assert(!Object.prototype.hasOwnProperty.call(empty, 'note'), 'empty note should stay absent');
+        });
+
         test('preserves whether hints were absent or explicitly empty', () => {
             const absent = deduplicateSlices([{ id: 'A' }])[0];
             const empty = deduplicateSlices([{ id: 'B', hints: [] }])[0];
@@ -794,6 +831,18 @@
             assert(markdown.includes('- Reuse the cart aggregate'), 'Markdown should render each hint as a bullet');
             assert(markdown.includes('- Add a handler test'), 'Markdown should render all hints');
             assertEquals(json.hints, ['Reuse the cart aggregate', 'Add a handler test']);
+        });
+
+        test('exports notes in Markdown and JSON', () => {
+            const files = generateExportFiles({
+                title: 'Test Model',
+                slices: [{ id: '1', name: 'Annotated', note: 'Explain this slice' }]
+            });
+            const markdown = files.find(f => f.name === '001-annotated.md').content;
+            const json = JSON.parse(files.find(f => f.name === '001-annotated.json').content);
+            assert(markdown.includes('## Note'), 'Markdown should include a Note section');
+            assert(markdown.includes('Explain this slice'), 'Markdown should include note text');
+            assertEquals(json.note, 'Explain this slice');
         });
 
         test('omits the Markdown Hints section for empty hints and preserves JSON optionality', () => {

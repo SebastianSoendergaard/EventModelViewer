@@ -12,6 +12,10 @@ _Avoid_: model file (ambiguous about which encoding)
 An important point or highlight in an Event Model, scoped either to the overall workflow or to an individual slice. Model-level and slice-level hotspots remain separate even when their text is identical.
 _Avoid_: hotspot section (does not identify the scope)
 
+**Note**:
+A slice-scoped explanatory annotation shown beside the command/view, distinct from a Hotspot and Slice Hint. A Note is context for readers, not implementation guidance, a test, a requirement, or a relationship participant.
+_Avoid_: slice hint (a Note is not implementation guidance)
+
 **.emj (JSON encoding)**:
 An Event Model written as JSON text.
 _Avoid_: emj format, JSON file

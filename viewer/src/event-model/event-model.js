@@ -36,6 +36,19 @@
             });
         }
 
+        function validateSliceNotes(json) {
+            if (!json || typeof json !== 'object' || !Array.isArray(json.slices)) return;
+            json.slices.forEach(function(slice, index) {
+                if (!slice || typeof slice !== 'object' || !Object.prototype.hasOwnProperty.call(slice, 'note')) {
+                    return;
+                }
+                if (typeof slice.note !== 'string') {
+                    var label = slice.name ? ' "' + slice.name + '"' : ' at index ' + index;
+                    throw new Error('Invalid note for slice' + label + ': expected a string');
+                }
+            });
+        }
+
         /**
          * Enriches a trigger object:
          *   - Adds calculated id
@@ -284,6 +297,7 @@
         function buildEventModel(json) {
             if (!json) return null;
             validateSliceHints(json);
+            validateSliceNotes(json);
 
             // --- Pass 1: Enrich element fields ---
             var slices = Array.isArray(json.slices) ? json.slices.map(function(slice) {
@@ -298,6 +312,9 @@
                     view:    slice.view     ? enrichView(slice.view)         : null,
                     tests:   Array.isArray(slice.tests) ? slice.tests : []
                 };
+                if (typeof slice.note === 'string' && slice.note.trim()) {
+                    enrichedSlice.note = slice.note;
+                }
                 if (Object.prototype.hasOwnProperty.call(slice, 'hints')) {
                     enrichedSlice.hints = slice.hints.slice();
                 }

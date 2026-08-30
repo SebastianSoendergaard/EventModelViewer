@@ -43,6 +43,19 @@
             return '';
         }
 
+        function validateSliceNotes(json) {
+            if (!json || typeof json !== 'object' || !Array.isArray(json.slices)) return;
+            json.slices.forEach(function(slice, index) {
+                if (!slice || typeof slice !== 'object' || !Object.prototype.hasOwnProperty.call(slice, 'note')) {
+                    return;
+                }
+                if (typeof slice.note !== 'string') {
+                    var label = slice.name ? ' "' + slice.name + '"' : ' at index ' + index;
+                    throw new Error('Invalid note for slice' + label + ': expected a string');
+                }
+            });
+        }
+
         function enrichTrigger(trigger) {
             return Object.assign({}, trigger, {
                 id: calcId(trigger),
@@ -152,8 +165,9 @@
 
         function buildEventModel(json) {
             if (!json) return null;
+            validateSliceNotes(json);
             var slices = Array.isArray(json.slices) ? json.slices.map(function(slice) {
-                return {
+                var enrichedSlice = {
                     id:      calcId(slice),
                     name:    slice.name   || '',
                     border:  slice.border || '',
@@ -163,6 +177,10 @@
                     view:    slice.view     ? enrichView(slice.view)         : null,
                     tests:   Array.isArray(slice.tests) ? slice.tests : []
                 };
+                if (typeof slice.note === 'string' && slice.note.trim()) {
+                    enrichedSlice.note = slice.note;
+                }
+                return enrichedSlice;
             }) : [];
             return {
                 title:     json.title || '',
@@ -612,6 +630,26 @@
             assertNull(m.slices[0].trigger);
             assertNull(m.slices[0].command);
             assertNull(m.slices[0].view);
+        });
+
+        test('preserves a non-empty slice note', () => {
+            const m = buildEventModel({ slices: [{ note: 'Explain this slice', events: [] }] });
+            assertEquals(m.slices[0].note, 'Explain this slice');
+        });
+
+        test('omits an empty slice note', () => {
+            const m = buildEventModel({ slices: [{ note: '   ', events: [] }] });
+            assert(!Object.prototype.hasOwnProperty.call(m.slices[0], 'note'), 'empty note should be omitted');
+        });
+
+        test('rejects non-string slice notes', () => {
+            var threw = false;
+            try {
+                buildEventModel({ slices: [{ note: { text: 'wrong shape' }, events: [] }] });
+            } catch (error) {
+                threw = error.message.includes('Invalid note');
+            }
+            assert(threw, 'non-string note should be rejected');
         });
 
         // =====================================================================

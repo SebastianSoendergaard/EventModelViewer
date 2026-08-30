@@ -41,7 +41,8 @@
          * CONTEXT.md). Multiple raw slice entries with the same id are fragments of
          * one slice — the diagram layout places a view fragment next to whichever
          * events feed it — not distinct slices. Unions events/tests; first fragment
-         * to define trigger/command/view/border wins. Because a view (or, less
+         * to define trigger/command/view/border wins. Notes from all fragments are
+         * combined in source order into one slice note. Because a view (or, less
          * commonly, a trigger/command) fragment is placed next to whichever event
          * feeds it, different fragments of the same view/trigger typically carry a
          * *different* single entry in their `events`/`views` reference array —
@@ -63,6 +64,11 @@
                 if (result.indexOf(hint) === -1) result.push(hint);
             });
             return result;
+        }
+
+        function addNotePart(parts, note) {
+            if (typeof note !== 'string' || !note.trim() || parts.indexOf(note) !== -1) return;
+            parts.push(note);
         }
 
         function mergeReferencingElement(merged, incoming, refField) {
@@ -89,7 +95,8 @@
                         command: null,
                         view: null,
                         events: [],
-                        tests: []
+                        tests: [],
+                        noteParts: []
                     };
                     byKey.set(key, merged);
                     order.push(key);
@@ -101,6 +108,7 @@
                 }
                 if (!merged.name && slice.name) merged.name = slice.name;
                 if (!merged.border && slice.border) merged.border = slice.border;
+                addNotePart(merged.noteParts, slice.note);
                 merged.trigger = mergeReferencingElement(merged.trigger, slice.trigger, 'views');
                 merged.command = mergeReferencingElement(merged.command, slice.command, 'events');
                 merged.view = mergeReferencingElement(merged.view, slice.view, 'events');
@@ -113,7 +121,14 @@
                 (slice.tests || []).forEach(function(t) { merged.tests.push(t); });
             });
 
-            return order.map(function(key) { return byKey.get(key); });
+            return order.map(function(key) {
+                var merged = byKey.get(key);
+                if (merged.noteParts.length > 0) {
+                    merged.note = merged.noteParts.join('\n');
+                }
+                delete merged.noteParts;
+                return merged;
+            });
         }
 
         /**
@@ -343,6 +358,11 @@
             })).join('\n');
         }
 
+        function renderNoteSection(note) {
+            if (!note) return '';
+            return ['## Note', '', note].join('\n');
+        }
+
         function renderTestElementRef(ref) {
             if (!ref) return '';
             var label = ref.name || ref.id || '';
@@ -451,7 +471,7 @@
             lines.push('- **Pattern:** ' + pattern);
             lines.push('');
 
-            [renderHints(slice.hints), renderTriggerSection(slice.trigger), renderCommandSection(slice.command),
+            [renderNoteSection(slice.note), renderHints(slice.hints), renderTriggerSection(slice.trigger), renderCommandSection(slice.command),
              renderEventsSection(slice.events), renderViewSection(slice.view),
              renderDependencySections(deps), renderTests(slice.tests)].forEach(function(section) {
                 if (section) lines.push(section, '');
@@ -480,6 +500,7 @@
                 name: slice.name || '',
                 state: slice.border || '',
                 pattern: patternToCode(pattern),
+                note: slice.note || undefined,
                 trigger: exportTrigger(slice.trigger),
                 command: withoutId(slice.command),
                 view: withDefaultId(slice.view),
@@ -489,6 +510,7 @@
                 tests: slice.tests || []
             };
             if (!slice.trigger) delete json.trigger;
+            if (!slice.note) delete json.note;
             if (Object.prototype.hasOwnProperty.call(slice, 'hints')) {
                 json.hints = slice.hints.slice();
             }

@@ -21,6 +21,7 @@ slices: list of slices on the diagram
       swimlane: name of the swimlane (role/person/system) the trigger belongs to, if not defined it will be put in a default swimlane 
       buttons: list of buttons to show on ui trigger
       views: list of dependencies of views (id of view if defined, else name of view) 
+    note: optional string containing a explanatory annotation
     command: a command
       name: name of the command
       id: unique id of a command, can be used for reference on name clashes, if not defined fallback to name property

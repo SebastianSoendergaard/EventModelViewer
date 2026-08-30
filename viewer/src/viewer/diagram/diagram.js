@@ -681,6 +681,14 @@
             return `<div class="${className}">${hotspots.map(generateHotspot).join('')}</div>`;
         }
 
+        function generateNote(note) {
+            let html = '<div class="element note">';
+            html += '<div class="element-title">Note</div>';
+            html += `<div class="element-text">${escapeHtml(note)}</div>`;
+            html += '</div>';
+            return html;
+        }
+
         function generateEventModelDiagram(model) {
             if (!model.slices || !Array.isArray(model.slices)) {
                 return '<div class="info-message">Invalid event model: slices array is required</div>';
@@ -776,8 +784,11 @@
                 const cellKey = `${colNum}-${cmdViewRow}`;
                 if (!cellContents.has(cellKey)) cellContents.set(cellKey, []);
                 
-                // Collect command/view elements; view always appears before command
+                // Collect command/view elements; note appears first, then view, then command.
                 const cmdViewItems = [];
+                if (slice.note) {
+                    cmdViewItems.push(generateNote(slice.note));
+                }
                 if (slice.view) {
                     cmdViewItems.push(generateView(slice.view, sliceIndex));
                 }

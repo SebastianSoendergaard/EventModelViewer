@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Note Rendering Tests</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 20px auto; padding: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 3px; }
+        .test-result.pass { background: #d4edda; color: #155724; }
+        .test-result.fail { background: #f8d7da; color: #721c24; }
+        .summary { margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 4px; font-size: 18px; font-weight: bold; }
+        .summary.all-pass { background: #d4edda; color: #155724; }
+        .summary.some-fail { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Note Rendering Tests</h1>
+    <p>Tests for slice Note rendering in <code>src/viewer/diagram/diagram.js</code>.</p>
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <script>
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function generateNote(note) {
+            let html = '<div class="element note">';
+            html += '<div class="element-title">Note</div>';
+            html += `<div class="element-text">${escapeHtml(note)}</div>`;
+            html += '</div>';
+            return html;
+        }
+
+        function generateView(view) {
+            return `<div class="element view"><div class="element-title">${escapeHtml(view)}</div></div>`;
+        }
+
+        function generateCommand(command) {
+            return `<div class="element command"><div class="element-title">${escapeHtml(command)}</div></div>`;
+        }
+
+        function generateCommandViewGroup(slice) {
+            const items = [];
+            if (slice.note) items.push(generateNote(slice.note));
+            if (slice.view) items.push(generateView(slice.view));
+            if (slice.command) items.push(generateCommand(slice.command));
+            return `<div class="cmdview-group">${items.join('')}</div>`;
+        }
+
+        const results = [];
+        let currentSection = '';
+
+        function section(name) { currentSection = name; }
+
+        function test(name, fn) {
+            try {
+                fn();
+                results.push({ name: currentSection + ': ' + name, status: 'pass', error: null });
+            } catch (error) {
+                results.push({ name: currentSection + ': ' + name, status: 'fail', error: error.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) throw new Error(message || 'Assertion failed');
+        }
+
+        section('generateNote');
+
+        test('uses the fixed Note title and model text', () => {
+            const html = generateNote('Explain <this>');
+            assert(html.includes('<div class="element-title">Note</div>'));
+            assert(html.includes('Explain &lt;this&gt;'));
+        });
+
+        test('uses the note element class', () => {
+            assert(generateNote('Text').includes('class="element note"'));
+        });
+
+        section('generateCommandViewGroup');
+
+        test('renders note before view and command', () => {
+            const html = generateCommandViewGroup({ note: 'Note text', view: 'View', command: 'Command' });
+            assert(html.indexOf('class="element note"') < html.indexOf('class="element view"'));
+            assert(html.indexOf('class="element view"') < html.indexOf('class="element command"'));
+        });
+
+        test('renders a note without requiring a view or command', () => {
+            const html = generateCommandViewGroup({ note: 'Standalone note' });
+            assert(html.includes('Standalone note'));
+            assert(!html.includes('class="element view"'));
+            assert(!html.includes('class="element command"'));
+        });
+
+        const resultsContainer = document.getElementById('results');
+        let passed = 0;
+        results.forEach(result => {
+            const div = document.createElement('div');
+            div.className = 'test-result ' + result.status;
+            div.textContent = (result.status === 'pass' ? 'PASS: ' : 'FAIL: ') + result.name +
+                (result.error ? ' — ' + result.error : '');
+            resultsContainer.appendChild(div);
+            if (result.status === 'pass') passed++;
+        });
+
+        const summary = document.getElementById('summary');
+        summary.textContent = `${passed}/${results.length} tests passed`;
+        summary.className += passed === results.length ? ' all-pass' : ' some-fail';
+    </script>
+</body>
+</html>

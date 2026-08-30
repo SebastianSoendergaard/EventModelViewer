@@ -157,7 +157,8 @@
 
         /* Extra padding for commands and views */
         .element.command,
-        .element.view {
+        .element.view,
+        .element.note {
             margin-top: 40px;
             margin-right: 25px;
             margin-bottom: 70px;
@@ -350,6 +351,25 @@
         }
 
         .element.hotspot:hover {
+            transform: none;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+
+        .note {
+            background: white;
+            color: black;
+            border: 1px solid black;
+            cursor: default;
+            transition: none;
+        }
+
+        .note .element-text {
+            font-size: 12px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+
+        .element.note:hover {
             transform: none;
             box-shadow: 0 6px 20px rgba(0,0,0,0.15);
         }
