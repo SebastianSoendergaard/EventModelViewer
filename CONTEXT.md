@@ -8,6 +8,10 @@ Visualizes and edits Event Model documents (per Dymitruk/Dilger Event Modeling) 
 The document this app edits — slices, triggers, commands, events, views, and tests. It has exactly one schema, but is stored on disk in either of two text encodings, chosen explicitly per document (never inferred from content, never converted after the fact).
 _Avoid_: model file (ambiguous about which encoding)
 
+**Hotspot**:
+An important point or highlight in an Event Model, scoped either to the overall workflow or to an individual slice. Model-level and slice-level hotspots remain separate even when their text is identical.
+_Avoid_: hotspot section (does not identify the scope)
+
 **.emj (JSON encoding)**:
 An Event Model written as JSON text.
 _Avoid_: emj format, JSON file

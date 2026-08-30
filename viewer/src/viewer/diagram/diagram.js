@@ -588,13 +588,14 @@
          * Builds a grid map with row indices for each lane
          * @param {Array} triggerLanes - Array of trigger lane objects
          * @param {Array} eventLanes - Array of event lane objects
-         * @returns {Object} { triggerRowMap: Map, commandViewRow: number, eventRowMap: Map, testRow: number, totalRows: number }
+         * @returns {Object} { sliceHotspotsRow: number|null, triggerRowMap: Map, commandViewRow: number, eventRowMap: Map, testRow: number, totalRows: number }
          */
-        function buildGridMap(triggerLanes, eventLanes) {
+        function buildGridMap(triggerLanes, eventLanes, hasSliceHotspots) {
             const triggerRowMap = new Map();
             const eventRowMap = new Map();
             
             let currentRow = 2; // Row 1 is for slice headers, start lanes at row 2
+            const sliceHotspotsRow = hasSliceHotspots ? currentRow++ : null;
             
             // Map trigger lanes to rows
             triggerLanes.forEach((lane, index) => {
@@ -620,6 +621,7 @@
             
             return {
                 triggerRowMap,
+                sliceHotspotsRow,
                 commandViewRow,
                 eventRowMap,
                 testRow,
@@ -667,6 +669,14 @@
 
         // ===== END GRID LAYOUT HELPERS =====
 
+        function generateHotspot(hotspot) {
+            return `<div class="element hotspot"><div class="element-title">${escapeHtml(hotspot)}</div></div>`;
+        }
+
+        function generateHotspotGroup(hotspots, className) {
+            return `<div class="${className}">${hotspots.map(generateHotspot).join('')}</div>`;
+        }
+
         function generateEventModelDiagram(model) {
             if (!model.slices || !Array.isArray(model.slices)) {
                 return '<div class="info-message">Invalid event model: slices array is required</div>';
@@ -677,7 +687,8 @@
             // Use pre-computed swimlanes from enriched model; fall back to single-lane when hidden
             const triggerLanes = showSwimlanes ? model.swimlanes.trigger : [{ type: 'all', label: 'All Triggers' }];
             const eventLanes   = showSwimlanes ? model.swimlanes.event   : [{ type: 'all', label: 'All Events' }];
-            const gridMap = buildGridMap(triggerLanes, eventLanes);
+            const hasSliceHotspots = model.slices.some(slice => Array.isArray(slice.hotspots) && slice.hotspots.length > 0);
+            const gridMap = buildGridMap(triggerLanes, eventLanes, hasSliceHotspots);
             
             const numSlices = model.slices.length;
             const swimlanesClass = showSwimlanes ? '' : 'swimlanes-hidden';
@@ -688,10 +699,15 @@
                 html += `<div class="diagram-title">${escapeHtml(model.title)}</div>`;
             }
 
+            if (Array.isArray(model.hotspots) && model.hotspots.length > 0) {
+                const alignmentClass = showSwimlanes ? ' model-hotspots--swimlane-aligned' : '';
+                html += generateHotspotGroup(model.hotspots, `model-hotspots${alignmentClass}`);
+            }
+
             // Build CSS Grid
             const numCols = showSwimlanes ? numSlices + 1 : numSlices; // +1 for lane header column
             const gridTemplateColumns = showSwimlanes 
-                ? `120px repeat(${numSlices}, minmax(240px, max-content))`
+                ? `var(--swimlane-label-width) repeat(${numSlices}, minmax(240px, max-content))`
                 : `repeat(${numSlices}, minmax(240px, max-content))`;
             
             html += `<div class="swimlane-grid ${swimlanesClass}" style="grid-template-columns: ${gridTemplateColumns};">`;
@@ -730,6 +746,16 @@
             model.slices.forEach((slice, sliceIndex) => {
                 const colNum = showSwimlanes ? sliceIndex + 2 : sliceIndex + 1;
                 
+                // Slice hotspots share one aligned row across all slice columns.
+                if (gridMap.sliceHotspotsRow) {
+                    const sliceHotspots = Array.isArray(slice.hotspots) ? slice.hotspots : [];
+                    if (sliceHotspots.length > 0) {
+                        const hotspotCellKey = `${colNum}-${gridMap.sliceHotspotsRow}`;
+                        if (!cellContents.has(hotspotCellKey)) cellContents.set(hotspotCellKey, []);
+                        cellContents.get(hotspotCellKey).push(generateHotspotGroup(sliceHotspots, 'slice-hotspots-group'));
+                    }
+                }
+
                 // Trigger
                 if (slice.trigger) {
                     const laneKey = getTriggerLaneKey(slice.trigger, showSwimlanes);
@@ -806,6 +832,12 @@
             // Render lane headers (rows)
             if (showSwimlanes) {
                 let currentRow = 2;
+
+                // The slice-hotspot row is intentionally unlabeled; the red squares identify it.
+                if (gridMap.sliceHotspotsRow) {
+                    html += `<div class="lane-header hotspot-lane-header" style="grid-column: 1; grid-row: ${currentRow};"></div>`;
+                    currentRow++;
+                }
                 
                 // Trigger lane headers
                 triggerLanes.forEach(lane => {

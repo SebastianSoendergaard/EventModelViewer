@@ -277,6 +277,7 @@
                     id:      calcId(slice),
                     name:    slice.name   || '',
                     border:  slice.border || '',
+                    hotspots: Array.isArray(slice.hotspots) ? slice.hotspots : [],
                     trigger: slice.trigger  ? enrichTrigger(slice.trigger)  : null,
                     command: slice.command  ? enrichCommand(slice.command)   : null,
                     events:  Array.isArray(slice.events) ? slice.events.map(enrichEvent) : [],
@@ -316,6 +317,7 @@
 
             return {
                 title:     json.title || '',
+                hotspots:  Array.isArray(json.hotspots) ? json.hotspots : [],
                 slices:    slices,
                 swimlanes: buildSwimlanesFromSlices(slices)
             };

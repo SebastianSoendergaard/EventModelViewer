@@ -47,6 +47,8 @@
             display: inline-block;
             padding: 40px;
             background-color: white;
+            --swimlane-label-width: 120px;
+            --swimlane-column-gap: 40px;
         }
 
         /* ===== SWIMLANE GRID LAYOUT ===== */
@@ -54,10 +56,33 @@
         .swimlane-grid {
             display: inline-grid;
             row-gap: 0;
-            column-gap: 40px;
+            column-gap: var(--swimlane-column-gap);
             position: relative;
             min-width: 100%;
             width: max-content;
+        }
+
+        .model-hotspots {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            gap: 12px;
+            width: max-content;
+            align-items: flex-start;
+            margin-bottom: 40px;
+        }
+
+        .model-hotspots--swimlane-aligned {
+            margin-left: calc(var(--swimlane-label-width) + var(--swimlane-column-gap));
+        }
+
+        .slice-hotspots-group {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            gap: 12px;
+            width: max-content;
+            align-items: flex-start;
         }
 
         .swimlane-grid.swimlanes-hidden .lane-header {
@@ -69,7 +94,7 @@
             left: 0;
             z-index: 10;
             background: transparent;
-            min-width: 120px;
+            min-width: var(--swimlane-label-width);
             padding: 12px 16px;
             display: flex;
             align-items: center;
@@ -308,6 +333,19 @@
 
         .view .element-properties {
             color: rgba(255,255,255,0.9);
+        }
+
+        .hotspot {
+            background: red;
+            color: white;
+            border: 1px solid #c0392b;
+            cursor: default;
+            transition: none;
+        }
+
+        .element.hotspot:hover {
+            transform: none;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
         }
 
         .event {
