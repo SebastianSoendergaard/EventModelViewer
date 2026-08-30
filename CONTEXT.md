@@ -33,8 +33,12 @@ The Event Model Viewer deployment that manages model files through a local serve
 _Avoid_: server viewer
 
 **Deduplicated Slice**:
-The logical slice formed by merging every raw `slices[]` entry that shares an id (or name, when no id is set). Multiple raw entries with the same id are fragments of one slice — the layout mechanic places a fragment next to whichever elements feed it — not distinct slices. Merging unions their `events`/`tests` and fills in `trigger`/`command`/`view`/`border` from whichever fragment defines them.
+The logical slice formed by merging every raw `slices[]` entry that shares an id (or name, when no id is set). Multiple raw entries with the same id are fragments of one slice — the layout mechanic places a fragment next to whichever elements feed it — not distinct slices. Merging unions their `events`/`tests` and fills in `trigger`/`command`/`view`/`border`/`background` from whichever fragment defines them.
 _Avoid_: duplicate slice (ambiguous about which side of the merge is meant)
+
+**Slice State Marker**:
+A visual encoding of a slice's state. A slice may use an optional border, an optional background color, or both; these are presentation cues rather than separate domain states.
+_Avoid_: slice status (the model does not define a separate status value)
 
 **Slice Hint**:
 Optional implementation guidance for one slice. Slice hints are carried with the slice into its task export and remain separate from tests, acceptance criteria, and workflow notes.

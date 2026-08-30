@@ -49,3 +49,18 @@ describe('event model notes', () => {
     })).toThrow('expected a string');
   });
 });
+
+describe('event model slice backgrounds', () => {
+  it('preserves optional background colors in the enriched model', () => {
+    const buildEventModel = loadEventModelBuilder();
+    const model = buildEventModel({
+      slices: [
+        { name: 'Colored', background: '#E8F5E9' },
+        { name: 'Uncolored' }
+      ]
+    });
+
+    expect(model.slices[0].background).toBe('#E8F5E9');
+    expect(model.slices[1].background).toBe('');
+  });
+});

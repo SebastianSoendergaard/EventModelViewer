@@ -10,6 +10,7 @@ slices: list of slices on the diagram
     name: name of the slice
     id: unique id of the slice, can be used for reference on name clashes, if not defined fallback to name property
     border: color to mark a slice and its state (e.g. black=>draft, blue=>todo, red=>in progress, green=>done)
+    background: color to fill the slice and provide a more visible state marker (e.g. 	LightGray=>draft, 	LightGray=>todo, Pink=>in progress, LightGreen=>done)
     hotspots: list of strings representing important points or highlights in the slice
     hints: optional list of strings with implementation guidance e.g. spesific code generation startegy or entire AI instructions
     trigger: something that triggers actions in the flow 

@@ -35,9 +35,9 @@
 
         // Mouse drag to pan — remove from here, handled in zoom-export.js
         function toggleSliceBorders(show) {
-            const borders = document.querySelectorAll('.slice-border');
-            borders.forEach(border => {
-                border.style.display = show ? 'block' : 'none';
+            const stateMarkers = document.querySelectorAll('.slice-border, .slice-background');
+            stateMarkers.forEach(marker => {
+                marker.style.display = show ? 'block' : 'none';
             });
         }
 
@@ -729,11 +729,20 @@
                 const hasBorder = slice.border ? 'with-border' : '';
                 const borderColor = slice.border || '';
                 const borderStyle = slice.border ? `border-color: ${slice.border};` : '';
-                html += `<div class="grid-cell slice-header ${hasBorder}" style="grid-column: ${colNum}; grid-row: 1; ${borderStyle}" data-slice-border-color="${borderColor}">`;
+                const hasBackground = slice.background ? 'with-background' : '';
+                html += `<div class="grid-cell slice-header ${hasBorder} ${hasBackground}" style="grid-column: ${colNum}; grid-row: 1; ${borderStyle}" data-slice-border-color="${borderColor}" data-slice-background-color="${escapeAttribute(slice.background || '')}">`;
                 if (slice.name) {
                     html += escapeHtml(slice.name);
                 }
                 html += `</div>`;
+            });
+
+            // Slice background overlays span the full column, including tests.
+            model.slices.forEach((slice, sliceIndex) => {
+                if (!slice.background) return;
+                const colNum = showSwimlanes ? sliceIndex + 2 : sliceIndex + 1;
+                const rowEnd = gridMap.testRow + 1; // end is exclusive
+                html += `<div class="slice-background" style="grid-column: ${colNum}; grid-row: 1 / ${rowEnd}; background-color: ${escapeAttribute(slice.background)};"></div>`;
             });
             
             // Slice border overlays (span full column including tests)
@@ -1324,6 +1333,12 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function escapeAttribute(text) {
+            return escapeHtml(text)
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         function showError(message) {

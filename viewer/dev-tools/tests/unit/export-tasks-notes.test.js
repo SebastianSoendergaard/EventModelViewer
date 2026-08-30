@@ -60,3 +60,41 @@ describe('note task export', () => {
     expect(Object.prototype.hasOwnProperty.call(json, 'note')).toBe(false);
   });
 });
+
+describe('slice background task export', () => {
+  it('uses the first defined fragment background and exports it', () => {
+    const { generateExportFiles } = loadExportGenerator();
+    const files = generateExportFiles({
+      title: 'Test Model',
+      slices: [
+        { id: 'A', name: 'Colored', background: '#E8F5E9' },
+        { id: 'A', name: 'Colored', background: '#FFF8E1' }
+      ]
+    });
+
+    const markdown = files.find(file => file.name === '001-colored.md').content;
+    const json = JSON.parse(files.find(file => file.name === '001-colored.json').content);
+    const indexMarkdown = files.find(file => file.name === 'index.md').content;
+    const indexJson = JSON.parse(files.find(file => file.name === 'index.json').content);
+
+    expect(markdown).toContain('- **Background:** #E8F5E9');
+    expect(json.background).toBe('#E8F5E9');
+    expect(indexMarkdown).toContain('Background');
+    expect(indexMarkdown).toContain('#E8F5E9');
+    expect(indexJson.slices[0].background).toBe('#E8F5E9');
+  });
+
+  it('exports an explicit empty background when a slice has none', () => {
+    const { generateExportFiles } = loadExportGenerator();
+    const files = generateExportFiles({
+      title: 'Test Model',
+      slices: [{ id: 'A', name: 'Plain' }]
+    });
+
+    const markdown = files.find(file => file.name === '001-plain.md').content;
+    const json = JSON.parse(files.find(file => file.name === '001-plain.json').content);
+
+    expect(markdown).toContain('- **Background:** _none_');
+    expect(json.background).toBe('');
+  });
+});

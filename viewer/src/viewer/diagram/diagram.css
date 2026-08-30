@@ -191,6 +191,13 @@
             background: transparent;
         }
 
+        .slice-background {
+            pointer-events: none;
+            border-radius: 8px;
+            box-sizing: border-box;
+            z-index: 0;
+        }
+
         /* Removed alternating row background colors */
 
         /* Hide lane separators when swimlanes are hidden */

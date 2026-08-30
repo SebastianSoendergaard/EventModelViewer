@@ -41,7 +41,7 @@
          * CONTEXT.md). Multiple raw slice entries with the same id are fragments of
          * one slice — the diagram layout places a view fragment next to whichever
          * events feed it — not distinct slices. Unions events/tests; first fragment
-         * to define trigger/command/view/border wins. Notes from all fragments are
+         * to define trigger/command/view/border/background wins. Notes from all fragments are
          * combined in source order into one slice note. Because a view (or, less
          * commonly, a trigger/command) fragment is placed next to whichever event
          * feeds it, different fragments of the same view/trigger typically carry a
@@ -91,6 +91,7 @@
                         id: slice.id || key,
                         name: slice.name || '',
                         border: slice.border || '',
+                        background: slice.background || '',
                         trigger: null,
                         command: null,
                         view: null,
@@ -108,6 +109,7 @@
                 }
                 if (!merged.name && slice.name) merged.name = slice.name;
                 if (!merged.border && slice.border) merged.border = slice.border;
+                if (!merged.background && slice.background) merged.background = slice.background;
                 addNotePart(merged.noteParts, slice.note);
                 merged.trigger = mergeReferencingElement(merged.trigger, slice.trigger, 'views');
                 merged.command = mergeReferencingElement(merged.command, slice.command, 'events');
@@ -468,6 +470,7 @@
             lines.push('# ' + orderStr + '. ' + (slice.name || '(unnamed slice)'));
             lines.push('');
             lines.push('- **State:** ' + (slice.border || '_none_'));
+            lines.push('- **Background:** ' + (slice.background || '_none_'));
             lines.push('- **Pattern:** ' + pattern);
             lines.push('');
 
@@ -487,9 +490,9 @@
 
         function buildIndexMarkdown(title, entries) {
             var lines = ['# ' + (title || 'Event Model') + ' \u2014 Task Index', '',
-                '| Order | File | Slice | Pattern | State |', '| --- | --- | --- | --- | --- |'];
+                '| Order | File | Slice | Pattern | State | Background |', '| --- | --- | --- | --- | --- | --- |'];
             entries.forEach(function(e) {
-                lines.push('| ' + e.order + ' | [' + e.fileName + '](' + e.fileName + ') | ' + e.name + ' | ' + e.pattern + ' | ' + (e.state || '_none_') + ' |');
+                lines.push('| ' + e.order + ' | [' + e.fileName + '](' + e.fileName + ') | ' + e.name + ' | ' + e.pattern + ' | ' + (e.state || '_none_') + ' | ' + (e.background || '_none_') + ' |');
             });
             return lines.join('\n') + '\n';
         }
@@ -499,6 +502,7 @@
                 schemaVersion: TASK_JSON_SCHEMA_VERSION,
                 name: slice.name || '',
                 state: slice.border || '',
+                background: slice.background || '',
                 pattern: patternToCode(pattern),
                 note: slice.note || undefined,
                 trigger: exportTrigger(slice.trigger),
@@ -526,6 +530,7 @@
                         name: e.name,
                         pattern: patternToCode(e.pattern),
                         state: e.state || '',
+                        background: e.background || '',
                         files: { markdown: e.fileNameMd, json: e.fileNameJson }
                     };
                 })
@@ -561,14 +566,15 @@
                 files.push({ name: fileNameJson, content: JSON.stringify(json, null, 2) + '\n' });
 
                 indexEntries.push({
-                    order: order, orderStr: orderStr, id: slice.id, name: slice.name || '(unnamed)', pattern: pattern, state: slice.border,
+                    order: order, orderStr: orderStr, id: slice.id, name: slice.name || '(unnamed)', pattern: pattern,
+                    state: slice.border, background: slice.background,
                     fileNameMd: fileNameMd, fileNameJson: fileNameJson
                 });
             });
 
             files.unshift({ name: 'index.json', content: JSON.stringify(buildIndexJson(model.title, indexEntries), null, 2) + '\n' });
             files.unshift({ name: 'index.md', content: buildIndexMarkdown(model.title, indexEntries.map(function(e) {
-                return { order: e.orderStr, fileName: e.fileNameMd, name: e.name, pattern: e.pattern, state: e.state };
+                return { order: e.orderStr, fileName: e.fileNameMd, name: e.name, pattern: e.pattern, state: e.state, background: e.background };
             })) });
             return files;
         }

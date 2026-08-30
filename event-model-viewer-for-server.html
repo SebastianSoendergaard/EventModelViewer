@@ -1385,6 +1385,13 @@
             background: transparent;
         }
 
+        .slice-background {
+            pointer-events: none;
+            border-radius: 8px;
+            box-sizing: border-box;
+            z-index: 0;
+        }
+
         /* Removed alternating row background colors */
 
         /* Hide lane separators when swimlanes are hidden */
@@ -2277,6 +2284,7 @@ slices: list of slices on the diagram
     name: name of the slice
     id: unique id of the slice, can be used for reference on name clashes, if not defined fallback to name property
     border: color to mark a slice and its state (e.g. black=&gt;draft, blue=&gt;todo, red=&gt;in progress, green=&gt;done)
+    background: CSS color to fill the slice and provide a more visible state marker; rendered as a background color across the slice
     hotspots: list of strings representing important points or highlights in the slice
     hints: optional list of strings with implementation guidance e.g. spesific code generation startegy or entire AI instructions
     trigger: something that triggers actions in the flow 
@@ -3088,7 +3096,7 @@ trigger types:
          * CONTEXT.md). Multiple raw slice entries with the same id are fragments of
          * one slice — the diagram layout places a view fragment next to whichever
          * events feed it — not distinct slices. Unions events/tests; first fragment
-         * to define trigger/command/view/border wins. Notes from all fragments are
+         * to define trigger/command/view/border/background wins. Notes from all fragments are
          * combined in source order into one slice note. Because a view (or, less
          * commonly, a trigger/command) fragment is placed next to whichever event
          * feeds it, different fragments of the same view/trigger typically carry a
@@ -3138,6 +3146,7 @@ trigger types:
                         id: slice.id || key,
                         name: slice.name || '',
                         border: slice.border || '',
+                        background: slice.background || '',
                         trigger: null,
                         command: null,
                         view: null,
@@ -3155,6 +3164,7 @@ trigger types:
                 }
                 if (!merged.name && slice.name) merged.name = slice.name;
                 if (!merged.border && slice.border) merged.border = slice.border;
+                if (!merged.background && slice.background) merged.background = slice.background;
                 addNotePart(merged.noteParts, slice.note);
                 merged.trigger = mergeReferencingElement(merged.trigger, slice.trigger, 'views');
                 merged.command = mergeReferencingElement(merged.command, slice.command, 'events');
@@ -3515,6 +3525,7 @@ trigger types:
             lines.push('# ' + orderStr + '. ' + (slice.name || '(unnamed slice)'));
             lines.push('');
             lines.push('- **State:** ' + (slice.border || '_none_'));
+            lines.push('- **Background:** ' + (slice.background || '_none_'));
             lines.push('- **Pattern:** ' + pattern);
             lines.push('');
 
@@ -3534,9 +3545,9 @@ trigger types:
 
         function buildIndexMarkdown(title, entries) {
             var lines = ['# ' + (title || 'Event Model') + ' \u2014 Task Index', '',
-                '| Order | File | Slice | Pattern | State |', '| --- | --- | --- | --- | --- |'];
+                '| Order | File | Slice | Pattern | State | Background |', '| --- | --- | --- | --- | --- | --- |'];
             entries.forEach(function(e) {
-                lines.push('| ' + e.order + ' | [' + e.fileName + '](' + e.fileName + ') | ' + e.name + ' | ' + e.pattern + ' | ' + (e.state || '_none_') + ' |');
+                lines.push('| ' + e.order + ' | [' + e.fileName + '](' + e.fileName + ') | ' + e.name + ' | ' + e.pattern + ' | ' + (e.state || '_none_') + ' | ' + (e.background || '_none_') + ' |');
             });
             return lines.join('\n') + '\n';
         }
@@ -3546,6 +3557,7 @@ trigger types:
                 schemaVersion: TASK_JSON_SCHEMA_VERSION,
                 name: slice.name || '',
                 state: slice.border || '',
+                background: slice.background || '',
                 pattern: patternToCode(pattern),
                 note: slice.note || undefined,
                 trigger: exportTrigger(slice.trigger),
@@ -3573,6 +3585,7 @@ trigger types:
                         name: e.name,
                         pattern: patternToCode(e.pattern),
                         state: e.state || '',
+                        background: e.background || '',
                         files: { markdown: e.fileNameMd, json: e.fileNameJson }
                     };
                 })
@@ -3608,14 +3621,15 @@ trigger types:
                 files.push({ name: fileNameJson, content: JSON.stringify(json, null, 2) + '\n' });
 
                 indexEntries.push({
-                    order: order, orderStr: orderStr, id: slice.id, name: slice.name || '(unnamed)', pattern: pattern, state: slice.border,
+                    order: order, orderStr: orderStr, id: slice.id, name: slice.name || '(unnamed)', pattern: pattern,
+                    state: slice.border, background: slice.background,
                     fileNameMd: fileNameMd, fileNameJson: fileNameJson
                 });
             });
 
             files.unshift({ name: 'index.json', content: JSON.stringify(buildIndexJson(model.title, indexEntries), null, 2) + '\n' });
             files.unshift({ name: 'index.md', content: buildIndexMarkdown(model.title, indexEntries.map(function(e) {
-                return { order: e.orderStr, fileName: e.fileNameMd, name: e.name, pattern: e.pattern, state: e.state };
+                return { order: e.orderStr, fileName: e.fileNameMd, name: e.name, pattern: e.pattern, state: e.state, background: e.background };
             })) });
             return files;
         }
@@ -6069,6 +6083,7 @@ trigger types:
                     id:      calcId(slice),
                     name:    slice.name   || '',
                     border:  slice.border || '',
+                    background: slice.background || '',
                     hotspots: Array.isArray(slice.hotspots) ? slice.hotspots : [],
                     trigger: slice.trigger  ? enrichTrigger(slice.trigger)  : null,
                     command: slice.command  ? enrichCommand(slice.command)   : null,
@@ -6173,9 +6188,9 @@ trigger types:
 
         // Mouse drag to pan — remove from here, handled in zoom-export.js
         function toggleSliceBorders(show) {
-            const borders = document.querySelectorAll('.slice-border');
-            borders.forEach(border => {
-                border.style.display = show ? 'block' : 'none';
+            const stateMarkers = document.querySelectorAll('.slice-border, .slice-background');
+            stateMarkers.forEach(marker => {
+                marker.style.display = show ? 'block' : 'none';
             });
         }
 
@@ -6867,11 +6882,20 @@ trigger types:
                 const hasBorder = slice.border ? 'with-border' : '';
                 const borderColor = slice.border || '';
                 const borderStyle = slice.border ? `border-color: ${slice.border};` : '';
-                html += `<div class="grid-cell slice-header ${hasBorder}" style="grid-column: ${colNum}; grid-row: 1; ${borderStyle}" data-slice-border-color="${borderColor}">`;
+                const hasBackground = slice.background ? 'with-background' : '';
+                html += `<div class="grid-cell slice-header ${hasBorder} ${hasBackground}" style="grid-column: ${colNum}; grid-row: 1; ${borderStyle}" data-slice-border-color="${borderColor}" data-slice-background-color="${escapeAttribute(slice.background || '')}">`;
                 if (slice.name) {
                     html += escapeHtml(slice.name);
                 }
                 html += `</div>`;
+            });
+
+            // Slice background overlays span the full column, including tests.
+            model.slices.forEach((slice, sliceIndex) => {
+                if (!slice.background) return;
+                const colNum = showSwimlanes ? sliceIndex + 2 : sliceIndex + 1;
+                const rowEnd = gridMap.testRow + 1; // end is exclusive
+                html += `<div class="slice-background" style="grid-column: ${colNum}; grid-row: 1 / ${rowEnd}; background-color: ${escapeAttribute(slice.background)};"></div>`;
             });
             
             // Slice border overlays (span full column including tests)
@@ -7462,6 +7486,12 @@ trigger types:
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function escapeAttribute(text) {
+            return escapeHtml(text)
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         function showError(message) {

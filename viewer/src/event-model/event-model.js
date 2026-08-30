@@ -305,6 +305,7 @@
                     id:      calcId(slice),
                     name:    slice.name   || '',
                     border:  slice.border || '',
+                    background: slice.background || '',
                     hotspots: Array.isArray(slice.hotspots) ? slice.hotspots : [],
                     trigger: slice.trigger  ? enrichTrigger(slice.trigger)  : null,
                     command: slice.command  ? enrichCommand(slice.command)   : null,
