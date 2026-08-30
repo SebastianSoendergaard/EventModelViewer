@@ -2031,13 +2031,13 @@
     color: #3498db;
 }
 
-.help-links a {
+.help-section a {
     color: #2980b9;
     font-weight: 600;
     text-decoration: none;
 }
 
-.help-links a:hover {
+.help-section a:hover {
     text-decoration: underline;
 }
 
@@ -2063,7 +2063,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026083000</span>
+        <span class="build-number" title="Build number">Build 2026083011</span>
 <button class="help-btn" id="helpBtn" title="Help" aria-label="Open help" aria-expanded="false">?</button>
     </header>
 
@@ -2200,13 +2200,20 @@
         </section>
 
         <section class="help-section">
+            <h3>Tool Features</h3>
+            <p>Browse folders and open <code>.emj</code> and <code>.emy</code> files locally.</br>Edit the file directly in the editor or using an external editor and the diagram will reflect the changes.</br>Edit the model using the code or tree view, changes are automatically saved to the file.</br>Export slices as task files.</br>Export to PNG/SVG.</br>Quickly show or hide slices/tests/types/swimlanes.</br>Zoom and pan diagrams using the zoom buttons or C + mouse wheel.</br>Adjust the editor/viewer ratio using the collapse/expand buttons or the panel splitter.</p>
+        </section>
+
+        <section class="help-section">
             <h3>EMJ/EMY Format Specification</h3>
             <pre class="help-format-spec">title: the title of the work flow
+hotspots: list of strings representing important points or highlights in the workflow
 slices: list of slices on the diagram
   slice: a single slice
     name: name of the slice
     id: unique id of the slice, can be used for reference on name clashes, if not defined fallback to name property
     border: color to mark a slice and its state (e.g. black=&gt;draft, blue=&gt;todo, red=&gt;in progress, green=&gt;done)
+    hotspots: list of strings representing important points or highlights in the slice
     trigger: something that triggers actions in the flow 
       name: name of the trigger that initiates an action
       type: type of the trigger e.g. ui or automation, see all options below
@@ -2274,6 +2281,12 @@ trigger types:
   ui-chart-pie: displays a hardcoded example pie chart (SVG, 3 slices)
   automation: represents an automated process trigger (no user interaction)
   translation: represents a trigger that translates/relays events between systems (Translation Pattern)</pre>
+        </section>
+
+        <section class="help-section">
+            <h3>About</h3>
+            <p>Build <strong>2026083011</strong></p>
+            <p><a href="https://github.com/SebastianSoendergaard/EventModelViewer" target="_blank" rel="noopener noreferrer">GitHub repository</a></p>
         </section>
     </div>
 </aside>

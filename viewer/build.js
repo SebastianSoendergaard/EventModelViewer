@@ -60,7 +60,17 @@ const helpCss         = readFile('src/help/help.css');
 const helpJs          = readFile('src/help/help.js');
 const formatSpecMd    = readFile('docs/rules/format.md');
 const formatSpecText  = escapeHtml(extractFirstCodeFence(formatSpecMd));
-const helpOverlayHtml = helpOverlayRaw.replace('<!-- FORMAT_SPEC -->', formatSpecText);
+const helpFeatures = {
+    standalone: '<p>Open and save <code>.emj</code> and <code>.emy</code> files locally.</br>Edit the model using the code or tree view.</br>Export to PNG/SVG.</br>Quickly show or hide slices/tests/types/swimlanes.</br>Zoom and pan diagrams using the zoom buttons or C + mouse wheel.</br>Adjust the editor/viewer ratio using the collapse/expand buttons or the panel splitter.</p>',
+    server: '<p>Browse folders and open <code>.emj</code> and <code>.emy</code> files locally.</br>Edit the file directly in the editor or using an external editor and the diagram will reflect the changes.</br>Edit the model using the code or tree view, changes are automatically saved to the file.</br>Export slices as task files.</br>Export to PNG/SVG.</br>Quickly show or hide slices/tests/types/swimlanes.</br>Zoom and pan diagrams using the zoom buttons or C + mouse wheel.</br>Adjust the editor/viewer ratio using the collapse/expand buttons or the panel splitter.</p>',
+};
+
+function createHelpOverlay(featuresHtml) {
+    return helpOverlayRaw
+        .replace('<!-- FORMAT_SPEC -->', formatSpecText)
+        .replace('<!-- HELP_FEATURES -->', featuresHtml)
+        .replace('<!-- HELP_BUILD_NUMBER -->', buildNumber);
+}
 
 // Editor sub-modules
 const codeViewHtml = readFile('src/editor/code-view/code-view.html');
@@ -125,7 +135,7 @@ function assembleResizer(editorParts, viewerParts) {
     return { html, css, js };
 }
 
-function assembleApp(toolbarParts, resizerParts) {
+function assembleApp(toolbarParts, resizerParts, helpOverlayHtml) {
     let result = appTemplate;
     result = result.replace('<!-- BUILD_NUMBER -->', buildNumber);
     result = result.replace('    <!-- TOOLBAR_HTML -->', toolbarParts.html.trimEnd());
@@ -162,7 +172,7 @@ function buildStandalone() {
     const editor  = assembleEditor();
     const viewer  = assembleViewer();
     const resizer = assembleResizer(editor, viewer);
-    const result  = assembleApp(toolbarParts, resizer);
+    const result  = assembleApp(toolbarParts, resizer, createHelpOverlay(helpFeatures.standalone));
 
     fs.writeFileSync(path.join(__dirname, '..', 'event-model-viewer.html'), result, { encoding: 'utf8' });
     console.log('Standalone build: event-model-viewer.html (' + Math.round(result.length / 1024) + ' KB)');
@@ -206,7 +216,7 @@ function buildServer() {
     const editor  = assembleEditor();
     const viewer  = assembleViewer();
     const resizer = assembleResizer(editor, viewer);
-    const result  = assembleApp(toolbarParts, resizer);
+    const result  = assembleApp(toolbarParts, resizer, createHelpOverlay(helpFeatures.server));
 
     fs.writeFileSync(path.join(__dirname, '..', 'event-model-viewer-for-server.html'), result, { encoding: 'utf8' });
     console.log('Server build:     event-model-viewer-for-server.html (' + Math.round(result.length / 1024) + ' KB)');
@@ -216,4 +226,3 @@ function buildServer() {
 
 buildStandalone();
 buildServer();
-

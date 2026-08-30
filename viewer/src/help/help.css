@@ -120,13 +120,13 @@
     color: #3498db;
 }
 
-.help-links a {
+.help-section a {
     color: #2980b9;
     font-weight: 600;
     text-decoration: none;
 }
 
-.help-links a:hover {
+.help-section a:hover {
     text-decoration: underline;
 }
 
