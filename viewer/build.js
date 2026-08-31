@@ -61,7 +61,7 @@ const helpJs          = readFile('src/help/help.js');
 const formatSpecMd    = readFile('docs/rules/format.md');
 const formatSpecText  = escapeHtml(extractFirstCodeFence(formatSpecMd));
 const helpFeatures = {
-    standalone: '<p>Open and save <code>.emj</code> and <code>.emy</code> files locally.</br>Edit the model using the code or tree view.</br>Export to PNG/SVG.</br>Quickly show or hide slices/tests/types/swimlanes.</br>Zoom and pan diagrams using the zoom buttons or C + mouse wheel.</br>Adjust the editor/viewer ratio using the collapse/expand buttons or the panel splitter.</p>',
+    standalone: '<p>Open and save <code>.emj</code> and <code>.emy</code> files locally.</br>Edit the model using the code or tree view.</br>Export slices as task files.</br>Export to PNG/SVG.</br>Quickly show or hide slices/tests/types/swimlanes.</br>Zoom and pan diagrams using the zoom buttons or C + mouse wheel.</br>Adjust the editor/viewer ratio using the collapse/expand buttons or the panel splitter.</p>',
     server: '<p>Browse folders and open <code>.emj</code> and <code>.emy</code> files locally.</br>Edit the file directly in the editor or using an external editor and the diagram will reflect the changes.</br>Edit the model using the code or tree view, changes are automatically saved to the file.</br>Export slices as task files.</br>Export to PNG/SVG.</br>Quickly show or hide slices/tests/types/swimlanes.</br>Zoom and pan diagrams using the zoom buttons or C + mouse wheel.</br>Adjust the editor/viewer ratio using the collapse/expand buttons or the panel splitter.</p>',
 };
 
@@ -157,16 +157,21 @@ function buildStandalone() {
     const fileButtonsHtml = readFile('src/toolbar/file-buttons/file-buttons.html');
     const fileButtonsCss  = readFile('src/toolbar/file-buttons/file-buttons.css');
     const fileButtonsJs   = readFile('src/toolbar/file-buttons/file-buttons.js');
+    const exportTasksHtml = readFile('src/toolbar/export-tasks/export-tasks.html');
+    const exportTasksCoreJs = readFile('src/toolbar/export-tasks/export-tasks-core.js');
+    const exportTasksStandaloneJs = readFile('src/toolbar/export-tasks/export-tasks-standalone.js');
 
     let toolbarHtml = readFile('src/toolbar/toolbar.html');
-    toolbarHtml = toolbarHtml.replace('        <!-- FILE_BUTTONS_HTML -->', fileButtonsHtml.trimEnd());
+    toolbarHtml = toolbarHtml.replace('        <!-- FILE_BUTTONS_HTML -->',
+        fileButtonsHtml.trimEnd() + '\n        ' + exportTasksHtml.trimEnd());
     toolbarHtml = toolbarHtml.replace('        <!-- FILTER_TOGGLES_HTML -->', filterTogglesHtml.trimEnd());
     const toolbarParts = {
         html: toolbarHtml,
         css:  toolbarCss.trimEnd() + '\n\n' + fileButtonsCss.trimEnd() + '\n\n' + filterTogglesCss.trimEnd() +
               '\n\n' + formatPickerCss.trimEnd(),
-        js:   iife(toolbarJs) + '\n\n' + iife(fileButtonsJs) + '\n\n' + iife(filterTogglesJs) +
-              '\n\n' + iife(formatPickerJs),
+        js:   iife(toolbarJs) + '\n\n' + iife(fileButtonsJs) + '\n\n' +
+              iife(exportTasksCoreJs) + '\n\n' + iife(exportTasksStandaloneJs) + '\n\n' +
+              iife(filterTogglesJs) + '\n\n' + iife(formatPickerJs),
     };
 
     const editor  = assembleEditor();
@@ -192,7 +197,8 @@ function buildServer() {
     const folderBrowserServerJs   = readFile('src/toolbar/folder-browser-server/folder-browser-server.js');
     const exportTasksHtml = readFile('src/toolbar/export-tasks/export-tasks.html');
     const exportTasksCss  = readFile('src/toolbar/export-tasks/export-tasks.css');
-    const exportTasksJs   = readFile('src/toolbar/export-tasks/export-tasks.js');
+    const exportTasksCoreJs = readFile('src/toolbar/export-tasks/export-tasks-core.js');
+    const exportTasksServerJs = readFile('src/toolbar/export-tasks/export-tasks-server.js');
 
     // Inject New button + file dropdown + folder browser + export-as-tasks into the FILE_BUTTONS_HTML slot
     const combinedFileAreaHtml = fileButtonsServerHtml.trimEnd() + '\n        ' + serverIntegrationHtml.trimEnd() +
@@ -209,7 +215,7 @@ function buildServer() {
               filterTogglesCss.trimEnd() + '\n\n' + formatPickerCss.trimEnd(),
         js:   iife(toolbarJs) + '\n\n' + iife(serverIntegrationJs) + '\n\n' +
               iife(fileButtonsServerJs) + '\n\n' + iife(folderBrowserServerJs) + '\n\n' +
-              iife(exportTasksJs) + '\n\n' +
+              iife(exportTasksCoreJs) + '\n\n' + iife(exportTasksServerJs) + '\n\n' +
               iife(filterTogglesJs) + '\n\n' + iife(formatPickerJs),
     };
 

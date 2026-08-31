@@ -29,8 +29,12 @@ The browser-only deployment of the Event Model Viewer, using local model-file op
 _Avoid_: browser viewer
 
 **Server-based Viewer**:
-The Event Model Viewer deployment that manages model files through a local server and supports task-file export.
+The Event Model Viewer deployment that manages model files through a local server and supports task-file export to a selected local folder.
 _Avoid_: server viewer
+
+**Task Export**:
+The shared export capability that turns the current Event Model into the server-compatible set of Markdown/JSON Task File Pairs and `index.md`/`index.json`; the Server-based Viewer writes these files to a selected folder, while the Standalone Viewer downloads them individually.
+_Avoid_: task download (does not cover server delivery)
 
 **Deduplicated Slice**:
 The logical slice formed by merging every raw `slices[]` entry that shares an id (or name, when no id is set). Multiple raw entries with the same id are fragments of one slice — the layout mechanic places a fragment next to whichever elements feed it — not distinct slices. Merging unions their `events`/`tests` and fills in `trigger`/`command`/`view`/`border`/`background` from whichever fragment defines them.
@@ -45,5 +49,5 @@ Optional implementation guidance for one slice. Slice hints are carried with the
 _Avoid_: task hint (does not identify the slice boundary)
 
 **Task File Pair**:
-The `.md`/`.json` pair exported per Deduplicated Slice by "Export as Tasks" (server mode), named `NNN-slicename.md`/`NNN-slicename.json`. Both describe the exact same slice — its pattern, own elements, one-hop-back dependencies, tests, and relations — the Markdown for a human or AI agent to read, the JSON (versioned via `schemaVersion`, see `docs/adr/0004-versioned-json-schema-for-exported-task-files.md`) for a code-generation tool to parse programmatically. `index.md`/`index.json` are the equivalent pair for the whole export's manifest.
+The `.md`/`.json` pair exported per Deduplicated Slice by Task Export, named `NNN-slicename.md`/`NNN-slicename.json`. Both describe the exact same slice — its pattern, own elements, one-hop-back dependencies, tests, and relations — the Markdown for a human or AI agent to read, the JSON (versioned via `schemaVersion`, see `docs/adr/0004-versioned-json-schema-for-exported-task-files.md`) for a code-generation tool to parse programmatically. `index.md`/`index.json` are the equivalent pair for the whole export's manifest. The file contract is shared by both viewer deployments; only delivery differs.
 _Avoid_: task file (ambiguous about which half of the pair is meant)

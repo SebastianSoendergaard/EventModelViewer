@@ -2134,7 +2134,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026083014</span>
+        <span class="build-number" title="Build number">Build 2026083108</span>
 <button class="help-btn" id="helpBtn" title="Help" aria-label="Open help" aria-expanded="false">?</button>
     </header>
 
@@ -2284,7 +2284,7 @@ slices: list of slices on the diagram
     name: name of the slice
     id: unique id of the slice, can be used for reference on name clashes, if not defined fallback to name property
     border: color to mark a slice and its state (e.g. black=&gt;draft, blue=&gt;todo, red=&gt;in progress, green=&gt;done)
-    background: CSS color to fill the slice and provide a more visible state marker; rendered as a background color across the slice
+    background: color to fill the slice and provide a more visible state marker (e.g. 	LightGray=&gt;draft, 	LightGray=&gt;todo, Pink=&gt;in progress, LightGreen=&gt;done)
     hotspots: list of strings representing important points or highlights in the slice
     hints: optional list of strings with implementation guidance e.g. spesific code generation startegy or entire AI instructions
     trigger: something that triggers actions in the flow 
@@ -2360,7 +2360,7 @@ trigger types:
         <section class="help-section">
             <h3>About</h3>
             <p>99% wibe coded with love <strong>&hearts;</strong></p>
-            <p>Build <strong>2026083014</strong></p>
+            <p>Build <strong>2026083108</strong></p>
             <p><a href="https://github.com/SebastianSoendergaard/EventModelViewer" target="_blank" rel="noopener noreferrer">GitHub repository</a></p>
         </section>
     </div>
@@ -3054,9 +3054,8 @@ trigger types:
 
 (function() {
         // =====================================================================
-        // export-tasks.js — "Export as Tasks": turns the currently loaded event
-        // model into one Markdown task file per deduplicated slice, suitable for
-        // handing to an AI coding agent. Server mode only (writes via POST /export).
+        // export-tasks-core.js — shared "Export as Tasks" file generation
+        // model into the Markdown/JSON task files used by both viewer builds.
         //
         // Operates entirely on the already-enriched MODEL_CHANGED payload (see
         // event-model.js), which is identical regardless of whether the document
@@ -3064,8 +3063,7 @@ trigger types:
         // both encodings into the same in-memory shape before enrichment ever runs.
         // No format-specific code is needed here.
         //
-        // Wrapped in IIFE by build.js; communicates only via EventBus except for
-        // the fetch() calls needed to browse/write folders on the server.
+        // Wrapped in IIFE by build.js and exposed through EventModelTaskExport.
         // =====================================================================
 
         // ----- Pure calculation helpers (copy-paste into test files) -----
@@ -3634,7 +3632,19 @@ trigger types:
             return files;
         }
 
-        // ----- DOM / EventBus wiring -----
+        window.EventModelTaskExport = {
+            TASK_JSON_SCHEMA_VERSION: TASK_JSON_SCHEMA_VERSION,
+            sanitizeSliceName: sanitizeSliceName,
+            padOrder: padOrder,
+            deduplicateSlices: deduplicateSlices,
+            classifySlicePattern: classifySlicePattern,
+            computeDependencies: computeDependencies,
+            generateExportFiles: generateExportFiles
+        };
+})();
+
+(function() {
+        // Server delivery for the shared task export capability.
 
         var _currentModel = null;
 
@@ -3648,11 +3658,8 @@ trigger types:
 
         var exportTasksBtn = document.getElementById('exportTasksBtn');
 
-        // The modal is appended directly to <body> (not left inside the toolbar),
-        // because the toolbar uses `backdrop-filter`, which creates a new containing
-        // block for `position: fixed` descendants and would confine the overlay to
-        // the toolbar's own height instead of covering the viewport (same reasoning
-        // as the root folder-browser modal in folder-browser-server.js).
+        // The modal is appended directly to <body> because the toolbar's
+        // backdrop-filter would otherwise constrain this fixed overlay.
         var exportOverlay = document.createElement('div');
         exportOverlay.className = 'export-folder-browser-overlay';
         exportOverlay.innerHTML = `
@@ -3675,7 +3682,7 @@ trigger types:
         var exportCancelBtn = exportOverlay.querySelector('#exportFolderBrowserCancel');
         var exportSelectBtn = exportOverlay.querySelector('#exportFolderBrowserSelect');
 
-        var _exportBrowsePath = null; // folder currently shown in the browser ("" = drive list)
+        var _exportBrowsePath = null;
         var EXPORT_LAST_FOLDER_KEY = 'exportTasksLastFolder';
 
         function openExportFolderBrowser() {
@@ -3693,8 +3700,6 @@ trigger types:
             try {
                 const res = await fetch(`${baseUrl()}/root/browse?path=${encodeURIComponent(browsePath)}`);
                 if (!res.ok) {
-                    // Remembered folder may no longer exist (moved/deleted/different
-                    // machine) — fall back to the drive list instead of erroring out.
                     if (fallbackToRootOnError && browsePath !== '') {
                         browseExportTo('', false);
                         return;
@@ -3750,7 +3755,7 @@ trigger types:
 
         exportSelectBtn.addEventListener('click', async () => {
             if (!_exportBrowsePath || !_currentModel) return;
-            const files = generateExportFiles(_currentModel);
+            const files = EventModelTaskExport.generateExportFiles(_currentModel);
             try {
                 const res = await fetch(`${baseUrl()}/export`, {
                     method: 'POST',

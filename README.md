@@ -14,7 +14,7 @@ On build the file **event-model-viewer.html** is created as a single file applic
 
 By having the viewer as a single file application next to the emj/emy files, you will always have a viewer that can handle your diagrams without the fear for compatibility issues or version mismatches. The viewer can be used for any event model defined in the emj or emy format, making it a versatile tool for visualizing and sharing event-driven architecture models.
 
-To see a diagram simply open **event-model-viewer.html** in a web browser and load the emj or emy file. You can then edit the file in the code view or tree view and see the changes reflected in the diagram in real-time. After edits the updated diagram can be saved back to an emj/emy file or exported as an image.
+To see a diagram simply open **event-model-viewer.html** in a web browser and load the emj or emy file. You can then edit the file in the code view or tree view and see the changes reflected in the diagram in real-time. After edits the updated diagram can be saved back to an emj/emy file, exported as task files, or exported as an image. **Export as Tasks** downloads the same Markdown/JSON files produced by server mode, one file per browser download.
 
 ### Server mode (EventModelServer)
 
@@ -29,7 +29,7 @@ EventModelServer.exe      # opens browser automatically
 
 It scans the folder the exe lives in for `.emj` and `.emy` files by default. Use the **📁 Folder** button in the toolbar to browse to and select a different folder — the choice is remembered for the next launch.
 
-See [`server/docs/README.md`](server/docs/README.md) for the full API reference and architecture overview.
+Use **📤 Export as Tasks** to write the same Markdown/JSON task files to a selected local folder. See [`server/docs/README.md`](server/docs/README.md) for the full API reference and architecture overview.
 
 ## Event Model Format (.emj / .emy)
 
@@ -174,4 +174,3 @@ Works in all modern browsers:
 ## License
 
 MIT
-

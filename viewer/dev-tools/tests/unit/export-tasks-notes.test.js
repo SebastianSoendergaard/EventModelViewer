@@ -6,7 +6,7 @@ import { dirname, resolve } from 'path';
 
 const testDir = dirname(fileURLToPath(import.meta.url));
 const exportTasksSource = readFileSync(
-  resolve(testDir, '../../../src/toolbar/export-tasks/export-tasks.js'),
+  resolve(testDir, '../../../src/toolbar/export-tasks/export-tasks-core.js'),
   'utf8'
 );
 

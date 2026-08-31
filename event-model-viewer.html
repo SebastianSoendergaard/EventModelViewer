@@ -1863,7 +1863,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026083014</span>
+        <span class="build-number" title="Build number">Build 2026083108</span>
 <button class="help-btn" id="helpBtn" title="Help" aria-label="Open help" aria-expanded="false">?</button>
     </header>
 
@@ -1875,6 +1875,7 @@
         </div>
         <button class="file-label" id="saveBtn" title="Save to file">💾 Save</button>
         <span class="file-name" id="fileName">No file selected</span>
+                <button class="file-label" id="exportTasksBtn" title="Export the event model as per-slice Markdown task files for an AI coding agent">📤 Export as Tasks</button>
         <div class="checkbox-group">
             <div class="checkbox-item">
                 <input type="checkbox" id="showSlices" checked>
@@ -1996,7 +1997,7 @@
 
         <section class="help-section">
             <h3>Tool Features</h3>
-            <p>Open and save <code>.emj</code> and <code>.emy</code> files locally.</br>Edit the model using the code or tree view.</br>Export to PNG/SVG.</br>Quickly show or hide slices/tests/types/swimlanes.</br>Zoom and pan diagrams using the zoom buttons or C + mouse wheel.</br>Adjust the editor/viewer ratio using the collapse/expand buttons or the panel splitter.</p>
+            <p>Open and save <code>.emj</code> and <code>.emy</code> files locally.</br>Edit the model using the code or tree view.</br>Export slices as task files.</br>Export to PNG/SVG.</br>Quickly show or hide slices/tests/types/swimlanes.</br>Zoom and pan diagrams using the zoom buttons or C + mouse wheel.</br>Adjust the editor/viewer ratio using the collapse/expand buttons or the panel splitter.</p>
         </section>
 
         <section class="help-section">
@@ -2008,7 +2009,7 @@ slices: list of slices on the diagram
     name: name of the slice
     id: unique id of the slice, can be used for reference on name clashes, if not defined fallback to name property
     border: color to mark a slice and its state (e.g. black=&gt;draft, blue=&gt;todo, red=&gt;in progress, green=&gt;done)
-    background: CSS color to fill the slice and provide a more visible state marker; rendered as a background color across the slice
+    background: color to fill the slice and provide a more visible state marker (e.g. 	LightGray=&gt;draft, 	LightGray=&gt;todo, Pink=&gt;in progress, LightGreen=&gt;done)
     hotspots: list of strings representing important points or highlights in the slice
     hints: optional list of strings with implementation guidance e.g. spesific code generation startegy or entire AI instructions
     trigger: something that triggers actions in the flow 
@@ -2084,7 +2085,7 @@ trigger types:
         <section class="help-section">
             <h3>About</h3>
             <p>99% wibe coded with love <strong>&hearts;</strong></p>
-            <p>Build <strong>2026083014</strong></p>
+            <p>Build <strong>2026083108</strong></p>
             <p><a href="https://github.com/SebastianSoendergaard/EventModelViewer" target="_blank" rel="noopener noreferrer">GitHub repository</a></p>
         </section>
     </div>
@@ -2481,6 +2482,674 @@ trigger types:
         const saveBtn = document.getElementById('saveBtn');
         saveBtn.addEventListener('click', () => {
             saveToFile();
+        });
+})();
+
+(function() {
+        // =====================================================================
+        // export-tasks-core.js — shared "Export as Tasks" file generation
+        // model into the Markdown/JSON task files used by both viewer builds.
+        //
+        // Operates entirely on the already-enriched MODEL_CHANGED payload (see
+        // event-model.js), which is identical regardless of whether the document
+        // was loaded from .emj (JSON) or .emy (YAML) — Codec.parse() normalizes
+        // both encodings into the same in-memory shape before enrichment ever runs.
+        // No format-specific code is needed here.
+        //
+        // Wrapped in IIFE by build.js and exposed through EventModelTaskExport.
+        // =====================================================================
+
+        // ----- Pure calculation helpers (copy-paste into test files) -----
+
+        // Kept at 1 while the exported task format is unreleased. Bump it after
+        // release whenever the JSON shape changes in a way that could break a
+        // code-gen tool consuming it (see docs/adr). Markdown output is not
+        // versioned — it's for humans/agents to read, not to parse structurally.
+        var TASK_JSON_SCHEMA_VERSION = 1;
+
+        function sanitizeSliceName(name) {
+            return (name || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .substring(0, 50) || 'slice';
+        }
+
+        function padOrder(n, width) {
+            var s = String(n);
+            while (s.length < width) s = '0' + s;
+            return s;
+        }
+
+        /**
+         * Merges raw enriched slices that share an id (id falls back to name — see
+         * event-model.js's calcId) into one logical "Deduplicated Slice" (see
+         * CONTEXT.md). Multiple raw slice entries with the same id are fragments of
+         * one slice — the diagram layout places a view fragment next to whichever
+         * events feed it — not distinct slices. Unions events/tests; first fragment
+         * to define trigger/command/view/border/background wins. Notes from all fragments are
+         * combined in source order into one slice note. Because a view (or, less
+         * commonly, a trigger/command) fragment is placed next to whichever event
+         * feeds it, different fragments of the same view/trigger typically carry a
+         * *different* single entry in their `events`/`views` reference array —
+         * those reference arrays are unioned across fragments too, not just
+         * overwritten by the first fragment, so no dependency is silently dropped.
+         * Preserves order of first appearance (used later for file numbering).
+         */
+        function unionRefs(existing, incoming) {
+            var result = (existing || []).slice();
+            (incoming || []).forEach(function(ref) {
+                if (result.indexOf(ref) === -1) result.push(ref);
+            });
+            return result;
+        }
+
+        function mergeHints(existing, incoming) {
+            var result = (existing || []).slice();
+            (incoming || []).forEach(function(hint) {
+                if (result.indexOf(hint) === -1) result.push(hint);
+            });
+            return result;
+        }
+
+        function addNotePart(parts, note) {
+            if (typeof note !== 'string' || !note.trim() || parts.indexOf(note) !== -1) return;
+            parts.push(note);
+        }
+
+        function mergeReferencingElement(merged, incoming, refField) {
+            if (!incoming) return merged;
+            if (!merged) return Object.assign({}, incoming);
+            var result = Object.assign({}, merged);
+            result[refField] = unionRefs(merged[refField], incoming[refField]);
+            return result;
+        }
+
+        function deduplicateSlices(slices) {
+            var order = [];
+            var byKey = new Map();
+
+            (slices || []).forEach(function(slice, index) {
+                var key = slice.id || ('__slice_' + index);
+                var merged = byKey.get(key);
+                if (!merged) {
+                    merged = {
+                        id: slice.id || key,
+                        name: slice.name || '',
+                        border: slice.border || '',
+                        background: slice.background || '',
+                        trigger: null,
+                        command: null,
+                        view: null,
+                        events: [],
+                        tests: [],
+                        noteParts: []
+                    };
+                    byKey.set(key, merged);
+                    order.push(key);
+                }
+
+                if (Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                    if (!Object.prototype.hasOwnProperty.call(merged, 'hints')) merged.hints = [];
+                    merged.hints = mergeHints(merged.hints, slice.hints);
+                }
+                if (!merged.name && slice.name) merged.name = slice.name;
+                if (!merged.border && slice.border) merged.border = slice.border;
+                if (!merged.background && slice.background) merged.background = slice.background;
+                addNotePart(merged.noteParts, slice.note);
+                merged.trigger = mergeReferencingElement(merged.trigger, slice.trigger, 'views');
+                merged.command = mergeReferencingElement(merged.command, slice.command, 'events');
+                merged.view = mergeReferencingElement(merged.view, slice.view, 'events');
+
+                (slice.events || []).forEach(function(ev) {
+                    if (!merged.events.some(function(e) { return e.id === ev.id; })) {
+                        merged.events.push(ev);
+                    }
+                });
+                (slice.tests || []).forEach(function(t) { merged.tests.push(t); });
+            });
+
+            return order.map(function(key) {
+                var merged = byKey.get(key);
+                if (merged.noteParts.length > 0) {
+                    merged.note = merged.noteParts.join('\n');
+                }
+                delete merged.noteParts;
+                return merged;
+            });
+        }
+
+        /**
+         * Classifies a deduplicated slice into one of the four Event Modeling
+         * patterns. Automation/Translation take priority over the generic
+         * trigger+command check — those slices also have a trigger and a command,
+         * but their identity comes from the trigger's type (see triggers.md).
+         */
+        function classifySlicePattern(slice) {
+            var triggerType = slice.trigger ? String(slice.trigger.type || '').toLowerCase() : '';
+            if (triggerType === 'automation') return 'Automation';
+            if (triggerType === 'translation') return 'Translation';
+            if (slice.trigger && slice.command) return 'State Change';
+            if (slice.view) return 'State View';
+            if (slice.command) return 'State Change';
+            return 'Unclassified';
+        }
+
+        /**
+         * Maps classifySlicePattern()'s human-readable Title Case (used in the
+         * Markdown file) to a stable kebab-case code for the JSON task file —
+         * easier for a code-gen tool to match/switch on, and immune to future
+         * wording tweaks to the Markdown's human-facing text.
+         */
+        function patternToCode(pattern) {
+            return String(pattern || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+        }
+
+        function exportTrigger(trigger) {
+            if (!trigger) return null;
+            var sourceType = String(trigger.type || '').trim().toLowerCase();
+            return {
+                swimlane: trigger.swimlane,
+                type: sourceType === 'automation' ? 'automation' :
+                    sourceType === 'translation' ? 'translation' : 'ui'
+            };
+        }
+
+        function withoutId(element) {
+            if (!element) return null;
+            var result = Object.assign({}, element);
+            delete result.id;
+            return result;
+        }
+
+        function withDefaultId(element) {
+            if (!element) return element;
+            var result = Object.assign({}, element);
+            if (!result.id && result.name) result.id = result.name;
+            return result;
+        }
+
+        function withDefaultIds(elements) {
+            return (elements || []).map(withDefaultId);
+        }
+
+        function mergeEvents(ownEvents, dependencyEvents) {
+            var result = [];
+            var seenIds = new Set();
+            (ownEvents || []).concat(dependencyEvents || []).forEach(function(event) {
+                var eventId = event.id || event.name;
+                if (eventId && seenIds.has(eventId)) return;
+                if (eventId) seenIds.add(eventId);
+                result.push(withDefaultId(event));
+            });
+            return result;
+        }
+
+        /** Builds global id->element maps across ALL deduplicated slices, used to resolve one-hop-back dependencies. */
+        function buildGlobalMaps(dedupedSlices) {
+            var eventsById = new Map();
+            var viewsById = new Map();
+            dedupedSlices.forEach(function(slice) {
+                (slice.events || []).forEach(function(ev) {
+                    var eventId = ev.id || ev.name;
+                    if (eventId) eventsById.set(eventId, ev);
+                });
+                if (slice.view) {
+                    var viewId = slice.view.id || slice.view.name;
+                    if (viewId) viewsById.set(viewId, slice.view);
+                }
+            });
+            return { eventsById: eventsById, viewsById: viewsById };
+        }
+
+        /**
+         * Computes this slice's one-hop-back dependencies:
+         *   - events feeding its own view (split internal vs external), and
+         *   - the view(s) feeding its own trigger.
+         * Full element definitions are embedded regardless of which other slice
+         * defines them — we don't care where they originate, only that they're
+         * available even if the producing slice hasn't been implemented yet.
+         * Does not chase dependencies further than one hop (that's the referenced
+         * slice's own file's job).
+         */
+        function computeDependencies(slice, globalMaps) {
+            var ownEventIds = new Set((slice.events || []).map(function(e) { return e.id || e.name; }));
+            var internalEvents = [];
+            var externalEvents = [];
+            var seenEventIds = new Set();
+
+            if (slice.view && Array.isArray(slice.view.events)) {
+                slice.view.events.forEach(function(refId) {
+                    if (ownEventIds.has(refId) || seenEventIds.has(refId)) return;
+                    var ev = globalMaps.eventsById.get(refId);
+                    if (!ev) return;
+                    seenEventIds.add(refId);
+                    if (ev.external) externalEvents.push(ev); else internalEvents.push(ev);
+                });
+            }
+
+            var dependencyViews = [];
+            var seenViewIds = new Set();
+            if (slice.trigger && Array.isArray(slice.trigger.views)) {
+                slice.trigger.views.forEach(function(refId) {
+                    if (slice.view && (slice.view.id || slice.view.name) === refId) return; // this slice's own view, not a dependency
+                    if (seenViewIds.has(refId)) return;
+                    var view = globalMaps.viewsById.get(refId);
+                    if (!view) return;
+                    seenViewIds.add(refId);
+                    dependencyViews.push(view);
+                });
+            }
+
+            return { internalEvents: internalEvents, externalEvents: externalEvents, dependencyViews: dependencyViews };
+        }
+
+        // ----- Markdown rendering helpers -----
+
+        function mdTable(headers, rows) {
+            if (!rows || rows.length === 0) return '_None_';
+            var lines = ['| ' + headers.join(' | ') + ' |', '| ' + headers.map(function() { return '---'; }).join(' | ') + ' |'];
+            rows.forEach(function(row) { lines.push('| ' + row.join(' | ') + ' |'); });
+            return lines.join('\n');
+        }
+
+        function renderTriggerSection(trigger) {
+            if (!trigger) return '';
+            var lines = ['## Trigger', ''];
+            lines.push('- **Name:** ' + (trigger.name || trigger.id || '_unnamed_'));
+            lines.push('- **Type:** ' + (trigger.type || 'ui'));
+            if (trigger.swimlane) lines.push('- **Swimlane:** ' + trigger.swimlane);
+            lines.push('');
+            lines.push('**Properties:**', '', mdTable(['Name', 'Value'], (trigger.properties || []).map(function(p) {
+                return [p.name || '', p.value !== undefined ? String(p.value) : ''];
+            })));
+            if (trigger.buttons && trigger.buttons.length) {
+                lines.push('', '- **Buttons:** ' + trigger.buttons.join(', '));
+            }
+            return lines.join('\n');
+        }
+
+        function renderCommandSection(command) {
+            if (!command) return '';
+            var lines = ['## Command', '', '**' + (command.name || command.id) + '**', ''];
+            lines.push('**Properties:**', '', mdTable(['Name', 'Type'], (command.properties || []).map(function(p) {
+                return [p.name || '', p.type || ''];
+            })));
+            if (command.events && command.events.length) {
+                lines.push('', '**Produces events:** ' + command.events.join(', '));
+            }
+            return lines.join('\n');
+        }
+
+        function renderEventSubsection(ev, headingLevel) {
+            var h = headingLevel || 3;
+            var prefix = new Array(h + 1).join('#');
+            var lines = [prefix + ' ' + (ev.name || ev.id)];
+            if (ev.swimlane) lines.push('- **Swimlane:** ' + ev.swimlane);
+            if (ev.external) lines.push('- **External:** yes');
+            lines.push('', '**Properties:**', '', mdTable(['Name', 'Type'], (ev.properties || []).map(function(p) {
+                return [p.name || '', p.type || ''];
+            })));
+            return lines.join('\n');
+        }
+
+        function renderEventsSection(events) {
+            if (!events || events.length === 0) return '';
+            var lines = ['## Events', ''];
+            events.forEach(function(ev) { lines.push(renderEventSubsection(ev, 3), ''); });
+            return lines.join('\n').trim();
+        }
+
+        function renderViewSubsection(view, headingLevel) {
+            var h = headingLevel || 3;
+            var prefix = new Array(h + 1).join('#');
+            var lines = [prefix + ' ' + (view.name || view.id)];
+            lines.push('', '**Properties:**', '', mdTable(['Name', 'Type'], (view.properties || []).map(function(p) {
+                return [p.name || '', p.type || ''];
+            })));
+            if (view.events && view.events.length) {
+                lines.push('', '**Built from events:** ' + view.events.join(', '));
+            }
+            return lines.join('\n');
+        }
+
+        function renderViewSection(view) {
+            if (!view) return '';
+            return ['## View', '', renderViewSubsection(view, 3)].join('\n');
+        }
+
+        function renderDependencySections(deps) {
+            var out = [];
+            if (deps.internalEvents.length) {
+                out.push(['## Depends on Events', '',
+                    '_Produced by other slices — full definitions are included here so this slice can be implemented even if the producing slice isn\u2019t implemented yet._',
+                    ''].concat(deps.internalEvents.map(function(ev) { return renderEventSubsection(ev, 3); })).join('\n\n'));
+            }
+            if (deps.externalEvents.length) {
+                out.push(['## External Events', '',
+                    '_Originate outside this system (integration/webhook events) — not implemented as part of this model._',
+                    ''].concat(deps.externalEvents.map(function(ev) { return renderEventSubsection(ev, 3); })).join('\n\n'));
+            }
+            if (deps.dependencyViews.length) {
+                out.push(['## Depends on View', ''].concat(deps.dependencyViews.map(function(v) { return renderViewSubsection(v, 3); })).join('\n\n'));
+            }
+            return out.join('\n\n');
+        }
+
+        function renderHints(hints) {
+            if (!Array.isArray(hints) || hints.length === 0) return '';
+            return ['## Hints', ''].concat(hints.map(function(hint) {
+                return '- ' + hint;
+            })).join('\n');
+        }
+
+        function renderNoteSection(note) {
+            if (!note) return '';
+            return ['## Note', '', note].join('\n');
+        }
+
+        function renderTestElementRef(ref) {
+            if (!ref) return '';
+            var label = ref.name || ref.id || '';
+            if (ref.properties && ref.properties.length) {
+                label += ' (' + ref.properties.map(function(p) { return p.name + '=' + p.value; }).join(', ') + ')';
+            }
+            return label;
+        }
+
+        function renderGivenWhenThenPart(part) {
+            var pieces = [];
+            if (part.events) pieces.push('events: ' + part.events.map(renderTestElementRef).join('; '));
+            if (part.views) pieces.push('views: ' + part.views.map(renderTestElementRef).join('; '));
+            if (part.command) pieces.push('command: ' + renderTestElementRef(part.command));
+            if (part.error) pieces.push('error: "' + part.error + '"');
+            return pieces.join(', ');
+        }
+
+        function renderTests(tests) {
+            if (!tests || tests.length === 0) return '';
+            var lines = ['## Test Cases', ''];
+            tests.forEach(function(t, i) {
+                lines.push('### ' + (i + 1) + '. ' + (t.name || 'Test ' + (i + 1)));
+                if (t.given) lines.push('- **Given:** ' + renderGivenWhenThenPart(t.given));
+                if (t.when) lines.push('- **When:** ' + renderGivenWhenThenPart(t.when));
+                if (t.then) lines.push('- **Then:** ' + renderGivenWhenThenPart(t.then));
+                lines.push('');
+            });
+            return lines.join('\n').trim();
+        }
+
+        /**
+         * Builds the Relations section: an authoritative bullet list plus a small
+         * Mermaid flowchart for quick visual context. Dependency elements (fed by
+         * another slice) are marked "(depended on)"/"(external)" but otherwise
+         * treated like any other node — this slice doesn't care where they
+         * originate, only that they're fully described.
+         */
+        function buildRelations(slice, deps) {
+            var mermaid = ['flowchart LR'];
+            var bullets = [];
+            var counter = 0;
+            var nodeIdFor = {};
+
+            function ensureNode(key, label) {
+                if (!nodeIdFor[key]) {
+                    counter++;
+                    nodeIdFor[key] = 'N' + counter;
+                    mermaid.push('    ' + nodeIdFor[key] + '["' + String(label).replace(/"/g, '\'') + '"]');
+                }
+                return nodeIdFor[key];
+            }
+
+            var triggerKey = null, commandKey = null, viewKey = null;
+
+            if (slice.trigger) {
+                triggerKey = 'trigger';
+                ensureNode(triggerKey, 'Trigger: ' + (slice.trigger.name || slice.trigger.id || '(unnamed)'));
+            }
+            if (slice.command) {
+                commandKey = 'command';
+                ensureNode(commandKey, 'Command: ' + (slice.command.name || slice.command.id));
+                if (triggerKey) {
+                    mermaid.push('    ' + nodeIdFor[triggerKey] + ' --> ' + nodeIdFor[commandKey]);
+                    bullets.push('- Trigger **' + (slice.trigger.name || slice.trigger.id) + '** \u2192 Command **' + (slice.command.name || slice.command.id) + '**');
+                }
+            }
+            (slice.events || []).forEach(function(ev) {
+                var key = 'event:' + ev.id;
+                ensureNode(key, 'Event: ' + (ev.name || ev.id));
+                if (commandKey) {
+                    mermaid.push('    ' + nodeIdFor[commandKey] + ' --> ' + nodeIdFor[key]);
+                    bullets.push('- Command **' + (slice.command.name || slice.command.id) + '** \u2192 Event **' + (ev.name || ev.id) + '**');
+                }
+            });
+            if (slice.view) {
+                viewKey = 'view';
+                ensureNode(viewKey, 'View: ' + (slice.view.name || slice.view.id));
+            }
+            deps.internalEvents.concat(deps.externalEvents).forEach(function(ev) {
+                var key = 'depevent:' + ev.id;
+                ensureNode(key, 'Event: ' + (ev.name || ev.id) + (ev.external ? ' (external)' : ''));
+                if (viewKey) {
+                    mermaid.push('    ' + nodeIdFor[key] + ' --> ' + nodeIdFor[viewKey]);
+                    bullets.push('- Event **' + (ev.name || ev.id) + '**' + (ev.external ? ' _(external)_' : '') + ' \u2192 View **' + (slice.view.name || slice.view.id) + '** _(depended on)_');
+                }
+            });
+            deps.dependencyViews.forEach(function(v) {
+                var key = 'depview:' + v.id;
+                ensureNode(key, 'View: ' + (v.name || v.id));
+                if (triggerKey) {
+                    mermaid.push('    ' + nodeIdFor[key] + ' --> ' + nodeIdFor[triggerKey]);
+                    bullets.push('- View **' + (v.name || v.id) + '** \u2192 Trigger **' + (slice.trigger.name || slice.trigger.id) + '** _(depended on)_');
+                }
+            });
+
+            if (bullets.length === 0) bullets.push('_No relations for this slice._');
+            return { bullets: bullets, mermaid: mermaid.join('\n') };
+        }
+
+        function buildSliceMarkdown(orderStr, slice, pattern, deps) {
+            var lines = [];
+            lines.push('# ' + orderStr + '. ' + (slice.name || '(unnamed slice)'));
+            lines.push('');
+            lines.push('- **State:** ' + (slice.border || '_none_'));
+            lines.push('- **Background:** ' + (slice.background || '_none_'));
+            lines.push('- **Pattern:** ' + pattern);
+            lines.push('');
+
+            [renderNoteSection(slice.note), renderHints(slice.hints), renderTriggerSection(slice.trigger), renderCommandSection(slice.command),
+             renderEventsSection(slice.events), renderViewSection(slice.view),
+             renderDependencySections(deps), renderTests(slice.tests)].forEach(function(section) {
+                if (section) lines.push(section, '');
+            });
+
+            var relations = buildRelations(slice, deps);
+            lines.push('## Relations', '');
+            lines.push(relations.bullets.join('\n'));
+            lines.push('', '```mermaid', relations.mermaid, '```', '');
+
+            return lines.join('\n').trim() + '\n';
+        }
+
+        function buildIndexMarkdown(title, entries) {
+            var lines = ['# ' + (title || 'Event Model') + ' \u2014 Task Index', '',
+                '| Order | File | Slice | Pattern | State | Background |', '| --- | --- | --- | --- | --- | --- |'];
+            entries.forEach(function(e) {
+                lines.push('| ' + e.order + ' | [' + e.fileName + '](' + e.fileName + ') | ' + e.name + ' | ' + e.pattern + ' | ' + (e.state || '_none_') + ' | ' + (e.background || '_none_') + ' |');
+            });
+            return lines.join('\n') + '\n';
+        }
+
+        function buildSliceJson(slice, pattern, deps) {
+            var json = {
+                schemaVersion: TASK_JSON_SCHEMA_VERSION,
+                name: slice.name || '',
+                state: slice.border || '',
+                background: slice.background || '',
+                pattern: patternToCode(pattern),
+                note: slice.note || undefined,
+                trigger: exportTrigger(slice.trigger),
+                command: withoutId(slice.command),
+                view: withDefaultId(slice.view),
+                events: mergeEvents(slice.events, deps.internalEvents),
+                externalEvents: withDefaultIds(deps.externalEvents),
+                views: withDefaultIds(deps.dependencyViews),
+                tests: slice.tests || []
+            };
+            if (!slice.trigger) delete json.trigger;
+            if (!slice.note) delete json.note;
+            if (Object.prototype.hasOwnProperty.call(slice, 'hints')) {
+                json.hints = slice.hints.slice();
+            }
+            return json;
+        }
+
+        function buildIndexJson(title, entries) {
+            return {
+                schemaVersion: TASK_JSON_SCHEMA_VERSION,
+                title: title || 'Event Model',
+                slices: entries.map(function(e) {
+                    return {
+                        name: e.name,
+                        pattern: patternToCode(e.pattern),
+                        state: e.state || '',
+                        background: e.background || '',
+                        files: { markdown: e.fileNameMd, json: e.fileNameJson }
+                    };
+                })
+            };
+        }
+
+        /**
+         * Main entry point: turns an enriched event model (from MODEL_CHANGED) into
+         * the full list of files to write — index.md + index.json plus, per
+         * deduplicated slice in order, a paired NNN-slicename.md (for humans/agents
+         * to read) and NNN-slicename.json (same information, structured for a
+         * code-gen tool to consume).
+         */
+        function generateExportFiles(model) {
+            var dedupedSlices = deduplicateSlices(model.slices);
+            var globalMaps = buildGlobalMaps(dedupedSlices);
+            var width = Math.max(3, String(dedupedSlices.length).length);
+            var files = [];
+            var indexEntries = [];
+
+            dedupedSlices.forEach(function(slice, i) {
+                var order = i + 1;
+                var orderStr = padOrder(order, width);
+                var pattern = classifySlicePattern(slice);
+                var deps = computeDependencies(slice, globalMaps);
+                var baseName = orderStr + '-' + sanitizeSliceName(slice.name);
+                var fileNameMd = baseName + '.md';
+                var fileNameJson = baseName + '.json';
+
+                files.push({ name: fileNameMd, content: buildSliceMarkdown(orderStr, slice, pattern, deps) });
+
+                var json = buildSliceJson(slice, pattern, deps);
+                files.push({ name: fileNameJson, content: JSON.stringify(json, null, 2) + '\n' });
+
+                indexEntries.push({
+                    order: order, orderStr: orderStr, id: slice.id, name: slice.name || '(unnamed)', pattern: pattern,
+                    state: slice.border, background: slice.background,
+                    fileNameMd: fileNameMd, fileNameJson: fileNameJson
+                });
+            });
+
+            files.unshift({ name: 'index.json', content: JSON.stringify(buildIndexJson(model.title, indexEntries), null, 2) + '\n' });
+            files.unshift({ name: 'index.md', content: buildIndexMarkdown(model.title, indexEntries.map(function(e) {
+                return { order: e.orderStr, fileName: e.fileNameMd, name: e.name, pattern: e.pattern, state: e.state, background: e.background };
+            })) });
+            return files;
+        }
+
+        window.EventModelTaskExport = {
+            TASK_JSON_SCHEMA_VERSION: TASK_JSON_SCHEMA_VERSION,
+            sanitizeSliceName: sanitizeSliceName,
+            padOrder: padOrder,
+            deduplicateSlices: deduplicateSlices,
+            classifySlicePattern: classifySlicePattern,
+            computeDependencies: computeDependencies,
+            generateExportFiles: generateExportFiles
+        };
+})();
+
+(function() {
+        // Standalone delivery for the shared task export capability.
+
+        var _currentModel = null;
+
+        EventBus.on(Events.MODEL_CHANGED, function(payload) {
+            _currentModel = payload ? payload.model : null;
+        });
+
+        var DOWNLOAD_URL_REVOKE_DELAY_MS = 1000;
+        var DOWNLOAD_INTERVAL_MS = 250; // Avoid Chromium's automatic-download burst limit.
+
+        function downloadTaskFile(file) {
+            var mimeType = file.name.toLowerCase().endsWith('.json')
+                ? 'application/json'
+                : 'text/markdown;charset=utf-8';
+            var blob = new Blob([file.content], { type: mimeType });
+            var url = URL.createObjectURL(blob);
+            var link = document.createElement('a');
+
+            try {
+                link.href = url;
+                link.download = file.name;
+                document.body.appendChild(link);
+                link.click();
+                return true;
+            } finally {
+                document.body.removeChild(link);
+                // The browser reads the Blob asynchronously after click().
+                // Revoking here races that read, especially with many files.
+                setTimeout(function() {
+                    URL.revokeObjectURL(url);
+                }, DOWNLOAD_URL_REVOKE_DELAY_MS);
+            }
+        }
+
+        var exportTasksBtn = document.getElementById('exportTasksBtn');
+
+        exportTasksBtn.addEventListener('click', async function() {
+            if (!_currentModel || !_currentModel.slices || _currentModel.slices.length === 0) {
+                alert('No event model loaded to export.');
+                return;
+            }
+
+            var files;
+            try {
+                files = EventModelTaskExport.generateExportFiles(_currentModel);
+            } catch (error) {
+                alert('Error exporting: ' + error.message);
+                return;
+            }
+
+            var downloaded = 0;
+            var failed = [];
+            for (var i = 0; i < files.length; i++) {
+                var file = files[i];
+                try {
+                    if (downloadTaskFile(file)) downloaded++;
+                } catch (error) {
+                    failed.push(file.name + ': ' + error.message);
+                }
+                if (i < files.length - 1) {
+                    await new Promise(function(resolve) {
+                        setTimeout(resolve, DOWNLOAD_INTERVAL_MS);
+                    });
+                }
+            }
+
+            if (failed.length > 0) {
+                alert('Started downloading ' + downloaded + ' of ' + files.length +
+                    ' file(s). Failed: ' + failed.join('; '));
+            } else {
+                alert('Started downloading ' + downloaded + ' file(s).');
+            }
         });
 })();
 

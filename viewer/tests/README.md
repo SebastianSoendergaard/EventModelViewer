@@ -184,7 +184,7 @@ start history.test.html
 ---
 
 ### [export-tasks.test.html](export-tasks.test.html)
-Comprehensive test suite for the "Export as Tasks" feature in `src/toolbar/export-tasks/export-tasks.js` (server mode only) — exports the loaded event model as a paired Markdown + JSON task file (Task File Pair) per deduplicated slice, plus an `index.md`/`index.json` manifest.
+Comprehensive test suite for the shared "Export as Tasks" generator in `src/toolbar/export-tasks/export-tasks-core.js` — exports the loaded event model as a paired Markdown + JSON task file (Task File Pair) per deduplicated slice, plus an `index.md`/`index.json` manifest used by both standalone downloads and server folder export.
 
 **Test Coverage:**
 - ✅ `sanitizeSliceName()` — lowercasing/hyphenation, punctuation stripping, empty/null fallback to "slice"

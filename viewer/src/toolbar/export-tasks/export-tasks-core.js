@@ -1,7 +1,6 @@
         // =====================================================================
-        // export-tasks.js — "Export as Tasks": turns the currently loaded event
-        // model into one Markdown task file per deduplicated slice, suitable for
-        // handing to an AI coding agent. Server mode only (writes via POST /export).
+        // export-tasks-core.js — shared "Export as Tasks" file generation
+        // model into the Markdown/JSON task files used by both viewer builds.
         //
         // Operates entirely on the already-enriched MODEL_CHANGED payload (see
         // event-model.js), which is identical regardless of whether the document
@@ -9,8 +8,7 @@
         // both encodings into the same in-memory shape before enrichment ever runs.
         // No format-specific code is needed here.
         //
-        // Wrapped in IIFE by build.js; communicates only via EventBus except for
-        // the fetch() calls needed to browse/write folders on the server.
+        // Wrapped in IIFE by build.js and exposed through EventModelTaskExport.
         // =====================================================================
 
         // ----- Pure calculation helpers (copy-paste into test files) -----
@@ -579,139 +577,12 @@
             return files;
         }
 
-        // ----- DOM / EventBus wiring -----
-
-        var _currentModel = null;
-
-        EventBus.on(Events.MODEL_CHANGED, function(payload) {
-            _currentModel = payload ? payload.model : null;
-        });
-
-        function baseUrl() {
-            return window.location.origin;
-        }
-
-        var exportTasksBtn = document.getElementById('exportTasksBtn');
-
-        // The modal is appended directly to <body> (not left inside the toolbar),
-        // because the toolbar uses `backdrop-filter`, which creates a new containing
-        // block for `position: fixed` descendants and would confine the overlay to
-        // the toolbar's own height instead of covering the viewport (same reasoning
-        // as the root folder-browser modal in folder-browser-server.js).
-        var exportOverlay = document.createElement('div');
-        exportOverlay.className = 'export-folder-browser-overlay';
-        exportOverlay.innerHTML = `
-            <div class="export-folder-browser-modal">
-                <h2>Export as Tasks — Select Destination Folder</h2>
-                <div class="export-folder-browser-path" id="exportFolderBrowserPath"></div>
-                <div class="export-folder-browser-list" id="exportFolderBrowserList"></div>
-                <div class="export-folder-browser-error" id="exportFolderBrowserError"></div>
-                <div class="export-folder-browser-actions">
-                    <button id="exportFolderBrowserCancel">Cancel</button>
-                    <button id="exportFolderBrowserSelect">Export Here</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(exportOverlay);
-
-        var exportPathEl = exportOverlay.querySelector('#exportFolderBrowserPath');
-        var exportListEl = exportOverlay.querySelector('#exportFolderBrowserList');
-        var exportErrorEl = exportOverlay.querySelector('#exportFolderBrowserError');
-        var exportCancelBtn = exportOverlay.querySelector('#exportFolderBrowserCancel');
-        var exportSelectBtn = exportOverlay.querySelector('#exportFolderBrowserSelect');
-
-        var _exportBrowsePath = null; // folder currently shown in the browser ("" = drive list)
-        var EXPORT_LAST_FOLDER_KEY = 'exportTasksLastFolder';
-
-        function openExportFolderBrowser() {
-            exportErrorEl.textContent = '';
-            exportOverlay.classList.add('visible');
-            var lastFolder = localStorage.getItem(EXPORT_LAST_FOLDER_KEY) || '';
-            browseExportTo(lastFolder, /*fallbackToRootOnError*/ true);
-        }
-
-        function closeExportFolderBrowser() {
-            exportOverlay.classList.remove('visible');
-        }
-
-        async function browseExportTo(browsePath, fallbackToRootOnError) {
-            try {
-                const res = await fetch(`${baseUrl()}/root/browse?path=${encodeURIComponent(browsePath)}`);
-                if (!res.ok) {
-                    // Remembered folder may no longer exist (moved/deleted/different
-                    // machine) — fall back to the drive list instead of erroring out.
-                    if (fallbackToRootOnError && browsePath !== '') {
-                        browseExportTo('', false);
-                        return;
-                    }
-                    exportErrorEl.textContent = 'Could not browse that folder.';
-                    return;
-                }
-                const data = await res.json();
-                renderExportFolderBrowser(data);
-            } catch (e) {
-                if (fallbackToRootOnError && browsePath !== '') {
-                    browseExportTo('', false);
-                    return;
-                }
-                exportErrorEl.textContent = 'Error browsing folder: ' + e.message;
-            }
-        }
-
-        function renderExportFolderBrowser(data) {
-            exportErrorEl.textContent = '';
-            _exportBrowsePath = data.path;
-            exportPathEl.textContent = data.path === '' ? 'This PC' : data.path;
-            exportListEl.innerHTML = '';
-
-            if (data.parent !== null) {
-                const up = document.createElement('div');
-                up.className = 'export-folder-browser-item export-folder-browser-up';
-                up.textContent = '⬆ .. (Up)';
-                up.addEventListener('click', () => browseExportTo(data.parent));
-                exportListEl.appendChild(up);
-            }
-
-            data.folders.forEach(f => {
-                const item = document.createElement('div');
-                item.className = 'export-folder-browser-item';
-                item.textContent = '📁 ' + f.name;
-                item.addEventListener('click', () => browseExportTo(f.path));
-                exportListEl.appendChild(item);
-            });
-
-            exportSelectBtn.disabled = data.path === '';
-        }
-
-        exportTasksBtn.addEventListener('click', () => {
-            if (!_currentModel || !_currentModel.slices || _currentModel.slices.length === 0) {
-                alert('No event model loaded to export.');
-                return;
-            }
-            openExportFolderBrowser();
-        });
-
-        exportCancelBtn.addEventListener('click', closeExportFolderBrowser);
-
-        exportSelectBtn.addEventListener('click', async () => {
-            if (!_exportBrowsePath || !_currentModel) return;
-            const files = generateExportFiles(_currentModel);
-            try {
-                const res = await fetch(`${baseUrl()}/export`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: _exportBrowsePath, files })
-                });
-                if (!res.ok) {
-                    const msg = await res.text();
-                    exportErrorEl.textContent = 'Export failed: ' + msg;
-                    return;
-                }
-                const data = await res.json();
-                closeExportFolderBrowser();
-                localStorage.setItem(EXPORT_LAST_FOLDER_KEY, _exportBrowsePath);
-                alert('Wrote ' + data.written.length + ' file(s) to ' + _exportBrowsePath);
-            } catch (e) {
-                exportErrorEl.textContent = 'Error exporting: ' + e.message;
-            }
-        });
+        window.EventModelTaskExport = {
+            TASK_JSON_SCHEMA_VERSION: TASK_JSON_SCHEMA_VERSION,
+            sanitizeSliceName: sanitizeSliceName,
+            padOrder: padOrder,
+            deduplicateSlices: deduplicateSlices,
+            classifySlicePattern: classifySlicePattern,
+            computeDependencies: computeDependencies,
+            generateExportFiles: generateExportFiles
+        };
