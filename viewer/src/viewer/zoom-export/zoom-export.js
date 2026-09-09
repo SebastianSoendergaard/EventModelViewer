@@ -6,27 +6,132 @@
         let scrollLeft = 0;
         let scrollTop = 0;
 
+        // The "fit" zoom — see computeFitZoom() — doubles as the hard zoom-out floor.
+        // Starts at a low fallback so zoom still behaves sanely before any diagram has
+        // ever been measured.
+        let minZoomFloor = 0.1;
+
         // DOM references (defined here so this module is self-contained)
         const diagramWrapper = document.getElementById('diagramWrapper');
         const diagramContainer = document.getElementById('diagramContainer');
+        const diagramElement = document.getElementById('diagram');
+
+        // Measures the rendered event-model diagram's natural (unscaled) size. CSS
+        // transforms never affect layout size, so offsetWidth/offsetHeight here are
+        // always the pre-zoom dimensions regardless of the currently-applied scale.
+        // Returns null when no diagram is rendered (placeholder/error state) — fit-zoom
+        // is inert in that case, there's nothing to fit.
+        function measureDiagramContentSize() {
+            const diagramDiv = document.querySelector('.event-model-diagram');
+            if (!diagramDiv) return null;
+            const width = diagramDiv.offsetWidth;
+            const height = diagramDiv.offsetHeight;
+            if (!width || !height) return null;
+            return { width, height };
+        }
+
+        // The largest zoom at which the diagram's natural size still fits entirely
+        // inside the viewport in both directions (like CSS `background-size: contain`).
+        // For a diagram naturally smaller than the viewport this can be above 100% —
+        // that's intentional, it's simply how large the diagram can get before either
+        // dimension would exceed the viewport. Zooming out further than this value
+        // would only ever add blank canvas around the content, never reveal more of
+        // it, so it doubles as the zoom-out floor. Returns null when there's nothing
+        // to fit (see measureDiagramContentSize).
+        function computeFitZoom() {
+            const size = measureDiagramContentSize();
+            const viewportWidth = diagramContainer.clientWidth;
+            const viewportHeight = diagramContainer.clientHeight;
+            if (!size || !viewportWidth || !viewportHeight) return null;
+            return Math.min(viewportWidth / size.width, viewportHeight / size.height);
+        }
+
+        // Resizes diagram-wrapper to reserve exactly the diagram's current on-screen
+        // (post-zoom) footprint. Without this, the wrapper would still occupy the
+        // diagram's natural, unscaled size (transforms don't affect layout size),
+        // leaving the container unable to center it or scroll exactly to its bounds.
+        function sizeWrapperToContent() {
+            const size = measureDiagramContentSize();
+            if (!size) {
+                // No real content (placeholder/error) — release any explicit sizing
+                // and let the wrapper shrink-wrap the message, same as any other panel.
+                diagramWrapper.style.width = '';
+                diagramWrapper.style.height = '';
+                diagramWrapper.style.minWidth = '';
+                diagramWrapper.style.minHeight = '';
+                return;
+            }
+            diagramWrapper.style.minWidth = '0';
+            diagramWrapper.style.minHeight = '0';
+            diagramWrapper.style.width = `${size.width * currentZoom}px`;
+            diagramWrapper.style.height = `${size.height * currentZoom}px`;
+        }
 
         // Zoom functions
         function setZoom(zoom) {
-            currentZoom = Math.min(Math.max(zoom, 0.1), 5); // Clamp between 10% and 500%
-            diagramWrapper.style.transform = `scale(${currentZoom})`;
+            currentZoom = Math.min(Math.max(zoom, minZoomFloor), 5); // Clamp between the content-fit floor and 500%
+            diagramElement.style.transform = `scale(${currentZoom})`;
             zoomLevelDisplay.textContent = `${Math.round(currentZoom * 100)}%`;
+            sizeWrapperToContent();
+        }
+
+        // Changes zoom while keeping a specific point of the diagram content fixed
+        // under a specific point of the viewport — e.g. so the content under the
+        // mouse cursor doesn't appear to slide away when scroll-zooming, or so
+        // whatever's centered on screen stays centered when using the zoom buttons.
+        // viewportX/viewportY are in diagramContainer's own coordinate space (i.e.
+        // relative to its top-left corner, unaffected by its own scroll position).
+        function zoomAroundViewportPoint(newZoom, viewportX, viewportY) {
+            // The content point currently sitting under (viewportX, viewportY),
+            // expressed in unscaled diagram coordinates (dividing out currentZoom).
+            const contentX = (diagramContainer.scrollLeft + viewportX) / currentZoom;
+            const contentY = (diagramContainer.scrollTop + viewportY) / currentZoom;
+            setZoom(newZoom);
+            // Re-place that same content point back under (viewportX, viewportY) at
+            // the new scale. setZoom() already clamped currentZoom, so re-read it
+            // rather than assuming newZoom was applied verbatim. The browser clamps
+            // scrollLeft/scrollTop to the valid range on its own when the content is
+            // smaller than the viewport in a dimension (e.g. at the fit-zoom floor).
+            diagramContainer.scrollLeft = contentX * currentZoom - viewportX;
+            diagramContainer.scrollTop = contentY * currentZoom - viewportY;
+        }
+
+        // Anchored on the center of the currently visible viewport area, so whatever
+        // the user is currently looking at stays centered after zooming.
+        function zoomAroundViewportCenter(newZoom) {
+            zoomAroundViewportPoint(newZoom, diagramContainer.clientWidth / 2, diagramContainer.clientHeight / 2);
         }
 
         function zoomIn() {
-            setZoom(currentZoom + 0.1);
+            zoomAroundViewportCenter(currentZoom + 0.1);
         }
 
         function zoomOut() {
-            setZoom(currentZoom - 0.1);
+            zoomAroundViewportCenter(currentZoom - 0.1);
         }
 
         function resetZoom() {
-            setZoom(1);
+            const fit = computeFitZoom();
+            if (fit !== null) minZoomFloor = Math.min(fit, 5);
+            setZoom(fit !== null ? fit : 1);
+        }
+
+        // Recomputes the fit-zoom floor after content or viewport size changes. Only
+        // forces the current zoom up to the new floor when it's now invalid (would
+        // leave blank canvas showing) or when explicitly requested (fresh file load) —
+        // a routine edit shouldn't yank the user's current pan/zoom around.
+        function refreshFitZoom(forceReset) {
+            const fit = computeFitZoom();
+            if (fit === null) {
+                sizeWrapperToContent(); // placeholder/error — release explicit sizing
+                return;
+            }
+            minZoomFloor = Math.min(fit, 5);
+            if (forceReset || currentZoom < minZoomFloor) {
+                setZoom(minZoomFloor);
+            } else {
+                sizeWrapperToContent(); // zoom unchanged, but content size may have — re-measure
+            }
         }
 
         // Zoom button handlers
@@ -39,17 +144,42 @@
         zoomOutBtn.addEventListener('click', zoomOut);
         zoomResetBtn.addEventListener('click', resetZoom);
 
+        // Re-fit whenever what's drawn can change size...
+        EventBus.on(Events.MODEL_CHANGED, ({ model }) => {
+            if (!model) return; // cleared document — nothing to fit
+            refreshFitZoom(false);
+        });
+        EventBus.on(Events.FILTER_TOGGLED, () => refreshFitZoom(false));
+        EventBus.on(Events.EDITOR_RESIZED, () => refreshFitZoom(false));
+        // ...or a fresh file is loaded, which should always reset the view to fit —
+        // deferred to a fresh task so it runs after the MODEL_CHANGED render this
+        // triggers (which may fire synchronously within the same FILE_LOADED emit)
+        // has updated the diagram DOM, regardless of module registration order.
+        EventBus.on(Events.FILE_LOADED, () => {
+            setTimeout(() => refreshFitZoom(true), 0);
+        });
+        // ...or the viewport itself resizes (debounced to avoid thrashing mid-drag).
+        let _fitZoomResizeDebounce = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(_fitZoomResizeDebounce);
+            _fitZoomResizeDebounce = setTimeout(() => refreshFitZoom(false), 150);
+        });
+
         // Temporarily resets the diagram zoom to 100% so exports are always generated
-        // from the unscaled layout, regardless of the on-screen viewing zoom. Returns a
-        // restore function that puts the previous zoom back.
+        // from the unscaled layout, regardless of the on-screen viewing zoom. Bypasses
+        // setZoom (and its content-fit floor) since exports always want the literal
+        // 1:1 layout, even when fit-zoom is currently above 100%. Returns a restore
+        // function that puts the previous zoom back.
         function withResetZoomForExport() {
             const previousZoom = currentZoom;
             if (previousZoom !== 1) {
-                setZoom(1);
+                diagramElement.style.transform = 'scale(1)';
+                zoomLevelDisplay.textContent = '100%';
             }
             return () => {
                 if (previousZoom !== 1) {
-                    setZoom(previousZoom);
+                    diagramElement.style.transform = `scale(${previousZoom})`;
+                    zoomLevelDisplay.textContent = `${Math.round(previousZoom * 100)}%`;
                 }
             };
         }
@@ -210,12 +340,14 @@
         exportPngBtn.addEventListener('click', exportToPNG);
         exportSvgBtn.addEventListener('click', exportToSVG);
 
-        // Ctrl + scroll to zoom
+        // Ctrl + scroll to zoom, anchored on the mouse cursor position so the content
+        // under the cursor stays put rather than sliding away.
         diagramContainer.addEventListener('wheel', (e) => {
             if (e.ctrlKey) {
                 e.preventDefault();
                 const delta = e.deltaY > 0 ? -0.1 : 0.1;
-                setZoom(currentZoom + delta);
+                const rect = diagramContainer.getBoundingClientRect();
+                zoomAroundViewportPoint(currentZoom + delta, e.clientX - rect.left, e.clientY - rect.top);
             }
         }, { passive: false });
 

@@ -6,6 +6,12 @@
             cursor: grab;
             border-radius: 12px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            /* Anchors the diagram to the top-left, so any leftover margin from a
+               non-matching aspect ratio (e.g. at "fit" zoom) collects at the
+               bottom/right instead of centering the diagram in the viewport. */
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
         }
 
         .diagram-container.dragging {
@@ -13,11 +19,24 @@
         }
 
         .diagram-wrapper {
-            transform-origin: 0 0;
-            transition: transform 0.1s ease-out;
-            display: inline-block;
-            min-width: 100%;
-            min-height: 100%;
+            position: relative;
+            /* diagram-container is a flex row, so width is the main axis: flex items
+               shrink below their explicit width by default (flex-shrink: 1) to fit the
+               container. That silently overrode the JS-computed width below whenever it
+               exceeded the viewport (e.g. zoomed in), breaking scrollWidth/scrollbars.
+               Height isn't affected since align-items isn't stretch. */
+            flex-shrink: 0;
+            /* #diagram inside is the diagram's natural (unscaled) size — the scale
+               transform only repaints it visually, it doesn't shrink its layout box.
+               Without clipping, that oversized layout box would still overflow this
+               (correctly, explicitly, post-zoom-sized) wrapper and leak into
+               diagram-container's scrollable area, undoing the sizing below. */
+            overflow: hidden;
+            /* Width/height are set inline by zoom-export.js to the diagram's current
+               on-screen (post-zoom) footprint. CSS transforms don't affect layout size,
+               so without this the wrapper would always reserve the diagram's natural,
+               unscaled size — leaving the centering above and the container's
+               scrollable bounds unable to match what's actually drawn on screen. */
         }
 
         .error-message {
@@ -41,6 +60,16 @@
 
         #diagram {
             display: inline-block;
+            /* The zoom transform lives here (not on diagram-wrapper) so that wrapper's
+               own box can be explicitly sized, in JS, to this element's post-zoom
+               visual footprint — see diagram-wrapper above. */
+            transform-origin: 0 0;
+            /* No transition here: zoom-export.js resizes diagram-wrapper and updates
+               scroll position in the same synchronous step as this transform, to keep
+               the zoomed-around point stationary under the cursor/viewport-center. If
+               the scale eased in over time while the resize/scroll applied instantly,
+               the two would be out of sync for the transition's duration, producing a
+               visible jump/snap instead of a smooth zoom. */
         }
 
         .event-model-diagram {

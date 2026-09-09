@@ -1,6 +1,5 @@
         const diagramElement = document.getElementById('diagram');
         const diagramContainer = document.getElementById('diagramContainer');
-        const diagramWrapper = document.getElementById('diagramWrapper');
 
         // Local state — updated via EventBus
         // diagram.js consumes the enriched model emitted by event-model.js via MODEL_CHANGED.
@@ -377,10 +376,11 @@
             const fromRect = fromElement.getBoundingClientRect();
             const toRect = toElement.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
-            const wrapperRect = diagramWrapper.getBoundingClientRect();
+            const wrapperRect = diagramElement.getBoundingClientRect();
 
-            // Account for zoom and scroll offset — read scale from the wrapper's CSS transform
-            const transformVal = diagramWrapper.style.transform;
+            // Account for zoom and scroll offset — read scale from #diagram's CSS transform
+            // (the zoom transform lives there, not on diagram-wrapper — see diagram.css)
+            const transformVal = diagramElement.style.transform;
             const scale = transformVal ? parseFloat(transformVal.replace('scale(', '')) || 1 : 1;
             const offsetX = (wrapperRect.left - containerRect.left) / scale;
             const offsetY = (wrapperRect.top - containerRect.top) / scale;

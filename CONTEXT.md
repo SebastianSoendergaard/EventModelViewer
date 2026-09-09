@@ -48,6 +48,10 @@ _Avoid_: slice status (the model does not define a separate status value)
 Optional implementation guidance for one slice. Slice hints are carried with the slice into its task export and remain separate from tests, acceptance criteria, and workflow notes.
 _Avoid_: task hint (does not identify the slice boundary)
 
+**Fit Zoom**:
+The diagram's zoom level at which the whole Event Model is visible with no blank space and no scrollbars — computed as `min(viewport width / diagram width, viewport height / diagram height)`, so it always matches whichever dimension is the tighter fit. It is the default zoom on load and the lower bound zooming out can reach; it is recomputed whenever the diagram's content or the viewport changes. Zooming in past Fit Zoom is unbounded and produces scrollbars as expected.
+_Avoid_: 100% zoom, minimum zoom (Fit Zoom is rarely 100% and can exceed it for small models)
+
 **Task File Pair**:
 The `.md`/`.json` pair exported per Deduplicated Slice by Task Export, named `NNN-slicename.md`/`NNN-slicename.json`. Both describe the exact same slice — its pattern, own elements, one-hop-back dependencies, tests, and relations — the Markdown for a human or AI agent to read, the JSON (versioned via `schemaVersion`, see `docs/adr/0004-versioned-json-schema-for-exported-task-files.md`) for a code-generation tool to parse programmatically. `index.md`/`index.json` are the equivalent pair for the whole export's manifest. The file contract is shared by both viewer deployments; only delivery differs.
 _Avoid_: task file (ambiguous about which half of the pair is meant)
