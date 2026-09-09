@@ -361,6 +361,21 @@ function drawArrow(svg, fromElement, toElement, container, fromSide, toSide, isD
 - Horizontal: `C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`
 - Mixed: `Q ${midX} ${midY}, ${endX} ${endY}` (quadratic)
 
+### Arrowhead Boundary Invariant
+
+An SVG marker's reference point is the point attached to the path endpoint. The viewer anchors that point at the **base** of the triangular arrowhead, so an incoming curved line meets the base rather than visibly cutting across a rigid arrowhead.
+
+The target-side connection coordinate represents the arrowhead **tip**, which must touch the target element's edge. Therefore `drawArrow()` moves the path endpoint away from the target by the marker's forward length (`markerWidth - refX`):
+
+| Target side | Path endpoint offset |
+|-------------|----------------------|
+| Top | `y - arrowheadLength` |
+| Bottom | `y + arrowheadLength` |
+| Left | `x - arrowheadLength` |
+| Right | `x + arrowheadLength` |
+
+The endpoint must be calculated separately for normal and highlighted markers: a highlighted arrowhead is longer, so reusing the normal endpoint would make its tip overlap the target. The visible path and its interactive hit area must always use the same geometry. This keeps live rendering and PNG/SVG exports aligned, while preventing both the arrowhead and stroke from crossing into the target element.
+
 ### Grid Cell Grouping
 ```javascript
 // Group cells by slice index

@@ -8,6 +8,7 @@
 5. if an arrow is hovered, it should be highlighted by changing its color to blue and making it wider
 6. if an arrow is hovered and the user clicks on it, the click should be registered as a click on the arrow and not on the element behind it
 7. when an arrow is highlighted, the arrow head should also be highlighted in blue and not remain black
+8. an arrowhead tip should touch its target element's edge; the line should end at the arrowhead base outside the element, never continue through the element
 
 ## Rules for triggers
 1. triggers can only point to commands

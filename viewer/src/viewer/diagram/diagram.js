@@ -427,61 +427,76 @@
                     break;
             }
 
-            // Straight-line threshold: if start and end are within 1px on an axis, draw straight
-            const STRAIGHT_THRESHOLD = 1;
-            const isVerticallyAligned = Math.abs(startX - endX) < STRAIGHT_THRESHOLD;
-            const isHorizontallyAligned = Math.abs(startY - endY) < STRAIGHT_THRESHOLD;
+            // Create per-arrow arrowhead marker using context-stroke so it follows stroke color
+            // The path ends at the head's base. Its tip is positioned on the target boundary.
+            const normalArrowhead = { size: 14, refX: 1, refY: 4, points: '0 0, 14 4, 0 8' };
+            const highlightedArrowhead = { size: 24, refX: 2, refY: 7, points: '0 0, 24 7, 0 14' };
 
-            // Choose curve based on direction
-            let d;
-            if (isVerticallyAligned || isHorizontallyAligned) {
-                // Straight line — elements are aligned on the same axis
-                d = `M ${startX} ${startY} L ${endX} ${endY}`;
-            } else if ((fromSide === 'bottom' && toSide === 'top') || (fromSide === 'top' && toSide === 'bottom')) {
-                // Vertical connection — cubic Bezier
-                const midY = (startY + endY) / 2;
-                d = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
-            } else if ((fromSide === 'right' && toSide === 'left') || (fromSide === 'left' && toSide === 'right')) {
-                // Horizontal connection — cubic Bezier
-                const midX = (startX + endX) / 2;
-                d = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
-            } else {
-                // Mixed connection — quadratic Bezier with a non-collinear control point
+            function getPathData(arrowhead) {
+                const arrowheadLength = arrowhead.size - arrowhead.refX;
+                let pathEndX = endX;
+                let pathEndY = endY;
+
+                switch (toSide) {
+                    case 'top':
+                        pathEndY -= arrowheadLength;
+                        break;
+                    case 'bottom':
+                        pathEndY += arrowheadLength;
+                        break;
+                    case 'left':
+                        pathEndX -= arrowheadLength;
+                        break;
+                    case 'right':
+                        pathEndX += arrowheadLength;
+                        break;
+                }
+
+                const STRAIGHT_THRESHOLD = 1;
+                const isVerticallyAligned = Math.abs(startX - pathEndX) < STRAIGHT_THRESHOLD;
+                const isHorizontallyAligned = Math.abs(startY - pathEndY) < STRAIGHT_THRESHOLD;
+
+                if (isVerticallyAligned || isHorizontallyAligned) {
+                    return `M ${startX} ${startY} L ${pathEndX} ${pathEndY}`;
+                }
+                if ((fromSide === 'bottom' && toSide === 'top') || (fromSide === 'top' && toSide === 'bottom')) {
+                    const midY = (startY + pathEndY) / 2;
+                    return `M ${startX} ${startY} C ${startX} ${midY}, ${pathEndX} ${midY}, ${pathEndX} ${pathEndY}`;
+                }
+                if ((fromSide === 'right' && toSide === 'left') || (fromSide === 'left' && toSide === 'right')) {
+                    const midX = (startX + pathEndX) / 2;
+                    return `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${pathEndY}, ${pathEndX} ${pathEndY}`;
+                }
+
                 const fromIsHorizontal = fromSide === 'left' || fromSide === 'right';
                 const toIsHorizontal = toSide === 'left' || toSide === 'right';
-                const controlX = fromIsHorizontal && !toIsHorizontal ? endX : startX;
-                const controlY = fromIsHorizontal && !toIsHorizontal ? startY : endY;
-                d = `M ${startX} ${startY} Q ${controlX} ${controlY}, ${endX} ${endY}`;
+                const controlX = fromIsHorizontal && !toIsHorizontal ? pathEndX : startX;
+                const controlY = fromIsHorizontal && !toIsHorizontal ? startY : pathEndY;
+                return `M ${startX} ${startY} Q ${controlX} ${controlY}, ${pathEndX} ${pathEndY}`;
             }
 
-            // Create per-arrow arrowhead marker using context-stroke so it follows stroke color
-            // Arrowhead size: normal or highlighted
-            let arrowheadSize = 20;
-            let arrowheadRefX = 18;
-            let arrowheadRefY = 6;
-            let arrowheadPoints = '0 0, 20 6, 0 12';
-            // If highlighted, double the size
-            let isHighlighted = false;
+            const normalPathData = getPathData(normalArrowhead);
+            const highlightedPathData = getPathData(highlightedArrowhead);
             // We'll update this later if the arrow is selected
             const markerId = `arrowhead-${_arrowCounter++}`;
             const defs = svg.querySelector('defs');
             const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
             marker.setAttribute('id', markerId);
-            marker.setAttribute('markerWidth', String(arrowheadSize));
-            marker.setAttribute('markerHeight', String(arrowheadSize));
-            marker.setAttribute('refX', String(arrowheadRefX));
-            marker.setAttribute('refY', String(arrowheadRefY));
+            marker.setAttribute('markerWidth', String(normalArrowhead.size));
+            marker.setAttribute('markerHeight', String(normalArrowhead.size));
+            marker.setAttribute('refX', String(normalArrowhead.refX));
+            marker.setAttribute('refY', String(normalArrowhead.refY));
             marker.setAttribute('orient', 'auto');
             marker.setAttribute('markerUnits', 'userSpaceOnUse');
             const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            polygon.setAttribute('points', arrowheadPoints);
+            polygon.setAttribute('points', normalArrowhead.points);
             polygon.setAttribute('fill', 'context-stroke');
             marker.appendChild(polygon);
             defs.appendChild(marker);
 
             // Visible arrow path
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            path.setAttribute('d', d);
+            path.setAttribute('d', normalPathData);
             path.setAttribute('stroke', 'black');
             path.setAttribute('stroke-width', '2');
             path.setAttribute('fill', 'none');
@@ -496,7 +511,7 @@
             // gray blob instead of invisible, which showed up as phantom "shadow" boxes
             // behind command/event elements with many overlapping outgoing arrows.
             const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            hitPath.setAttribute('d', d);
+            hitPath.setAttribute('d', normalPathData);
             hitPath.setAttribute('class', 'arrow-hitarea');
             hitPath.setAttribute('stroke', 'transparent');
             hitPath.setAttribute('stroke-width', '12');
@@ -505,35 +520,33 @@
             hitPath.style.pointerEvents = 'stroke';
 
             // Highlight helpers
+            function setArrowhead(arrowhead) {
+                marker.setAttribute('markerWidth', String(arrowhead.size));
+                marker.setAttribute('markerHeight', String(arrowhead.size));
+                marker.setAttribute('refX', String(arrowhead.refX));
+                marker.setAttribute('refY', String(arrowhead.refY));
+                polygon.setAttribute('points', arrowhead.points);
+            }
+
+            function restoreNormalStyle() {
+                path.setAttribute('d', normalPathData);
+                hitPath.setAttribute('d', normalPathData);
+                path.setAttribute('stroke', 'black');
+                path.setAttribute('stroke-width', '2');
+                setArrowhead(normalArrowhead);
+            }
+
             function highlight() {
+                path.setAttribute('d', highlightedPathData);
+                hitPath.setAttribute('d', highlightedPathData);
                 path.setAttribute('stroke', '#0066cc');
                 path.setAttribute('stroke-width', '6');
-                // Double the arrowhead size when highlighted
-                const marker = svg.querySelector(`#${markerId}`);
-                if (marker) {
-                    marker.setAttribute('markerWidth', '40');
-                    marker.setAttribute('markerHeight', '40');
-                    marker.setAttribute('refX', '36');
-                    marker.setAttribute('refY', '12');
-                    const polygon = marker.querySelector('polygon');
-                    if (polygon) polygon.setAttribute('points', '0 0, 40 12, 0 24');
-                }
+                setArrowhead(highlightedArrowhead);
             }
             function unhighlight() {
                 const isSelected = hitPath.getAttribute('data-selected') === 'true';
                 if (!isSelected) {
-                    path.setAttribute('stroke', 'black');
-                    path.setAttribute('stroke-width', '2');
-                    // Restore normal arrowhead size
-                    const marker = svg.querySelector(`#${markerId}`);
-                    if (marker) {
-                        marker.setAttribute('markerWidth', '20');
-                        marker.setAttribute('markerHeight', '20');
-                        marker.setAttribute('refX', '18');
-                        marker.setAttribute('refY', '6');
-                        const polygon = marker.querySelector('polygon');
-                        if (polygon) polygon.setAttribute('points', '0 0, 20 6, 0 12');
-                    }
+                    restoreNormalStyle();
                 }
             }
 
@@ -543,24 +556,22 @@
             hitPath.addEventListener('mouseout', () => {
                 unhighlight();
             });
+            hitPath.addEventListener('restore-normal-style', () => {
+                restoreNormalStyle();
+            });
             hitPath.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const isSelected = hitPath.getAttribute('data-selected') === 'true';
                 if (isSelected) {
                     // Deselect
                     hitPath.setAttribute('data-selected', 'false');
-                    path.setAttribute('stroke', 'black');
-                    path.setAttribute('stroke-width', '2');
+                    restoreNormalStyle();
                 } else {
                     // Deselect previously selected arrow
                     const prevSelected = svg.querySelector('path[data-selected="true"]');
                     if (prevSelected) {
                         prevSelected.setAttribute('data-selected', 'false');
-                        const prevPath = prevSelected.previousElementSibling;
-                        if (prevPath) {
-                            prevPath.setAttribute('stroke', 'black');
-                            prevPath.setAttribute('stroke-width', '2');
-                        }
+                        prevSelected.dispatchEvent(new Event('restore-normal-style'));
                     }
                     // Select this arrow
                     hitPath.setAttribute('data-selected', 'true');
