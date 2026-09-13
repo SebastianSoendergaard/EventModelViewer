@@ -333,7 +333,7 @@
                 });
             });
 
-            // View -> Trigger (driven by trigger.views references)
+            // Trigger -> View (driven by trigger.views references)
             const triggers = document.querySelectorAll('.element.trigger[data-trigger-views]');
             triggers.forEach(trigger => {
                 const triggerViewsAttr = trigger.getAttribute('data-trigger-views');
@@ -358,13 +358,14 @@
                     const viewEl = selectedMatch.element;
                     const viewRect = viewEl.getBoundingClientRect();
                     const triggerRect = trigger.getBoundingClientRect();
-                    // If view and trigger are in the same slice, exit view from top and enter trigger from bottom
-                    let fromSide = 'top', toSide = viewRect.left < triggerRect.left ? 'left' : 'right';
+                    // Connect from the trigger to the referenced view.
+                    let fromSide = triggerRect.left < viewRect.left ? 'right' : 'left';
+                    let toSide = 'top';
                     if (selectedMatch.sliceIndex === triggerSliceIndex) {
-                        fromSide = 'top';
-                        toSide = 'bottom';
+                        fromSide = 'bottom';
+                        toSide = 'top';
                     }
-                    drawArrow(svg, viewEl, trigger, diagramDiv, fromSide, toSide);
+                    drawArrow(svg, trigger, viewEl, diagramDiv, fromSide, toSide);
                 });
             });
         }

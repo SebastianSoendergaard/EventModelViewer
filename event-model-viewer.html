@@ -1892,7 +1892,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026090921</span>
+        <span class="build-number" title="Build number">Build 2026091216</span>
 <button class="help-btn" id="helpBtn" title="Help" aria-label="Open help" aria-expanded="false">?</button>
     </header>
 
@@ -2114,7 +2114,7 @@ trigger types:
         <section class="help-section">
             <h3>About</h3>
             <p>99% wibe coded with love <strong>&hearts;</strong></p>
-            <p>Build <strong>2026090921</strong></p>
+            <p>Build <strong>2026091216</strong></p>
             <p><a href="https://github.com/SebastianSoendergaard/EventModelViewer" target="_blank" rel="noopener noreferrer">GitHub repository</a></p>
         </section>
     </div>
@@ -5896,7 +5896,7 @@ trigger types:
                 });
             });
 
-            // View -> Trigger (driven by trigger.views references)
+            // Trigger -> View (driven by trigger.views references)
             const triggers = document.querySelectorAll('.element.trigger[data-trigger-views]');
             triggers.forEach(trigger => {
                 const triggerViewsAttr = trigger.getAttribute('data-trigger-views');
@@ -5921,13 +5921,14 @@ trigger types:
                     const viewEl = selectedMatch.element;
                     const viewRect = viewEl.getBoundingClientRect();
                     const triggerRect = trigger.getBoundingClientRect();
-                    // If view and trigger are in the same slice, exit view from top and enter trigger from bottom
-                    let fromSide = 'top', toSide = viewRect.left < triggerRect.left ? 'left' : 'right';
+                    // Connect from the trigger to the referenced view.
+                    let fromSide = triggerRect.left < viewRect.left ? 'right' : 'left';
+                    let toSide = 'top';
                     if (selectedMatch.sliceIndex === triggerSliceIndex) {
-                        fromSide = 'top';
-                        toSide = 'bottom';
+                        fromSide = 'bottom';
+                        toSide = 'top';
                     }
-                    drawArrow(svg, viewEl, trigger, diagramDiv, fromSide, toSide);
+                    drawArrow(svg, trigger, viewEl, diagramDiv, fromSide, toSide);
                 });
             });
         }

@@ -329,16 +329,20 @@ if (selectedMatch) {
 ```
 Vertical arrow from event (below) to view (above).
 
-#### 5. View → Trigger (Next Slice)
+#### 5. Trigger → View (Referenced View)
 ```javascript
-// MANUAL CHANGE: Exit from top instead of right
-drawArrow(svg, view, nextTrigger, diagramDiv, 'top', 'left');
+if (sameSlice) {
+    drawArrow(svg, trigger, view, diagramDiv, 'bottom', 'top');
+} else {
+    drawArrow(svg, trigger, view, diagramDiv, fromSide, toSide);
+}
 ```
 
-**Original:** `drawArrow(svg, view, nextTrigger, diagramDiv, 'right', 'left')`  
-**Updated:** Exit from **top** of view to **left** side of next trigger
-
-**Rationale:** More intuitive flow showing the view "triggering" the next action vertically before moving horizontally.
+Each `trigger.views` reference creates an arrow from the Trigger to its referenced View.
+The renderer selects a View in the same slice first; otherwise, it selects the nearest
+preceding View. Same-slice connections run from the Trigger's bottom edge to the View's
+top edge. Cross-slice connections leave the Trigger from the side facing the View and
+always enter the View through its top edge.
 
 ### Arrow Geometry
 ```javascript

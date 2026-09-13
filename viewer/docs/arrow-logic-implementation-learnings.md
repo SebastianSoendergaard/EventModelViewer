@@ -19,6 +19,7 @@ The smart arrow logic feature implements event-driven architecture visualization
 - **Dashed forward arrows** - Visual distinction for future event references
 - **Trigger, command and view event filtering** - Triggers, commands and view match by ID only, see **Reference matching by ID** above
 - **Automation trigger support** - Triggers receive arrows from referenced events (by ID)
+- **Trigger-to-View references** - Each `trigger.views` reference draws an arrow from the Trigger to its selected View
 - **Directional awareness** - Vertical arrows within slice, horizontal across slices
 - **Backward compatibility** - Graceful fallback for models without explicit event lists
 
@@ -365,7 +366,29 @@ if (trigger) {
 
 ---
 
-### 6. Dashed Arrow Support
+### 6. Trigger → View Arrows
+
+```javascript
+// Trigger -> View (driven by trigger.views references)
+const selectedMatch = selectNearestPrecedingView(viewMatches, triggerSliceIndex);
+if (selectedMatch) {
+    const isSameSlice = selectedMatch.sliceIndex === triggerSliceIndex;
+    if (isSameSlice) {
+        drawArrow(svg, trigger, selectedMatch.element, diagramDiv, 'bottom', 'top');
+    } else {
+        drawArrow(svg, trigger, selectedMatch.element, diagramDiv, fromSide, toSide);
+    }
+}
+```
+
+- Each canonical ID in `trigger.views` selects a View in the same slice first, then the nearest preceding View.
+- The arrow always points from the Trigger to the selected View.
+- Same-slice connections run vertically from the Trigger's bottom edge to the View's top edge.
+- Cross-slice connections leave the Trigger through the side facing the View and enter the View through its top edge.
+
+---
+
+### 7. Dashed Arrow Support
 
 #### SVG Marker Definitions (line 3929)
 
