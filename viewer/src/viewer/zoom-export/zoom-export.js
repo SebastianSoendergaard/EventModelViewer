@@ -240,6 +240,20 @@
         }
 
         // Export functions
+        function removeFilteredDiagramElements(diagramElement) {
+            diagramElement.querySelectorAll('.tests-container.hidden').forEach(element => element.remove());
+
+            if (diagramElement.classList.contains('swimlanes-hidden')) {
+                diagramElement.querySelectorAll('.lane-header').forEach(element => element.remove());
+            }
+
+            diagramElement.querySelectorAll('.slice-border, .slice-background').forEach(element => {
+                if (element.style.display === 'none') {
+                    element.remove();
+                }
+            });
+        }
+
         async function exportToPNG() {
             const restoreZoom = withResetZoomForExport();
             try {
@@ -276,6 +290,7 @@
                     scale: 2, // Higher quality
                     logging: false,
                     onclone: (clonedDoc) => {
+                        removeFilteredDiagramElements(clonedDoc.querySelector('.event-model-diagram'));
                         clonedDoc.querySelectorAll('.arrow-hitarea').forEach(el => el.remove());
                         const style = clonedDoc.createElement('style');
                         style.textContent = '* { box-shadow: none !important; }';
@@ -313,6 +328,8 @@
 
                 // Clone the diagram div
                 const clone = diagramDiv.cloneNode(true);
+
+                removeFilteredDiagramElements(clone);
 
                 // Remove invisible arrow hit-area paths — they exist only for mouse
                 // interaction and serve no purpose in a static export.

@@ -323,6 +323,10 @@ generateEventModelDiagram(model)
    └─ drawArrow() / drawAllArrows()
 ```
 
+#### Filter-aware exports
+
+PNG and SVG exports reflect the diagram's active filters. Filtered-out elements are removed from the export copy, including from SVG markup; the export retains the live diagram's dimensions and layout without export-only compaction.
+
 **Key Functions:**
 - `generateEventModelDiagram()` - Main entry point (line 84)
 - `drawArrow()` - SVG path rendering (line 383)
