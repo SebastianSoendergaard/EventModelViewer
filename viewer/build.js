@@ -159,6 +159,7 @@ function buildStandalone() {
     const fileButtonsCss  = readFile('src/toolbar/file-buttons/file-buttons.css');
     const fileButtonsJs   = readFile('src/toolbar/file-buttons/file-buttons.js');
     const exportTasksHtml = readFile('src/toolbar/export-tasks/export-tasks.html');
+    const exportTasksCss = readFile('src/toolbar/export-tasks/export-tasks.css');
     const exportTasksCoreJs = readFile('src/toolbar/export-tasks/export-tasks-core.js');
     const exportTasksStandaloneJs = readFile('src/toolbar/export-tasks/export-tasks-standalone.js');
 
@@ -168,7 +169,8 @@ function buildStandalone() {
     toolbarHtml = toolbarHtml.replace('        <!-- FILTER_TOGGLES_HTML -->', filterTogglesHtml.trimEnd());
     const toolbarParts = {
         html: toolbarHtml,
-        css:  toolbarCss.trimEnd() + '\n\n' + fileButtonsCss.trimEnd() + '\n\n' + filterTogglesCss.trimEnd() +
+        css:  toolbarCss.trimEnd() + '\n\n' + fileButtonsCss.trimEnd() + '\n\n' + exportTasksCss.trimEnd() +
+              '\n\n' + filterTogglesCss.trimEnd() +
               '\n\n' + formatPickerCss.trimEnd(),
         js:   iife(presentationStateJs) + '\n\n' + iife(toolbarJs) + '\n\n' + iife(fileButtonsJs) + '\n\n' +
               iife(exportTasksCoreJs) + '\n\n' + iife(exportTasksStandaloneJs) + '\n\n' +
