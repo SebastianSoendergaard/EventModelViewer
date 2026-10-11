@@ -6,6 +6,10 @@
 3. swimlanes should be listed in the order they appear in the model, but automation and translation swimlanes should be listed before ui swimlanes regardless of order in the model
 4. if a trigger does not have a swimlane attribute, it should be put in a default swimlane without any name
 
+## Rules for swimlane names
+1. swimlane names are aligned with the top of the content in their corresponding swimlane
+2. this alignment is applied consistently for empty lanes and exported diagrams
+
 ## Rules for command and view swimlanes
 1. commands and views should be placed in the same swimlane
 2. the swimlane is not named
