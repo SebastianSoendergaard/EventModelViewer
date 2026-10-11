@@ -23,6 +23,8 @@ public record FileScanResult(IReadOnlyList<string> Files, bool Truncated);
 
 public class FileService : IDisposable
 {
+    public sealed record FileScanUpdate(string Type, string? Path = null, bool? Truncated = null);
+
     /// <summary>Hard cap on folders visited during a scan, guarding against huge trees (e.g. a drive root).</summary>
     public const int MaxScanFolders = 20_000;
 
@@ -163,10 +165,29 @@ public class FileService : IDisposable
     /// </summary>
     public FileScanResult GetFiles()
     {
-        if (!Directory.Exists(_root)) return new FileScanResult([], false);
-
         var files = new List<string>();
-        var sw = Stopwatch.StartNew();
+        var truncated = false;
+        foreach (var update in GetFilesAsStream())
+        {
+            if (update.Type == "file" && update.Path is not null)
+                files.Add(update.Path);
+            else if (update.Type == "complete")
+                truncated = update.Truncated ?? false;
+        }
+
+        files.Sort(StringComparer.Ordinal);
+        return new FileScanResult(files, truncated);
+    }
+
+    public IEnumerable<FileScanUpdate> GetFilesAsStream(System.Threading.CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(_root))
+        {
+            yield return new FileScanUpdate("complete", Truncated: false);
+            yield break;
+        }
+
+        var stopwatch = Stopwatch.StartNew();
         var foldersVisited = 0;
         var truncated = false;
         var pending = new Queue<string>();
@@ -174,37 +195,76 @@ public class FileService : IDisposable
 
         while (pending.Count > 0)
         {
-            if (foldersVisited >= MaxScanFolders || sw.Elapsed >= MaxScanDuration)
+            cancellationToken.ThrowIfCancellationRequested();
+            if (foldersVisited >= MaxScanFolders || stopwatch.Elapsed >= MaxScanDuration)
             {
                 truncated = true;
                 break;
             }
 
-            var dir = pending.Dequeue();
+            var directory = pending.Dequeue();
             foldersVisited++;
 
-            try
+            foreach (var pattern in FilePatterns)
             {
-                foreach (var pattern in FilePatterns)
+                using var files = TryGetFileEnumerator(directory, pattern);
+                while (files is not null && TryMoveNext(files, out var file))
                 {
-                    foreach (var f in Directory.EnumerateFiles(dir, pattern))
-                    {
-                        files.Add(Path.GetRelativePath(_root, f).Replace('\\', '/'));
-                    }
-                }
-                foreach (var d in Directory.EnumerateDirectories(dir))
-                {
-                    pending.Enqueue(d);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    yield return new FileScanUpdate("file", Path.GetRelativePath(_root, file).Replace('\\', '/'));
                 }
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
+
+            using var directories = TryGetDirectoryEnumerator(directory);
+            while (directories is not null && TryMoveNext(directories, out var subdirectory))
             {
-                // Skip folders we can't read; keep scanning the rest of the tree.
+                pending.Enqueue(subdirectory);
             }
         }
 
-        files.Sort(StringComparer.Ordinal);
-        return new FileScanResult(files, truncated);
+        yield return new FileScanUpdate("complete", Truncated: truncated);
+    }
+
+    private static System.Collections.Generic.IEnumerator<string>? TryGetFileEnumerator(string directory, string pattern)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(directory, pattern).GetEnumerator();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
+        {
+            return null;
+        }
+    }
+
+    private static System.Collections.Generic.IEnumerator<string>? TryGetDirectoryEnumerator(string directory)
+    {
+        try
+        {
+            return Directory.EnumerateDirectories(directory).GetEnumerator();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
+        {
+            return null;
+        }
+    }
+
+    private static bool TryMoveNext(System.Collections.Generic.IEnumerator<string> enumerator, out string path)
+    {
+        try
+        {
+            if (enumerator.MoveNext())
+            {
+                path = enumerator.Current;
+                return true;
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
+        {
+        }
+
+        path = string.Empty;
+        return false;
     }
 
     /// <summary>Selects a file by relative path. Returns false + error if invalid.</summary>

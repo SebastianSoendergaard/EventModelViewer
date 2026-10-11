@@ -59,3 +59,7 @@ _Avoid_: 100% zoom, minimum zoom (Fit Zoom is rarely 100% and can exceed it for 
 **Task File Pair**:
 The `.md`/`.json` pair exported per Deduplicated Slice by Task Export, named `NNN-slicename.md`/`NNN-slicename.json`. Both describe the exact same slice — its pattern, own elements, one-hop-back dependencies, tests, and relations — the Markdown for a human or AI agent to read, the JSON (versioned via `schemaVersion`, see `docs/adr/0004-versioned-json-schema-for-exported-task-files.md`) for a code-generation tool to parse programmatically. `index.md`/`index.json` are the equivalent pair for the whole export's manifest. The file contract is shared by both viewer deployments; only delivery differs.
 _Avoid_: task file (ambiguous about which half of the pair is meant)
+
+**Discovered encoding path**:
+A `.emj` or `.emy` path identified as a candidate representation of an Event Model. Its extension identifies the expected text encoding, but discovery alone does not establish that its contents can be read as an Event Model.
+_Avoid_: model file

@@ -19,6 +19,17 @@ public class FileServiceTests : IDisposable
     }
 
     [Fact]
+    public void GetFilesAsStream_Yields_A_Discovered_Path_Before_Completion()
+    {
+        File.WriteAllText(Path.Combine(_root, "a.emj"), "{}");
+
+        using var updates = _svc.GetFilesAsStream().GetEnumerator();
+        Assert.True(updates.MoveNext());
+        Assert.Equal("file", updates.Current.Type);
+        Assert.Equal("a.emj", updates.Current.Path);
+    }
+
+    [Fact]
     public void GetFiles_Returns_Only_Json_Files()
     {
         File.WriteAllText(Path.Combine(_root, "a.emj"), "{}");

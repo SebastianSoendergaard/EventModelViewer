@@ -1,5 +1,6 @@
         const dropdown = document.getElementById('serverFileDropdown');
         const saveStatus = document.getElementById('serverSaveStatus');
+        const fileError = document.getElementById('serverFileError');
 
         let _selectedFile = null;
         let _selectedFormat = Codec.JSON;
@@ -10,6 +11,10 @@
         let _eventSource = null;
         let _conflictBanner = null;
         let _connected = false;
+        let _fileScanController = null;
+        let _fileScanGeneration = 0;
+        let _selectionGeneration = 0;
+        let _selectionQueue = Promise.resolve();
 
         function baseUrl() {
             return window.location.origin;
@@ -23,7 +28,7 @@
             const newServerBtn = document.getElementById('newServerBtn');
             if (connected) {
                 setSaveStatus('clear');
-                dropdown.disabled = false;
+                dropdown.disabled = !Array.from(dropdown.options).some(option => option.value);
                 if (newServerBtn) newServerBtn.disabled = false;
             } else {
                 saveStatus.textContent = 'NO CONNECTION';
@@ -77,28 +82,17 @@
 
         // ── File list ─────────────────────────────────────────────────────────
 
-        async function fetchFileList() {
-            try {
-                const res = await fetch(`${baseUrl()}/files`);
-                if (!res.ok) return { files: [], truncated: false };
-                setConnected(true);
-                return await res.json();
-            } catch (e) {
-                console.warn('[server] Failed to fetch file list:', e);
-                setConnected(false);
-                return { files: [], truncated: false };
+        function setDropdownLoading(loading, preserveSelection = false) {
+            if (loading && !preserveSelection) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'Scanning for files…';
+                dropdown.replaceChildren(option);
             }
-        }
 
-        function setDropdownLoading(loading) {
-            dropdown.disabled = loading || !_connected;
-            if (loading) {
-                dropdown.innerHTML = '';
-                const opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = 'Scanning for files…';
-                dropdown.appendChild(opt);
-            }
+            const hasFiles = Array.from(dropdown.options).some(option => option.value);
+            dropdown.disabled = !_connected || !hasFiles;
+            dropdown.title = loading ? 'Searching for .emj and .emy files…' : 'Select a file from server';
         }
 
         function setTruncatedWarning(truncated) {
@@ -109,77 +103,244 @@
             saveStatus.title = 'Folder scan stopped early (too many subfolders or took too long) — file list may be incomplete.';
         }
 
-        async function populateDropdown(preserveSelection) {
-            setDropdownLoading(true);
-            const { files, truncated } = await fetchFileList();
-            const prev = preserveSelection ? dropdown.value : null;
+        function clearFileError() {
+            fileError.textContent = '';
+            fileError.title = '';
+            fileError.hidden = true;
+        }
 
-            setTruncatedWarning(truncated);
-            dropdown.innerHTML = '';
-
-            if (files.length === 0) {
-                const opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = '-- No files available --';
-                dropdown.appendChild(opt);
-                dropdown.disabled = !_connected;
-                return;
+        function getErrorLocation(error, text, format) {
+            if (error?.mark && Number.isInteger(error.mark.line) && Number.isInteger(error.mark.column)) {
+                return { line: error.mark.line + 1, column: error.mark.column + 1 };
             }
 
-            files.forEach(f => {
-                const opt = document.createElement('option');
-                opt.value = f;
-                opt.textContent = f;
-                dropdown.appendChild(opt);
-            });
-            dropdown.disabled = !_connected;
+            if (format === Codec.JSON) {
+                const match = String(error?.message || '').match(/position\s+(\d+)/i);
+                if (match) {
+                    const position = Math.min(Number(match[1]), text.length);
+                    const beforeError = text.slice(0, position);
+                    const lineStart = beforeError.lastIndexOf('\n') + 1;
+                    return {
+                        line: (beforeError.match(/\n/g) || []).length + 1,
+                        column: position - lineStart + 1
+                    };
+                }
+            }
 
-            // Priority: preserve current → localStorage → first
-            const saved = localStorage.getItem('serverSelectedFile');
-            if (prev && files.includes(prev)) {
-                dropdown.value = prev;
-            } else if (saved && files.includes(saved)) {
-                dropdown.value = saved;
+            return null;
+        }
+
+        function formatFileError(path, error, text = '', format = null) {
+            const message = String(error?.message || error);
+            if (!path) return `File search failed: ${message}`;
+
+            const formatLabel = format === Codec.YAML ? 'YAML (.emy)' : 'JSON (.emj)';
+            const isSyntaxError = error instanceof SyntaxError || Boolean(error?.mark);
+            const location = getErrorLocation(error, text, format);
+            const locationText = location ? ` at line ${location.line}, column ${location.column}` : '';
+            const prefix = isSyntaxError
+                ? `Could not parse ${path} as ${formatLabel}`
+                : `Could not open ${path}`;
+            const punctuation = message.endsWith('.') ? '' : '.';
+            const expected = isSyntaxError ? ` Expected ${formatLabel} content.` : '';
+            return `${prefix}${locationText}: ${message}${punctuation}${expected} Select another file.`;
+        }
+
+        function showFileError(path, error, text = '', format = null) {
+            const message = formatFileError(path, error, text, format);
+            fileError.textContent = message;
+            fileError.title = message;
+            fileError.hidden = false;
+        }
+
+        function addFileOption(path) {
+            if (Array.from(dropdown.options).some(option => option.value === path)) return false;
+
+            const selected = dropdown.value;
+            const option = document.createElement('option');
+            option.value = path;
+            option.textContent = path;
+            const options = Array.from(dropdown.options).filter(item => item.value);
+            options.push(option);
+            options.sort((left, right) => left.value < right.value ? -1 : left.value > right.value ? 1 : 0);
+            dropdown.replaceChildren(...options);
+
+            if (selected && options.some(item => item.value === selected)) {
+                dropdown.value = selected;
             } else {
-                dropdown.value = files[0];
+                dropdown.value = path;
+            }
+            dropdown.disabled = !_connected;
+            return true;
+        }
+
+        async function readFileDiscovery(onFile, signal) {
+            const response = await fetch(`${baseUrl()}/files/stream`, { signal });
+            if (!response.ok) throw new Error(`Server returned HTTP ${response.status}`);
+            if (!response.body) throw new Error('The server does not support streamed file discovery');
+            setConnected(true);
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let complete = null;
+
+            function processLine(line) {
+                if (!line.trim()) return;
+                if (complete) throw new Error('The server sent data after scan completion');
+                const update = JSON.parse(line);
+                if (update.type === 'file' && typeof update.path === 'string') {
+                    onFile(update.path);
+                } else if (update.type === 'complete' && typeof update.truncated === 'boolean') {
+                    complete = { truncated: update.truncated };
+                } else {
+                    throw new Error('The server sent an invalid file-discovery record');
+                }
+            }
+
+            while (true) {
+                const { value, done } = await reader.read();
+                buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+                let newline = buffer.indexOf('\n');
+                while (newline >= 0) {
+                    processLine(buffer.slice(0, newline));
+                    buffer = buffer.slice(newline + 1);
+                    newline = buffer.indexOf('\n');
+                }
+                if (done) break;
+            }
+
+            if (buffer.trim()) processLine(buffer);
+            if (!complete) throw new Error('The server ended file discovery before reporting completion');
+            return complete;
+        }
+
+        async function populateDropdown(preserveSelection) {
+            _fileScanController?.abort();
+            const controller = new AbortController();
+            _fileScanController = controller;
+            const scanGeneration = ++_fileScanGeneration;
+            const previousSelection = preserveSelection ? dropdown.value || _selectedFile : null;
+            const discovered = new Set();
+            let autoOpenFirst = !preserveSelection || !previousSelection;
+
+            if (!preserveSelection) {
+                _selectionGeneration++;
+                _selectedFile = null;
+                clearFileError();
+            }
+
+            setTruncatedWarning(false);
+            setDropdownLoading(true, preserveSelection);
+
+            try {
+                const { truncated } = await readFileDiscovery(path => {
+                    if (scanGeneration !== _fileScanGeneration) return;
+                    discovered.add(path);
+                    addFileOption(path);
+
+                    if (autoOpenFirst) {
+                        autoOpenFirst = false;
+                        dropdown.value = path;
+                        void selectFile(path);
+                    }
+                }, controller.signal);
+
+                if (scanGeneration !== _fileScanGeneration) return;
+                setTruncatedWarning(truncated);
+
+                for (const option of Array.from(dropdown.options)) {
+                    if (option.value && !discovered.has(option.value)) option.remove();
+                }
+
+                const available = Array.from(dropdown.options).filter(option => option.value);
+                if (previousSelection && discovered.has(previousSelection)) {
+                    dropdown.value = previousSelection;
+                } else if (available.length && previousSelection) {
+                    dropdown.value = available[0].value;
+                    void selectFile(available[0].value);
+                }
+
+                if (available.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = '-- No files available --';
+                    dropdown.replaceChildren(option);
+                }
+            } catch (error) {
+                if (controller.signal.aborted || error?.name === 'AbortError') return;
+                console.warn('[server] Failed to discover files:', error);
+                if (scanGeneration === _fileScanGeneration) {
+                    setConnected(false);
+                    showFileError(null, error);
+                    if (!Array.from(dropdown.options).some(option => option.value)) {
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.textContent = '-- File search failed --';
+                        dropdown.replaceChildren(option);
+                    }
+                }
+            } finally {
+                if (scanGeneration === _fileScanGeneration) {
+                    _fileScanController = null;
+                    setDropdownLoading(false);
+                }
             }
         }
 
         // ── File selection ────────────────────────────────────────────────────
 
-        async function selectFile(path) {
-            if (!path) return;
-            try {
-                const res = await fetch(`${baseUrl()}/select`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path })
-                });
-                if (!res.ok) {
-                    console.warn('[server] Failed to select file:', path);
-                    return;
+        function selectFile(path) {
+            if (!path) return Promise.resolve();
+            const selectionGeneration = ++_selectionGeneration;
+            clearFileError();
+
+            const selection = _selectionQueue.then(async () => {
+                if (selectionGeneration !== _selectionGeneration) return;
+                try {
+                    const response = await fetch(`${baseUrl()}/select`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path })
+                    });
+                    if (!response.ok) {
+                        throw new Error(`Server returned HTTP ${response.status}`);
+                    }
+                    if (selectionGeneration !== _selectionGeneration) return;
+
+                    _selectedFile = path;
+                    _selectedFormat = Codec.formatForFileName(path);
+                    localStorage.setItem('serverSelectedFile', path);
+                    await loadSelectedFile(selectionGeneration);
+                } catch (error) {
+                    console.warn('[server] Error selecting file:', error);
+                    if (selectionGeneration === _selectionGeneration) {
+                        showFileError(path, error, '', Codec.formatForFileName(path));
+                    }
                 }
-                _selectedFile = path;
-                _selectedFormat = Codec.formatForFileName(path);
-                localStorage.setItem('serverSelectedFile', path);
-                await loadSelectedFile();
-            } catch (e) {
-                console.warn('[server] Error selecting file:', e);
-            }
+            });
+            _selectionQueue = selection;
+            return selection;
         }
 
-        async function loadSelectedFile() {
+        async function loadSelectedFile(selectionGeneration = _selectionGeneration) {
+            let text = '';
             try {
-                const res = await fetch(`${baseUrl()}/selected`);
-                if (!res.ok) return;
-                const text = await res.text();
+                const response = await fetch(`${baseUrl()}/selected`);
+                if (!response.ok) throw new Error(`Server returned HTTP ${response.status}`);
+                text = await response.text();
+                if (selectionGeneration !== _selectionGeneration) return;
                 const json = Codec.parse(text, _selectedFormat);
+                clearFileError();
                 _lastSavedContent = text;
                 _currentJson = json;
                 EventBus.emit(Events.FILE_LOADED, { json, fileName: _selectedFile, format: _selectedFormat });
                 setSaveStatus('saved');
-            } catch (e) {
-                console.warn('[server] Failed to load selected file:', e);
+            } catch (error) {
+                console.warn('[server] Failed to load selected file:', error);
+                if (selectionGeneration === _selectionGeneration) {
+                    showFileError(_selectedFile, error, text, _selectedFormat);
+                }
             }
         }
 
@@ -273,7 +434,8 @@
                 if (hasUnsavedChanges()) {
                     showConflictBanner();
                 } else {
-                    await loadSelectedFile();
+                    await _selectionQueue;
+                    await loadSelectedFile(_selectionGeneration);
                 }
             });
 
@@ -286,8 +448,6 @@
                 setConnected(true);
                 await refreshRoot();
                 await populateDropdown(false);
-                const path = dropdown.value;
-                if (path) await selectFile(path);
             });
 
             _eventSource.onopen = () => {
@@ -321,10 +481,8 @@
             setConnected(false);
             await applySavedRootIfAny();
             await refreshRoot();
-            await populateDropdown(false);
-            const path = dropdown.value;
-            if (path) await selectFile(path);
             connectSSE();
+            await populateDropdown(false);
         });
 
         // Exposed so other IIFE-scoped modules (e.g. the server "New" button) can

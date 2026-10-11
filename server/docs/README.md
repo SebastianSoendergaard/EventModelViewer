@@ -106,6 +106,12 @@ To keep a single huge or slow-to-enumerate folder tree (e.g. accidentally pickin
 { "files": ["em.emj", "examples/shopping-cart.emy"], "truncated": false }
 ```
 
+### `GET /files/stream`
+
+Scans the same root with the same limits, but streams newline-delimited JSON (NDJSON) as results are discovered. Each file is emitted as `{"type":"file","path":"relative/path.emj"}`, followed by one completion record such as `{"type":"complete","truncated":false}`.
+
+The server-mode viewer uses this endpoint to list files progressively and open the first result without waiting for the full scan. Later results are added without changing the active selection. It fetches a file's contents through `/select` and `/selected` when opening it; parse and validation errors are shown in the viewer with a source location when one is available. The buffered `GET /files` response remains available for existing callers.
+
 ---
 
 ### `POST /files`

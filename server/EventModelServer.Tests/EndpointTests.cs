@@ -62,6 +62,28 @@ public class EndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task GetFilesStream_Returns_Individual_Ndjson_Records_And_Completion()
+    {
+        File.WriteAllText(Path.Combine(_tempRoot, "a.emj"), "{}");
+        File.WriteAllText(Path.Combine(_tempRoot, "b.emy"), "{}");
+
+        var response = await _client.GetAsync("/files/stream");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/x-ndjson", response.Content.Headers.ContentType?.MediaType);
+
+        var lines = (await response.Content.ReadAsStringAsync())
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(3, lines.Length);
+
+        var records = lines.Select(line => JsonDocument.Parse(line)).ToList();
+        Assert.All(records.Take(2), record => Assert.Equal("file", record.RootElement.GetProperty("type").GetString()));
+        Assert.Contains(records.Take(2), record => record.RootElement.GetProperty("path").GetString() == "a.emj");
+        Assert.Contains(records.Take(2), record => record.RootElement.GetProperty("path").GetString() == "b.emy");
+        Assert.Equal("complete", records[2].RootElement.GetProperty("type").GetString());
+        Assert.False(records[2].RootElement.GetProperty("truncated").GetBoolean());
+    }
+
+    [Fact]
     public async Task GetFiles_Returns_JsonFiles()
     {
         File.WriteAllText(Path.Combine(_tempRoot, "a.emj"), "{}");

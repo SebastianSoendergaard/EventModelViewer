@@ -27,7 +27,7 @@ build_server.cmd          # build the .exe (requires .NET 9 SDK)
 EventModelServer.exe      # opens browser automatically
 ```
 
-It scans the folder the exe lives in for `.emj` and `.emy` files by default. Use the **📁 Folder** button in the toolbar to browse to and select a different folder — the choice is remembered for the next launch.
+It scans the folder the exe lives in for `.emj` and `.emy` files by default. Use the **📁 Folder** button in the toolbar to browse to and select a different folder — the choice is remembered for the next launch. Matching paths appear as the scan finds them, so the first file can open while the rest of the folder is still being searched.
 
 Use **📤 Export as Tasks** to write the same Markdown/JSON task files to a selected local folder. See [`server/docs/README.md`](server/docs/README.md) for the full API reference and architecture overview.
 

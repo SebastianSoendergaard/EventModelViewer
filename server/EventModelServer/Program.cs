@@ -49,6 +49,25 @@ app.MapGet("/files", () =>
     return Results.Json(new { files = result.Files, truncated = result.Truncated });
 });
 
+// GET /files/stream — stream each discovered path as an NDJSON record, followed by scan completion.
+app.MapGet("/files/stream", async (HttpContext context) =>
+{
+    context.Response.ContentType = "application/x-ndjson";
+    context.Response.Headers.CacheControl = "no-cache";
+    var jsonOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
+
+    foreach (var update in fileService.GetFilesAsStream(context.RequestAborted))
+    {
+        var line = JsonSerializer.Serialize(update, jsonOptions);
+        await context.Response.WriteAsync(line + "\n", context.RequestAborted);
+        await context.Response.Body.FlushAsync(context.RequestAborted);
+    }
+});
+
 // GET /root — the currently active root folder
 app.MapGet("/root", () => Results.Json(new { path = fileService.Root }));
 

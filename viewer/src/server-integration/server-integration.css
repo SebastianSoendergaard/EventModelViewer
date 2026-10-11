@@ -20,6 +20,13 @@
             box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
         }
 
+        .server-file-error {
+            color: #c0392b;
+            font-size: 0.8rem;
+            max-width: 32rem;
+            overflow-wrap: anywhere;
+        }
+
         .server-save-status.disconnected {
             font-size: 1.1rem;
             font-weight: 700;
