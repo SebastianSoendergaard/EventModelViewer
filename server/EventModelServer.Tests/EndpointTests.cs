@@ -510,4 +510,15 @@ public class EndpointTests : IDisposable
         if (Directory.Exists(_tempRoot))
             Directory.Delete(_tempRoot, recursive: true);
     }
-}
+
+    [Fact]
+    public async Task PostExport_Writes_Selected_Format_And_Leaves_Unchecked_Format_Untouched()
+    {
+        var target = Path.Combine(_tempRoot, "format-export");
+        Directory.CreateDirectory(target);
+        await File.WriteAllTextAsync(Path.Combine(target, "model-index.json"), "keep-json");
+        var response = await _client.PostAsJsonAsync("/export", new { path = target, files = new[] { new { name = "model-index.md", content = "new-markdown" } } });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("new-markdown", await File.ReadAllTextAsync(Path.Combine(target, "model-index.md")));
+        Assert.Equal("keep-json", await File.ReadAllTextAsync(Path.Combine(target, "model-index.json")));
+    }}

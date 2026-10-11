@@ -26,7 +26,7 @@
         exportOverlay.innerHTML = `
             <div class="export-folder-browser-modal">
                 <h2>Export as Tasks — Select Destination Folder</h2>
-                <div class="export-folder-browser-path" id="exportFolderBrowserPath"></div>
+                <div class="export-folder-browser-path" id="exportFolderBrowserPath"></div><fieldset class="export-format-options"><legend>Output formats</legend><label><input type="checkbox" id="exportMarkdown"> Markdown (.md)</label><label><input type="checkbox" id="exportJson"> JSON (.json)</label><div id="exportFormatHint" aria-live="polite">Select at least one format.</div></fieldset>
                 <div class="export-folder-browser-list" id="exportFolderBrowserList"></div>
                 <div class="export-folder-browser-error" id="exportFolderBrowserError"></div>
                 <div class="export-folder-browser-actions">
@@ -42,9 +42,25 @@
         var exportErrorEl = exportOverlay.querySelector('#exportFolderBrowserError');
         var exportCancelBtn = exportOverlay.querySelector('#exportFolderBrowserCancel');
         var exportSelectBtn = exportOverlay.querySelector('#exportFolderBrowserSelect');
-
         var _exportBrowsePath = null;
         var EXPORT_LAST_FOLDER_KEY = 'exportTasksLastFolder';
+        var FORMAT_PREF_KEY = 'exportTaskFormats';
+        var formatPrefs = (function(){ try { return JSON.parse(localStorage.getItem(FORMAT_PREF_KEY)) || {}; } catch(e) { return {}; } })();
+        var exportMarkdown = exportOverlay.querySelector('#exportMarkdown');
+        var exportJson = exportOverlay.querySelector('#exportJson');
+        var exportFormatHint = exportOverlay.querySelector('#exportFormatHint');
+        exportMarkdown.checked = !!formatPrefs.markdown;
+        exportJson.checked = !!formatPrefs.json;
+
+        function updateFormats() {
+            var formats = { markdown: exportMarkdown.checked, json: exportJson.checked };
+            localStorage.setItem(FORMAT_PREF_KEY, JSON.stringify(formats));
+            exportSelectBtn.disabled = !_exportBrowsePath || !(formats.markdown || formats.json);
+            exportFormatHint.hidden = !exportSelectBtn.disabled;
+        }
+
+        exportMarkdown.addEventListener('change', updateFormats);
+        exportJson.addEventListener('change', updateFormats);
 
         function openExportFolderBrowser() {
             exportErrorEl.textContent = '';
@@ -101,7 +117,7 @@
                 exportListEl.appendChild(item);
             });
 
-            exportSelectBtn.disabled = data.path === '';
+            updateFormats();
         }
 
         exportTasksBtn.addEventListener('click', () => {
@@ -115,12 +131,13 @@
         exportCancelBtn.addEventListener('click', closeExportFolderBrowser);
 
         exportSelectBtn.addEventListener('click', async () => {
-            if (!_exportBrowsePath || !_currentModel) return;
+            if (!_exportBrowsePath || !_currentModel || !(exportMarkdown.checked || exportJson.checked)) return;
             try {
-                const files = EventModelTaskExport.generateExportFiles(
-                    _currentModel,
-                    _currentFileName
-                );
+                const files = EventModelTaskExport.generateExportFiles(_currentModel, _currentFileName)
+                    .filter(file =>
+                        (file.name.endsWith('.md') && exportMarkdown.checked) ||
+                        (file.name.endsWith('.json') && exportJson.checked)
+                    );
                 const res = await fetch(`${baseUrl()}/export`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

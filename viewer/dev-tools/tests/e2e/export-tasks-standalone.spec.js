@@ -29,6 +29,10 @@ test('standalone task export delivers every generated file', async ({ page }) =>
   await page.waitForTimeout(1000);
 
   await page.locator('#exportTasksBtn').click();
+  const exportDialog = page.getByRole('dialog', { name: 'Export as Tasks' });
+  await exportDialog.getByLabel('Markdown (.md)').check();
+  await exportDialog.getByLabel('JSON (.json)').check();
+  await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
   await page.waitForTimeout(5000);
 
   expect(downloads).toHaveLength(expectedFileCount);

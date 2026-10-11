@@ -397,6 +397,14 @@
             cursor: not-allowed;
         }
 
+.export-format-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); align-items: center; justify-content: center; z-index: 10000; }
+.export-format-overlay.visible { display: flex; }
+.export-format-modal { background: white; border-radius: 10px; padding: 1.25rem 1.5rem; width: 360px; max-width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 0.75rem; }
+.export-format-modal h2 { font-size: 1.1rem; color: #2c3e50; }
+.export-format-modal label, .export-format-options label { cursor: pointer; }
+.export-format-hint, #exportFormatHint { color: #8a5a00; font-size: 0.85rem; }
+.export-format-options { display: flex; gap: 0.5rem; flex-direction: column; border: 1px solid #dfe4e8; padding: 0.6rem; }
+
         .checkbox-group {
             display: flex;
             gap: 1.5rem;
@@ -2170,7 +2178,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026101117</span>
+        <span class="build-number" title="Build number">Build 2026101118</span>
 <button class="help-btn" id="helpBtn" title="Help" aria-label="Open help" aria-expanded="false">?</button>
     </header>
 
@@ -2397,7 +2405,7 @@ trigger types:
         <section class="help-section">
             <h3>About</h3>
             <p>99% wibe coded with love <strong>&hearts;</strong></p>
-            <p>Build <strong>2026101117</strong></p>
+            <p>Build <strong>2026101118</strong></p>
             <p><a href="https://github.com/SebastianSoendergaard/EventModelViewer" target="_blank" rel="noopener noreferrer">GitHub repository</a></p>
         </section>
     </div>
@@ -4145,7 +4153,7 @@ trigger types:
         exportOverlay.innerHTML = `
             <div class="export-folder-browser-modal">
                 <h2>Export as Tasks — Select Destination Folder</h2>
-                <div class="export-folder-browser-path" id="exportFolderBrowserPath"></div>
+                <div class="export-folder-browser-path" id="exportFolderBrowserPath"></div><fieldset class="export-format-options"><legend>Output formats</legend><label><input type="checkbox" id="exportMarkdown"> Markdown (.md)</label><label><input type="checkbox" id="exportJson"> JSON (.json)</label><div id="exportFormatHint" aria-live="polite">Select at least one format.</div></fieldset>
                 <div class="export-folder-browser-list" id="exportFolderBrowserList"></div>
                 <div class="export-folder-browser-error" id="exportFolderBrowserError"></div>
                 <div class="export-folder-browser-actions">
@@ -4161,9 +4169,25 @@ trigger types:
         var exportErrorEl = exportOverlay.querySelector('#exportFolderBrowserError');
         var exportCancelBtn = exportOverlay.querySelector('#exportFolderBrowserCancel');
         var exportSelectBtn = exportOverlay.querySelector('#exportFolderBrowserSelect');
-
         var _exportBrowsePath = null;
         var EXPORT_LAST_FOLDER_KEY = 'exportTasksLastFolder';
+        var FORMAT_PREF_KEY = 'exportTaskFormats';
+        var formatPrefs = (function(){ try { return JSON.parse(localStorage.getItem(FORMAT_PREF_KEY)) || {}; } catch(e) { return {}; } })();
+        var exportMarkdown = exportOverlay.querySelector('#exportMarkdown');
+        var exportJson = exportOverlay.querySelector('#exportJson');
+        var exportFormatHint = exportOverlay.querySelector('#exportFormatHint');
+        exportMarkdown.checked = !!formatPrefs.markdown;
+        exportJson.checked = !!formatPrefs.json;
+
+        function updateFormats() {
+            var formats = { markdown: exportMarkdown.checked, json: exportJson.checked };
+            localStorage.setItem(FORMAT_PREF_KEY, JSON.stringify(formats));
+            exportSelectBtn.disabled = !_exportBrowsePath || !(formats.markdown || formats.json);
+            exportFormatHint.hidden = !exportSelectBtn.disabled;
+        }
+
+        exportMarkdown.addEventListener('change', updateFormats);
+        exportJson.addEventListener('change', updateFormats);
 
         function openExportFolderBrowser() {
             exportErrorEl.textContent = '';
@@ -4220,7 +4244,7 @@ trigger types:
                 exportListEl.appendChild(item);
             });
 
-            exportSelectBtn.disabled = data.path === '';
+            updateFormats();
         }
 
         exportTasksBtn.addEventListener('click', () => {
@@ -4234,12 +4258,13 @@ trigger types:
         exportCancelBtn.addEventListener('click', closeExportFolderBrowser);
 
         exportSelectBtn.addEventListener('click', async () => {
-            if (!_exportBrowsePath || !_currentModel) return;
+            if (!_exportBrowsePath || !_currentModel || !(exportMarkdown.checked || exportJson.checked)) return;
             try {
-                const files = EventModelTaskExport.generateExportFiles(
-                    _currentModel,
-                    _currentFileName
-                );
+                const files = EventModelTaskExport.generateExportFiles(_currentModel, _currentFileName)
+                    .filter(file =>
+                        (file.name.endsWith('.md') && exportMarkdown.checked) ||
+                        (file.name.endsWith('.json') && exportJson.checked)
+                    );
                 const res = await fetch(`${baseUrl()}/export`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

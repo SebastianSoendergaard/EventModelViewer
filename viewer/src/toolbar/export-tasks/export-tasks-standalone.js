@@ -40,6 +40,8 @@
             }
         }
 
+        var FORMAT_PREF_KEY = 'exportTaskFormats';
+        function chooseFormats() { return new Promise(function(resolve) { var saved; try { saved=JSON.parse(localStorage.getItem(FORMAT_PREF_KEY))||{}; } catch(e) { saved={}; } var overlay=document.createElement('div'); overlay.className='export-format-overlay visible'; overlay.innerHTML='<div class="export-format-modal" role="dialog" aria-labelledby="exportFormatTitle"><h2 id="exportFormatTitle">Export as Tasks</h2><p>Select output formats:</p><label><input type="checkbox" data-format="markdown"> Markdown (.md)</label><label><input type="checkbox" data-format="json"> JSON (.json)</label><div class="export-format-hint" aria-live="polite">Select at least one format.</div><div class="export-folder-browser-actions"><button data-action="cancel">Cancel</button><button data-action="export" disabled>Export</button></div></div>'; document.body.appendChild(overlay); var boxes=overlay.querySelectorAll('input'); boxes[0].checked=!!saved.markdown; boxes[1].checked=!!saved.json; var action=overlay.querySelector('[data-action=export]'),hint=overlay.querySelector('.export-format-hint'); function update(){var v={markdown:boxes[0].checked,json:boxes[1].checked};localStorage.setItem(FORMAT_PREF_KEY,JSON.stringify(v));action.disabled=!(v.markdown||v.json);hint.hidden=!action.disabled;} boxes.forEach(function(b){b.addEventListener('change',update);});update(); overlay.querySelector('[data-action=cancel]').onclick=function(){overlay.remove();resolve(null);};action.onclick=function(){var v={markdown:boxes[0].checked,json:boxes[1].checked};overlay.remove();resolve(v);}; }); }
         var exportTasksBtn = document.getElementById('exportTasksBtn');
 
         exportTasksBtn.addEventListener('click', async function() {
@@ -47,13 +49,14 @@
                 alert('No event model loaded to export.');
                 return;
             }
-
+            var formats = await chooseFormats();
+            if (!formats) return;
             var files;
             try {
                 files = EventModelTaskExport.generateExportFiles(
                     _currentModel,
                     _currentFileName
-                );
+                ).filter(function(file) { return formats.markdown && file.name.endsWith('.md') || formats.json && file.name.endsWith('.json'); });
             } catch (error) {
                 alert('Error exporting: ' + error.message);
                 return;

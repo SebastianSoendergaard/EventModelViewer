@@ -37,7 +37,7 @@ The Event Model Viewer deployment that manages model files through a local serve
 _Avoid_: server viewer
 
 **Task Export**:
-The shared export capability that turns the current Event Model into the server-compatible set of Markdown/JSON Task File Pairs and `index.md`/`index.json`; the Server-based Viewer writes these files to a selected folder, while the Standalone Viewer downloads them individually.
+The shared export capability that turns the current Event Model into the server-compatible set of Markdown/JSON task export files and `index.md`/`index.json`; the Server-based Viewer writes these files to a selected folder, while the Standalone Viewer downloads them individually.
 _Avoid_: task download (does not cover server delivery)
 
 **Deduplicated Slice**:
@@ -60,9 +60,9 @@ _Avoid_: 100% zoom, minimum zoom (Fit Zoom is rarely 100% and can exceed it for 
 Per-file preferences for how an Event Model is displayed, including filter visibility, diagram zoom, and the visible diagram position. Presentation State is separate from the Event Model's content and from shared workspace layout preferences.
 _Avoid_: View state (the canonical term **View** means an Event Model read model)
 
-**Task File Pair**:
-The `.md`/`.json` pair exported per Deduplicated Slice by Task Export, named `modelname-slicename.md`/`modelname-slicename.json`, without a sequence prefix. The model name comes from the source filename stem, or the model title for a new document. Slices without a title are omitted. Both files describe the exact same slice — its pattern, own elements, one-hop-back dependencies, tests, and relations — the Markdown for a human or AI agent to read, the JSON (versioned via `schemaVersion`, see `docs/adr/0004-versioned-json-schema-for-exported-task-files.md`) for a code-generation tool to parse programmatically. The model-prefixed `modelname-index.md`/`modelname-index.json` are the equivalent pair for the whole export's manifest. The file contract is shared by both viewer deployments; only delivery differs.
-_Avoid_: task file (ambiguous about which half of the pair is meant)
+**Task Export Format**:
+An independently selectable Markdown (`modelname-slicename.md`) or JSON (`modelname-slicename.json`) format emitted per Deduplicated Slice, without a sequence prefix. The model-prefixed `modelname-index.md` and `modelname-index.json` files are the equivalent format-specific manifests. The model name comes from the source filename stem, or the model title for a new document. Slices without a title are omitted. Markdown describes the slice for a human or AI agent; JSON (versioned via `schemaVersion`, see `docs/adr/0004-versioned-json-schema-for-exported-task-files.md`) is for a code-generation tool. Each format can be selected independently. The file contract is shared by both viewer deployments; only delivery differs.
+_Avoid_: task file (does not identify the selected format)
 
 **Discovered encoding path**:
 A `.emj` or `.emy` path identified as a candidate representation of an Event Model. Its extension identifies the expected text encoding, but discovery alone does not establish that its contents can be read as an Event Model.
