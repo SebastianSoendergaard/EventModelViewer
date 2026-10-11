@@ -3,6 +3,13 @@
         const showTypesCheckbox = document.getElementById('showTypes');
         const showSwimlanesCheckbox = document.getElementById('showSwimlanes');
 
+        EventBus.on(Events.PRESENTATION_STATE_LOADED, ({ state }) => {
+            showSlicesCheckbox.checked = state.filters.slices;
+            showTestsCheckbox.checked = state.filters.tests;
+            showTypesCheckbox.checked = state.filters.types;
+            showSwimlanesCheckbox.checked = state.filters.swimlanes;
+        });
+
         showSlicesCheckbox.addEventListener('change', () => {
             EventBus.emit(Events.FILTER_TOGGLED, { type: 'slices', checked: showSlicesCheckbox.checked });
         });

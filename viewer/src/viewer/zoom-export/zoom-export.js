@@ -10,6 +10,10 @@
         // Starts at a low fallback so zoom still behaves sanely before any diagram has
         // ever been measured.
         let minZoomFloor = 0.1;
+        let fitZoomFloor = 0.1;
+        let restoredZoomBelowFitFloor = false;
+        let pendingPresentationState = null;
+        let fileLoadGeneration = 0;
 
         // DOM references (defined here so this module is self-contained)
         const diagramWrapper = document.getElementById('diagramWrapper');
@@ -68,11 +72,24 @@
         }
 
         // Zoom functions
+        function emitPresentationStateChanged() {
+            EventBus.emit(Events.PRESENTATION_STATE_CHANGED, {
+                zoom: currentZoom,
+                scrollLeft: diagramContainer.scrollLeft,
+                scrollTop: diagramContainer.scrollTop
+            });
+        }
+
         function setZoom(zoom) {
             currentZoom = Math.min(Math.max(zoom, minZoomFloor), 5); // Clamp between the content-fit floor and 500%
+            if (restoredZoomBelowFitFloor && currentZoom >= fitZoomFloor) {
+                restoredZoomBelowFitFloor = false;
+                minZoomFloor = fitZoomFloor;
+            }
             diagramElement.style.transform = `scale(${currentZoom})`;
             zoomLevelDisplay.textContent = `${Math.round(currentZoom * 100)}%`;
             sizeWrapperToContent();
+            emitPresentationStateChanged();
         }
 
         // Changes zoom while keeping a specific point of the diagram content fixed
@@ -94,6 +111,7 @@
             // smaller than the viewport in a dimension (e.g. at the fit-zoom floor).
             diagramContainer.scrollLeft = contentX * currentZoom - viewportX;
             diagramContainer.scrollTop = contentY * currentZoom - viewportY;
+            emitPresentationStateChanged();
         }
 
         // Anchored on the center of the currently visible viewport area, so whatever
@@ -112,7 +130,11 @@
 
         function resetZoom() {
             const fit = computeFitZoom();
-            if (fit !== null) minZoomFloor = Math.min(fit, 5);
+            restoredZoomBelowFitFloor = false;
+            if (fit !== null) {
+                fitZoomFloor = Math.min(fit, 5);
+                minZoomFloor = fitZoomFloor;
+            }
             setZoom(fit !== null ? fit : 1);
         }
 
@@ -126,11 +148,22 @@
                 sizeWrapperToContent(); // placeholder/error — release explicit sizing
                 return;
             }
-            minZoomFloor = Math.min(fit, 5);
-            if (forceReset || currentZoom < minZoomFloor) {
-                setZoom(minZoomFloor);
+            fitZoomFloor = Math.min(fit, 5);
+            if (forceReset) {
+                restoredZoomBelowFitFloor = false;
+                minZoomFloor = fitZoomFloor;
+                setZoom(fitZoomFloor);
+            } else if (restoredZoomBelowFitFloor && currentZoom < fitZoomFloor) {
+                minZoomFloor = currentZoom;
+                sizeWrapperToContent();
             } else {
-                sizeWrapperToContent(); // zoom unchanged, but content size may have — re-measure
+                restoredZoomBelowFitFloor = false;
+                minZoomFloor = fitZoomFloor;
+                if (currentZoom < minZoomFloor) {
+                    setZoom(minZoomFloor);
+                } else {
+                    sizeWrapperToContent(); // zoom unchanged, but content size may have — re-measure
+                }
             }
         }
 
@@ -151,12 +184,32 @@
         });
         EventBus.on(Events.FILTER_TOGGLED, () => refreshFitZoom(false));
         EventBus.on(Events.EDITOR_RESIZED, () => refreshFitZoom(false));
+        EventBus.on(Events.PRESENTATION_STATE_LOADED, ({ state }) => {
+            pendingPresentationState = state;
+        });
         // ...or a fresh file is loaded, which should always reset the view to fit —
         // deferred to a fresh task so it runs after the MODEL_CHANGED render this
         // triggers (which may fire synchronously within the same FILE_LOADED emit)
         // has updated the diagram DOM, regardless of module registration order.
         EventBus.on(Events.FILE_LOADED, () => {
-            setTimeout(() => refreshFitZoom(true), 0);
+            restoredZoomBelowFitFloor = false;
+            const generation = ++fileLoadGeneration;
+            const presentationState = pendingPresentationState;
+            pendingPresentationState = null;
+            setTimeout(() => {
+                if (generation !== fileLoadGeneration) return;
+                refreshFitZoom(true);
+                if (presentationState) {
+                    if (Number.isFinite(presentationState.zoom) && presentationState.zoom > 0 && presentationState.zoom <= 5) {
+                        minZoomFloor = Math.min(fitZoomFloor, presentationState.zoom);
+                        restoredZoomBelowFitFloor = presentationState.zoom < fitZoomFloor;
+                        setZoom(presentationState.zoom);
+                    }
+                    diagramContainer.scrollLeft = presentationState.scrollLeft;
+                    diagramContainer.scrollTop = presentationState.scrollTop;
+                    emitPresentationStateChanged();
+                }
+            }, 0);
         });
         // ...or the viewport itself resizes (debounced to avoid thrashing mid-drag).
         let _fitZoomResizeDebounce = null;
@@ -164,6 +217,8 @@
             clearTimeout(_fitZoomResizeDebounce);
             _fitZoomResizeDebounce = setTimeout(() => refreshFitZoom(false), 150);
         });
+
+        diagramContainer.addEventListener('scroll', emitPresentationStateChanged);
 
         // Temporarily resets the diagram zoom to 100% so exports are always generated
         // from the unscaled layout, regardless of the on-screen viewing zoom. Bypasses

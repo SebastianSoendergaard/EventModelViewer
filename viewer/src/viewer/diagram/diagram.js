@@ -17,6 +17,10 @@
             }
         });
 
+        EventBus.on(Events.PRESENTATION_STATE_LOADED, ({ state }) => {
+            Object.assign(_filters, state.filters);
+        });
+
         EventBus.on(Events.FILTER_TOGGLED, ({ type, checked }) => {
             _filters[type] = checked;
             if (type === 'swimlanes') {

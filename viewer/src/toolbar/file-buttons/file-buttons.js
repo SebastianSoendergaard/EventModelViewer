@@ -20,6 +20,7 @@
             _currentJson = json;
             _currentFileName = name;
             _currentFormat = format || Codec.formatForFileName(name);
+            _saveJsonToLocalStorage(json, _currentFileName, _currentFormat);
         });
 
         // Self-initialize when app is ready
@@ -63,7 +64,14 @@
                     const displayName = savedFileName || 'Restored from previous session';
                     fileName.textContent = displayName;
 
-                    EventBus.emit(Events.FILE_LOADED, { json, fileName: savedFileName || null, format: savedFormat });
+                    EventBus.emit(Events.FILE_LOADED, {
+                        json,
+                        fileName: savedFileName || null,
+                        format: savedFormat,
+                        presentationIdentity: savedFileName
+                            ? { type: 'standalone', fileName: savedFileName }
+                            : null
+                    });
                     
                     console.log('JSON loaded from localStorage');
                     return true;
@@ -136,6 +144,15 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+
+            if (_currentFileName !== fname) {
+                _currentFileName = fname;
+                fileName.textContent = fname;
+                _saveJsonToLocalStorage(_currentJson, _currentFileName, _currentFormat);
+                EventBus.emit(Events.PRESENTATION_IDENTITY_CHANGED, {
+                    identity: { type: 'standalone', fileName: fname }
+                });
+            }
             
             console.log('File saved as:', fname);
         }
@@ -167,7 +184,12 @@
                         const json = Codec.parse(fileContent, _currentFormat);
                         console.log('Content parsed successfully, keys:', Object.keys(json));
                         
-                        EventBus.emit(Events.FILE_LOADED, { json, fileName: file.name, format: _currentFormat });
+                        EventBus.emit(Events.FILE_LOADED, {
+                            json,
+                            fileName: file.name,
+                            format: _currentFormat,
+                            presentationIdentity: { type: 'standalone', fileName: file.name }
+                        });
                         
                         console.log('File loaded via EventBus');
                     } catch (error) {

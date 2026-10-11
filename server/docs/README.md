@@ -199,6 +199,8 @@ Cache-Control: no-cache
 | `files-changed` | An `.emj`/`.emy` file was added, removed, or renamed anywhere under the root folder | `{}` |
 | `root-changed` | The active root folder was switched via `POST /root` | `{}` |
 
+The browser viewer remembers filter visibility, zoom, and diagram position per server file across file switches and reloads. A file's presentation state is keyed by the active server root and its root-relative path. When an external edit is reloaded, the saved presentation state is reapplied to the updated content.
+
 **Example stream:**
 
 ```

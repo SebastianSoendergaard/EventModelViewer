@@ -53,8 +53,12 @@ Optional implementation guidance for one slice. Slice hints are carried with the
 _Avoid_: task hint (does not identify the slice boundary)
 
 **Fit Zoom**:
-The diagram's zoom level at which the whole Event Model is visible with no blank space and no scrollbars — computed as `min(viewport width / diagram width, viewport height / diagram height)`, so it always matches whichever dimension is the tighter fit. It is the default zoom on load and the lower bound zooming out can reach; it is recomputed whenever the diagram's content or the viewport changes. Zooming in past Fit Zoom is unbounded and produces scrollbars as expected.
+The diagram's zoom level at which the whole Event Model is visible with no blank space and no scrollbars — computed as `min(viewport width / diagram width, viewport height / diagram height)`, so it always matches whichever dimension is the tighter fit. It is the default zoom when a file has no saved zoom and the ordinary lower bound zooming out can reach; it is recomputed whenever the diagram's content or the viewport changes. A file's saved Presentation State may restore a zoom below its current Fit Zoom.
 _Avoid_: 100% zoom, minimum zoom (Fit Zoom is rarely 100% and can exceed it for small models)
+
+**Presentation State**:
+Per-file preferences for how an Event Model is displayed, including filter visibility, diagram zoom, and the visible diagram position. Presentation State is separate from the Event Model's content and from shared workspace layout preferences.
+_Avoid_: View state (the canonical term **View** means an Event Model read model)
 
 **Task File Pair**:
 The `.md`/`.json` pair exported per Deduplicated Slice by Task Export, named `NNN-slicename.md`/`NNN-slicename.json`. Both describe the exact same slice — its pattern, own elements, one-hop-back dependencies, tests, and relations — the Markdown for a human or AI agent to read, the JSON (versioned via `schemaVersion`, see `docs/adr/0004-versioned-json-schema-for-exported-task-files.md`) for a code-generation tool to parse programmatically. `index.md`/`index.json` are the equivalent pair for the whole export's manifest. The file contract is shared by both viewer deployments; only delivery differs.

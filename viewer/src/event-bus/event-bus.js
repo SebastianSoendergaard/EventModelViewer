@@ -30,6 +30,18 @@
             // Payload: { type, checked }  — type: 'slices' | 'tests' | 'types' | 'swimlanes'
             FILTER_TOGGLED: 'filter:toggled',
 
+            // The active file's presentation preferences were loaded.
+            // Payload: { state, hasSavedState }
+            PRESENTATION_STATE_LOADED: 'presentation-state:loaded',
+
+            // The active file's zoom or pan changed.
+            // Payload: { zoom, scrollLeft, scrollTop }
+            PRESENTATION_STATE_CHANGED: 'presentation-state:changed',
+
+            // The standalone document acquired a filename after being saved.
+            // Payload: { identity }
+            PRESENTATION_IDENTITY_CHANGED: 'presentation-identity:changed',
+
             // The editor panel was resized; ACE editor should call .resize().
             // Payload: {}
             EDITOR_RESIZED: 'editor:resized',

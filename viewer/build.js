@@ -43,6 +43,7 @@ const codecJs = readFile('src/codec/codec.js');
 // Format Picker modal (JSON vs YAML choice for new documents) — shared by both builds
 const formatPickerCss = readFile('src/toolbar/format-picker/format-picker.css');
 const formatPickerJs  = readFile('src/toolbar/format-picker/format-picker.js');
+const presentationStateJs = readFile('src/presentation-state/presentation-state.js');
 
 // Filter toggles
 const filterTogglesHtml = readFile('src/toolbar/filter-toggles/filter-toggles.html');
@@ -61,8 +62,8 @@ const helpJs          = readFile('src/help/help.js');
 const formatSpecMd    = readFile('docs/rules/format.md');
 const formatSpecText  = escapeHtml(extractFirstCodeFence(formatSpecMd));
 const helpFeatures = {
-    standalone: '<p>Open and save <code>.emj</code> and <code>.emy</code> files locally.</br>Edit the model using the code or tree view.</br>Export slices as task files.</br>Export to PNG/SVG.</br>Quickly show or hide slices/tests/types/swimlanes.</br>Zoom and pan diagrams using the zoom buttons or C + mouse wheel.</br>Adjust the editor/viewer ratio using the collapse/expand buttons or the panel splitter.</p>',
-    server: '<p>Browse folders and open <code>.emj</code> and <code>.emy</code> files locally.</br>Edit the file directly in the editor or using an external editor and the diagram will reflect the changes.</br>Edit the model using the code or tree view, changes are automatically saved to the file.</br>Export slices as task files.</br>Export to PNG/SVG.</br>Quickly show or hide slices/tests/types/swimlanes.</br>Zoom and pan diagrams using the zoom buttons or C + mouse wheel.</br>Adjust the editor/viewer ratio using the collapse/expand buttons or the panel splitter.</p>',
+    standalone: '<p>Open and save <code>.emj</code> and <code>.emy</code> files locally.</br>Edit the model using the code or tree view.</br>Export slices as task files.</br>Export to PNG/SVG.</br>Quickly show or hide slices/tests/types/swimlanes.</br>Zoom and pan diagrams using the zoom buttons or C + mouse wheel. Filters, zoom, and diagram position are remembered per file.</br>Adjust the editor/viewer ratio using the collapse/expand buttons or the panel splitter.</p>',
+    server: '<p>Browse folders and open <code>.emj</code> and <code>.emy</code> files locally.</br>Edit the file directly in the editor or using an external editor and the diagram will reflect the changes.</br>Edit the model using the code or tree view, changes are automatically saved to the file.</br>Export slices as task files.</br>Export to PNG/SVG.</br>Quickly show or hide slices/tests/types/swimlanes.</br>Zoom and pan diagrams using the zoom buttons or C + mouse wheel. Filters, zoom, and diagram position are remembered per file.</br>Adjust the editor/viewer ratio using the collapse/expand buttons or the panel splitter.</p>',
 };
 
 function createHelpOverlay(featuresHtml) {
@@ -169,7 +170,7 @@ function buildStandalone() {
         html: toolbarHtml,
         css:  toolbarCss.trimEnd() + '\n\n' + fileButtonsCss.trimEnd() + '\n\n' + filterTogglesCss.trimEnd() +
               '\n\n' + formatPickerCss.trimEnd(),
-        js:   iife(toolbarJs) + '\n\n' + iife(fileButtonsJs) + '\n\n' +
+        js:   iife(presentationStateJs) + '\n\n' + iife(toolbarJs) + '\n\n' + iife(fileButtonsJs) + '\n\n' +
               iife(exportTasksCoreJs) + '\n\n' + iife(exportTasksStandaloneJs) + '\n\n' +
               iife(filterTogglesJs) + '\n\n' + iife(formatPickerJs),
     };
@@ -213,7 +214,7 @@ function buildServer() {
               serverIntegrationCss.trimEnd() + '\n\n' + folderBrowserServerCss.trimEnd() + '\n\n' +
               exportTasksCss.trimEnd() + '\n\n' +
               filterTogglesCss.trimEnd() + '\n\n' + formatPickerCss.trimEnd(),
-        js:   iife(toolbarJs) + '\n\n' + iife(serverIntegrationJs) + '\n\n' +
+        js:   iife(presentationStateJs) + '\n\n' + iife(toolbarJs) + '\n\n' + iife(serverIntegrationJs) + '\n\n' +
               iife(fileButtonsServerJs) + '\n\n' + iife(folderBrowserServerJs) + '\n\n' +
               iife(exportTasksCoreJs) + '\n\n' + iife(exportTasksServerJs) + '\n\n' +
               iife(filterTogglesJs) + '\n\n' + iife(formatPickerJs),

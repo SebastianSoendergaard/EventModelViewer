@@ -120,7 +120,10 @@ The full field-by-field reference for the `.emj`/`.emy` schema has moved to [`vi
 - **Real-time rendering** - See changes instantly
 - **Event Model visualization** - Purpose-built for event modeling
 - **Zoom and pan** - Navigate large diagrams
+- **Per-file presentation state** - Remembers filter visibility, zoom, and diagram position across file switches and browser reloads
 - **Error messages** - Helpful feedback for invalid JSON
+
+Presentation state is stored locally in the browser. The Server-based Viewer distinguishes files by server root and relative path; the Standalone Viewer uses the filename and extension, so files with the same filename (including extension) share presentation state. New files use the default filters and Fit Zoom. Editor/viewer panel layout remains shared across files.
 
 ## Quick Start
 

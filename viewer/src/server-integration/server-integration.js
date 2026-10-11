@@ -334,7 +334,16 @@
                 clearFileError();
                 _lastSavedContent = text;
                 _currentJson = json;
-                EventBus.emit(Events.FILE_LOADED, { json, fileName: _selectedFile, format: _selectedFormat });
+                EventBus.emit(Events.FILE_LOADED, {
+                    json,
+                    fileName: _selectedFile,
+                    format: _selectedFormat,
+                    presentationIdentity: {
+                        type: 'server',
+                        root: _currentRoot,
+                        path: _selectedFile
+                    }
+                });
                 setSaveStatus('saved');
             } catch (error) {
                 console.warn('[server] Failed to load selected file:', error);
