@@ -465,16 +465,18 @@ Ensures borders appear above cells and lane headers stay on top during scroll.
    - Render cells with content
    - Fill empty cells
 
-5. **Draw arrows** → `drawAllArrows()`
+5. **Apply toggles**
+   - `toggleSliceBorders(showSlicesCheckbox.checked)`
+   - `toggleTests(showTestsCheckbox.checked)`
+   - `toggleTypes(showTypesCheckbox.checked)`
+
+6. **Draw arrows** → `drawAllArrows()`
    - Create SVG overlay
    - Group cells by slice
    - Draw all connection types (all cross-references are pre-resolved IDs)
    - Apply zoom/scroll transformations
 
-6. **Apply toggles**
-   - `toggleSliceBorders(showSlicesCheckbox.checked)`
-   - `toggleTests(showTestsCheckbox.checked)`
-   - `toggleTypes(showTypesCheckbox.checked)`
+   Arrow endpoints are measured after the active filters are applied, against the final rendered element geometry.
 
 ### Cell Contents Organization
 ```javascript

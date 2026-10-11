@@ -28,11 +28,13 @@
                 if (_model) renderDiagram(_model);
             } else if (type === 'slices') {
                 toggleSliceBorders(checked);
+                if (_model) drawAllArrows();
             } else if (type === 'tests') {
                 // Always re-render diagram when toggling tests to ensure arrows and layout are correct
                 if (_model) renderDiagram(_model);
             } else if (type === 'types') {
                 toggleTypes(checked);
+                if (_model) drawAllArrows();
             }
         });
 
@@ -86,12 +88,13 @@
             try {
                 const html = generateEventModelDiagram(model);
                 diagramElement.innerHTML = html;
-                drawAllArrows();
-                
+
                 // Apply current filter states
                 toggleSliceBorders(_filters.slices);
                 toggleTests(_filters.tests);
                 toggleTypes(_filters.types);
+
+                drawAllArrows();
             } catch (error) {
                 showError('Error rendering diagram: ' + error.message);
             }
