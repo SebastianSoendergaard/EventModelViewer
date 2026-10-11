@@ -20,6 +20,11 @@
         <button id="treeAddSliceBtn"></button>
         <div id="addSliceContextMenu">
             <button class="add-slice-menu-item" data-action="full-slice">Full slice</button>
+            <button class="add-slice-menu-item" data-action="event-slice">Event in empty slice</button>
+            <button class="add-slice-menu-item" data-action="command-pattern">Command Pattern</button>
+            <button class="add-slice-menu-item" data-action="view-pattern">View Pattern</button>
+            <button class="add-slice-menu-item" data-action="automation-pattern">Automation Pattern</button>
+            <button class="add-slice-menu-item" data-action="translation-pattern">Translation Pattern</button>
         </div>
     </div>
 
@@ -60,10 +65,14 @@
             return JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort());
         }
 
-        function addFullSlice(model) {
+        function addSlice(model, action) {
             EventBus.emit(Events.FILE_LOADED, { json: model });
-            document.querySelector('[data-action="full-slice"]').click();
+            document.querySelector(`[data-action="${action}"]`).click();
             return model.slices[model.slices.length - 1];
+        }
+
+        function addFullSlice(model) {
+            return addSlice(model, 'full-slice');
         }
 
         try {
@@ -104,6 +113,55 @@
             };
             const collisionSafeSlice = addFullSlice(collisions);
             assert(collisionSafeSlice.name === 'New Slice 5' && collisionSafeSlice.id === 'new-slice-5', 'name and IDs skip occupied explicit and fallback element IDs');
+
+            const patternModel = { slices: [] };
+            const commandPattern = addSlice(patternModel, 'command-pattern');
+            const viewPattern = addSlice(patternModel, 'view-pattern');
+            const automationPattern = addSlice(patternModel, 'automation-pattern');
+            const translationPattern = addSlice(patternModel, 'translation-pattern');
+
+            assert(
+                [commandPattern, viewPattern, automationPattern, translationPattern]
+                    .every(slice => !Object.prototype.hasOwnProperty.call(slice, 'tests')),
+                'pattern templates omit Tests'
+            );
+            assert(
+                new Set(patternModel.slices.map(slice => slice.id)).size === 4 &&
+                new Set(patternModel.slices.map(slice => slice.name)).size === 4,
+                'pattern templates receive unique slice names and IDs'
+            );
+            assert(
+                commandPattern.trigger.type === 'ui' &&
+                commandPattern.command.events.length === 1 &&
+                commandPattern.command.events[0] === commandPattern.events[0].id,
+                'Command Pattern is UI Trigger → Command → one Event'
+            );
+            assert(
+                viewPattern.trigger.type === 'ui' &&
+                viewPattern.trigger.views[0] === viewPattern.view.id &&
+                viewPattern.view.events[0] === viewPattern.events[0].id &&
+                !Object.prototype.hasOwnProperty.call(viewPattern, 'command'),
+                'View Pattern connects one Event and its View to a UI Trigger without a Command'
+            );
+            assert(
+                automationPattern.trigger.type === 'automation' &&
+                automationPattern.trigger.views[0] === automationPattern.view.id &&
+                automationPattern.view.events[0] === automationPattern.events[0].id &&
+                automationPattern.command.events[0] === automationPattern.events[1].id &&
+                automationPattern.events.length === 2 &&
+                automationPattern.events.every(event => !event.external),
+                'Automation Pattern connects one input and output Event through its View, Trigger, and Command'
+            );
+            assert(
+                translationPattern.trigger.type === 'translation' &&
+                translationPattern.trigger.views[0] === translationPattern.view.id &&
+                translationPattern.view.events[0] === translationPattern.events[0].id &&
+                translationPattern.command.events[0] === translationPattern.events[1].id &&
+                translationPattern.events.length === 2 &&
+                translationPattern.events[0].external === true &&
+                translationPattern.events[1].external === false,
+                'Translation Pattern marks only its input Event external'
+            );
 
             document.getElementById('testResults').textContent = results.join('\n');
         } catch (error) {

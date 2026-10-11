@@ -3,7 +3,7 @@
 **Date:** 2026-02-13  
 **Feature:** Intelligent event-driven arrow routing in Event Model diagrams  
 **Status:** ✅ Implemented and tested  
-**Last Updated:** 2026-02-13 (bug fixes applied)
+**Last Updated:** 2026-10-11 (trigger/view arrow documentation aligned)
 
 ---
 
@@ -19,7 +19,7 @@ The smart arrow logic feature implements event-driven architecture visualization
 - **Dashed forward arrows** - Visual distinction for future event references
 - **Trigger, command and view event filtering** - Triggers, commands and view match by ID only, see **Reference matching by ID** above
 - **Automation trigger support** - Triggers receive arrows from referenced events (by ID)
-- **Trigger-to-View references** - Each `trigger.views` reference draws an arrow from the Trigger to its selected View
+- **Trigger-to-View references** - Each `trigger.views` reference draws an arrow from the Trigger to its selected View, regardless of trigger type; the arrow shows the reference, not causal order
 - **Directional awareness** - Vertical arrows within slice, horizontal across slices
 - **Backward compatibility** - Graceful fallback for models without explicit event lists
 
@@ -382,7 +382,7 @@ if (selectedMatch) {
 ```
 
 - Each canonical ID in `trigger.views` selects a View in the same slice first, then the nearest preceding View.
-- The arrow always points from the Trigger to the selected View.
+- The arrow always points from the Trigger to the selected View, regardless of trigger type; it visualizes the reference rather than causal order.
 - Same-slice connections run vertically from the Trigger's bottom edge to the View's top edge.
 - Cross-slice connections leave the Trigger through the side facing the View and enter the View through its top edge.
 

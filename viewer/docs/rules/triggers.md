@@ -4,8 +4,8 @@
 1. triggers should be redered differently based on their type to visually distinguish them from each other.
 2. the trigger should be placed in the trigger section of the slice to clearly indicate its role in the diagram
 3. the trigger should point to the command in the same slice that it triggers to clearly indicate the relationship between the trigger and the command
-4. if a trigger depends on a view, the view should point to the trigger to clearly indicate the relationship between the view and the trigger
-5. if a trigger depends on multiple views, all views should point to the trigger to clearly indicate the relationship between the views and the trigger
+4. if a trigger references a view, the trigger should point to the view to clearly indicate the relationship
+5. if a trigger references multiple views, it should point to each view
 
 ## Rules for ui triggers
 1. ui triggers are triggers where the type start with "ui" or has no type defined, and are meant for manual user input or reporting.

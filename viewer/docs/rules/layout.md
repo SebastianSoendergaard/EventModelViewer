@@ -24,8 +24,8 @@
 2. The type of the trigger is defined by the `type` property of the trigger in the model. If no type is defined, it should be treated as a ui trigger.
 3. The trigger should be placed in the trigger section of the slice.
 4. The trigger should point to the command in the same slice that it triggers.
-5. If a trigger depends on a view, the view should point to the trigger.
-6. If a trigger depends on multiple views, all views should point to the trigger.
+5. If a trigger references a view, the trigger should point to the view.
+6. If a trigger references multiple views, it should point to each view.
 
 ## Commands and views
 1. A command is presented as a blue rectangle with the name of the command and its properties.
@@ -59,9 +59,9 @@
 Read more about the rules for swimlanes in the [swimlane rules](./swimlanes.md) document.
 
 ## Arrows
-1. Triggers can point to commands, and depend on views.
+1. Triggers can point to commands and referenced views; trigger-to-view arrows point from the trigger to the view for every trigger type.
 2. Commands can point to events.
-3. Views can point to triggers, and depend on events.
+3. Views can be referenced by triggers and depend on events.
 4. Events can point to views.
 5. Arrows should be curved unless elements are aligned in a straight line (horizontally or vertically).
 6. Arrows should be colored black by default.

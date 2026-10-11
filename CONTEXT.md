@@ -8,6 +8,18 @@ Visualizes and edits Event Model documents (per Dymitruk/Dilger Event Modeling) 
 The document this app edits — slices, triggers, commands, events, views, and tests. It has exactly one schema, but is stored on disk in either of two text encodings, chosen explicitly per document (never inferred from content, never converted after the fact).
 _Avoid_: model file (ambiguous about which encoding)
 
+**Command Pattern**:
+A workflow in which a trigger invokes a command, and the command produces one or more events.
+
+**View Pattern**:
+A workflow in which one or more events build a view that a UI trigger accesses or reads.
+
+**Automation Pattern**:
+A workflow in which one or more events build a view that causes an automation trigger to invoke a command, which produces one or more events.
+
+**Translation Pattern**:
+A workflow in which an external input event contributes to a view that causes a translation trigger to invoke a command, producing an event in another context.
+
 **View**:
 A read model in an Event Model, represented by the `view` element and used as the canonical term throughout the viewer.
 _Avoid_: read model, readmodel

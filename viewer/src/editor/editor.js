@@ -160,7 +160,7 @@
         const treeAddSliceBtn = document.getElementById('treeAddSliceBtn');
         const addSliceContextMenu = document.getElementById('addSliceContextMenu');
 
-        function getUniqueFullSliceIdentity() {
+        function getUniqueSliceIdentity(elementSuffixes) {
             const slices = Array.isArray(_editorJson?.slices) ? _editorJson.slices : [];
             const existingNames = new Set(slices.map(slice => slice?.name).filter(name => typeof name === 'string'));
             const existingIds = new Set();
@@ -178,7 +178,7 @@
             for (let index = 1; ; index++) {
                 const name = index === 1 ? 'New Slice' : `New Slice ${index}`;
                 const id = name.toLowerCase().replace(/\s+/g, '-');
-                const nestedIds = [`${id}-command`, `${id}-event`, `${id}-view`];
+                const nestedIds = elementSuffixes.map(suffix => `${id}-${suffix}`);
 
                 if (!existingNames.has(name) && !existingIds.has(id) && nestedIds.every(nestedId => !existingIds.has(nestedId))) {
                     return { name, id };
@@ -188,7 +188,7 @@
 
         // Function to create a full slice template
         function createFullSliceTemplate() {
-            const { name, id } = getUniqueFullSliceIdentity();
+            const { name, id } = getUniqueSliceIdentity(['command', 'event', 'view']);
             const commandId = `${id}-command`;
             const eventId = `${id}-event`;
             const viewId = `${id}-view`;
@@ -332,6 +332,111 @@
             };
         }
 
+        function createPatternEvent(name, id, external = false) {
+            return {
+                name,
+                id,
+                external,
+                properties: [
+                    {
+                        name: "Property",
+                        type: "string"
+                    }
+                ]
+            };
+        }
+
+        function createPatternTrigger(name, type, viewId) {
+            const trigger = { name, type };
+
+            if (type === 'ui') {
+                trigger.properties = [];
+                trigger.swimlane = 'User';
+                trigger.buttons = [];
+            }
+
+            if (viewId) {
+                trigger.views = [viewId];
+            }
+
+            return trigger;
+        }
+
+        function createPatternView(id, eventId) {
+            return {
+                name: "New View",
+                id,
+                properties: [],
+                events: [eventId]
+            };
+        }
+
+        function createCommandPatternTemplate() {
+            const { name, id } = getUniqueSliceIdentity(['command', 'event']);
+            const commandId = `${id}-command`;
+            const eventId = `${id}-event`;
+
+            return {
+                name,
+                id,
+                trigger: createPatternTrigger("UI Trigger", "ui"),
+                command: {
+                    name: "New Command",
+                    id: commandId,
+                    properties: [],
+                    events: [eventId]
+                },
+                events: [createPatternEvent("New Event", eventId)]
+            };
+        }
+
+        function createViewPatternTemplate() {
+            const { name, id } = getUniqueSliceIdentity(['event', 'view']);
+            const eventId = `${id}-event`;
+            const viewId = `${id}-view`;
+
+            return {
+                name,
+                id,
+                trigger: createPatternTrigger("Open View", "ui", viewId),
+                view: createPatternView(viewId, eventId),
+                events: [createPatternEvent("Input Event", eventId)]
+            };
+        }
+
+        function createViewBasedCommandPatternTemplate(triggerType, triggerName, inputIsExternal = false) {
+            const { name, id } = getUniqueSliceIdentity(['command', 'input-event', 'output-event', 'view']);
+            const commandId = `${id}-command`;
+            const inputEventId = `${id}-input-event`;
+            const outputEventId = `${id}-output-event`;
+            const viewId = `${id}-view`;
+
+            return {
+                name,
+                id,
+                trigger: createPatternTrigger(triggerName, triggerType, viewId),
+                command: {
+                    name: "New Command",
+                    id: commandId,
+                    properties: [],
+                    events: [outputEventId]
+                },
+                view: createPatternView(viewId, inputEventId),
+                events: [
+                    createPatternEvent("Input Event", inputEventId, inputIsExternal),
+                    createPatternEvent("Output Event", outputEventId)
+                ]
+            };
+        }
+
+        function createAutomationPatternTemplate() {
+            return createViewBasedCommandPatternTemplate("automation", "Automation Trigger");
+        }
+
+        function createTranslationPatternTemplate() {
+            return createViewBasedCommandPatternTemplate("translation", "Translation Trigger", true);
+        }
+
         // Function to add a slice to the model
         function addSliceToModel(sliceTemplate) {
             if (!_editorJson || !_editorJson.slices) {
@@ -382,6 +487,14 @@
                 addSliceToModel(createFullSliceTemplate());
             } else if (action === 'event-slice') {
                 addSliceToModel(createEventOnlySliceTemplate());
+            } else if (action === 'command-pattern') {
+                addSliceToModel(createCommandPatternTemplate());
+            } else if (action === 'view-pattern') {
+                addSliceToModel(createViewPatternTemplate());
+            } else if (action === 'automation-pattern') {
+                addSliceToModel(createAutomationPatternTemplate());
+            } else if (action === 'translation-pattern') {
+                addSliceToModel(createTranslationPatternTemplate());
             }
             
             hideAddSliceMenu();
