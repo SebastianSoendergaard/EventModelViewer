@@ -7,6 +7,8 @@
         let debounceTimer;
         // CodeMirror editor instance
         let codeEditorView = null;
+        let previousFolds = new Set();
+        let isProcessingFolds = false;
 
         // Local JSON state
         let _codeViewJson = null;
@@ -318,8 +320,8 @@
                 editor.setOption('foldStyle', 'markbegin');
                 
                 // Track previous fold state for detecting expansions
-                let previousFolds = new Set();
-                let isProcessingFolds = false; // Prevent recursive processing
+                previousFolds = new Set();
+                isProcessingFolds = false;
                 
                 // Update fold placeholders after they're created
                 editor.session.on('changeFold', function() {
@@ -346,69 +348,45 @@
                         }
                     });
                     
-                    // For each expanded section, fold all its direct children
+                    // Reopening a section shows its direct children but keeps their contents folded.
                     if (expandedRows.length > 0) {
                         isProcessingFolds = true; // Set flag before folding
-                        
-                        expandedRows.forEach(row => {
-                            console.log(`Row ${row} was expanded, folding children...`);
-                            
-                            // Find the matching bracket for this row
-                            const line = editor.session.getLine(row);
-                            const trimmed = line.trimStart();
-                            
-                            // Determine the closing bracket
-                            let openChar, closeChar;
-                            if (trimmed.includes('{')) {
-                                openChar = '{';
-                                closeChar = '}';
-                            } else if (trimmed.includes('[')) {
-                                openChar = '[';
-                                closeChar = ']';
-                            } else {
-                                return;
-                            }
-                            
-                            // Find end of this block
-                            let depth = 0;
-                            let endRow = row;
-                            for (let i = row; i < editor.session.getLength(); i++) {
-                                const lineText = editor.session.getLine(i);
-                                for (let char of lineText) {
-                                    if (char === openChar) depth++;
-                                    if (char === closeChar) depth--;
-                                    if (depth === 0 && i > row) {
-                                        endRow = i;
-                                        break;
+                        try {
+                            expandedRows.forEach(row => {
+                                const parentLine = editor.session.getLine(row);
+                                const parentIndent = parentLine.length - parentLine.trimStart().length;
+                                const parentRange = editor.session.getFoldWidgetRange(row);
+                                if (!parentRange) return;
+
+                                const childFolds = [];
+                                for (let i = row + 1; i <= parentRange.end.row; i++) {
+                                    const line = editor.session.getLine(i);
+                                    const indent = line.length - line.trimStart().length;
+                                    const range = editor.session.getFoldWidgetRange(i);
+                                    if (range && indent > parentIndent) {
+                                        childFolds.push({ row: i, indent, range });
                                     }
                                 }
-                                if (depth === 0 && i > row) break;
-                            }
-                            
-                            // Now fold all foldable lines within this range (children)
-                            for (let i = row + 1; i < endRow; i++) {
-                                const childLine = editor.session.getLine(i);
-                                // Check if this line can be folded (has { or [)
-                                if (childLine.includes('{') || childLine.includes('[')) {
-                                    // Try to fold it
-                                    try {
-                                        const range = editor.session.getFoldWidgetRange(i);
-                                        if (range && !editor.session.getFoldAt(i)) {
-                                            editor.session.addFold('...', range);
+
+                                const directChildIndent = childFolds.reduce(
+                                    (minimum, fold) => Math.min(minimum, fold.indent),
+                                    Infinity
+                                );
+                                childFolds
+                                    .filter(fold => fold.indent === directChildIndent)
+                                    .forEach(fold => {
+                                        if (!editor.session.getFoldAt(fold.row)) {
+                                            editor.session.addFold('...', fold.range);
                                         }
-                                    } catch (e) {
-                                        // Ignore fold errors
-                                    }
-                                }
-                            }
-                        });
-                        
-                        // Update previousFolds AFTER all child folding is done
-                        const allFoldsAfter = editor.session.getAllFolds();
-                        previousFolds = new Set();
-                        allFoldsAfter.forEach(fold => previousFolds.add(fold.start.row));
-                        
-                        isProcessingFolds = false; // Clear flag after folding
+                                    });
+                            });
+                        } finally {
+                            isProcessingFolds = false;
+                        }
+
+                        previousFolds = new Set(
+                            editor.session.getAllFolds().map(fold => fold.start.row)
+                        );
                     } else {
                         // No expansions, just update previous state
                         previousFolds = currentFolds;
@@ -441,6 +419,7 @@
                     
                     // Force re-render
                     editor.renderer.updateFull();
+                    updateCollapseExpandButtonState();
                 });
                 
                 // Store editor instance globally
@@ -550,7 +529,7 @@
                 toggle.addEventListener('click', (e) => {
                     const lineIndex = parseInt(e.target.getAttribute('data-line'));
                     if (collapsedLines.has(lineIndex)) {
-                        // Expanding: remove this line from collapsed, but add all child collapsible lines
+                        // Reopening resets descendants so only direct children are shown.
                         collapsedLines.delete(lineIndex);
                         
                         // Find all collapsible children and collapse them
@@ -591,50 +570,112 @@
         }
 
         // Collapse/Expand All functionality
-        function collapseAll() {
-            // Check which tab is active
-            const codeTabActive = codeView.classList.contains('active');
-            
-            if (codeTabActive && codeEditorView) {
-                // Use ACE folding API
-                const session = codeEditorView.session;
-                const foldWidgets = session.foldWidgets;
-                if (foldWidgets) {
-                    for (let row = 0; row < session.getLength(); row++) {
-                        if (session.foldWidgets[row] != null) {
-                            session.foldAll(row, row, 0);
-                        }
-                    }
-                }
-            } else {
-                // Use old custom editor for tree tab
-                jsonLines.forEach((line, index) => {
-                    if (line.isCollapsible) {
-                        collapsedLines.add(index);
-                    }
-                });
-                updateCollapseExpandButtonState();
-                renderCodeEditor();
-            }
+        function isAceRootContainerRow(session, row) {
+            if (_currentFormat === 'yaml' || row !== 0) return false;
+            const line = session.getLine(row).trimStart();
+            return line.startsWith('{') || line.startsWith('[');
         }
 
-        function expandAll() {
+        function collapseToTopLevel() {
             // Check which tab is active
             const codeTabActive = codeView.classList.contains('active');
             
             if (codeTabActive && codeEditorView) {
                 // Use ACE folding API
                 const session = codeEditorView.session;
-                session.unfold();
+                isProcessingFolds = true;
+                try {
+                    session.unfold();
+                } finally {
+                    isProcessingFolds = false;
+                }
+                previousFolds = new Set();
+
+                const foldableRanges = [];
+                let topLevelIndent = Infinity;
+                for (let row = 0; row < session.getLength(); row++) {
+                    const range = session.getFoldWidgetRange(row);
+                    if (range && !isAceRootContainerRow(session, row)) {
+                        const line = session.getLine(row);
+                        const indent = line.length - line.trimStart().length;
+                        foldableRanges.push({ row, indent, range });
+                        topLevelIndent = Math.min(topLevelIndent, indent);
+                    }
+                }
+                foldableRanges
+                    .filter(({ indent }) => indent === topLevelIndent)
+                    .forEach(({ range }) => {
+                        session.addFold('...', range);
+                });
+                previousFolds = new Set(
+                    session.getAllFolds().map(fold => fold.start.row)
+                );
             } else {
                 // Use old custom editor for tree tab
                 collapsedLines.clear();
-                updateCollapseExpandButtonState();
+                jsonLines.forEach((line, index) => {
+                    if (line.isCollapsible && line.indent > 0) {
+                        collapsedLines.add(index);
+                    }
+                });
                 renderCodeEditor();
             }
+            updateCollapseExpandButtonState();
+        }
+
+        function expandNextLevel() {
+            // Check which tab is active
+            const codeTabActive = codeView.classList.contains('active');
+            
+            if (codeTabActive && codeEditorView) {
+                // Use ACE folding API
+                const session = codeEditorView.session;
+                const folds = session.getAllFolds();
+                const visibleFolds = folds.filter(fold => !folds.some(other =>
+                    other !== fold &&
+                    other.start.row <= fold.start.row &&
+                    other.end.row >= fold.end.row &&
+                    (other.start.row < fold.start.row || other.end.row > fold.end.row)
+                ));
+
+                visibleFolds.forEach(fold => session.removeFold(fold));
+                previousFolds = new Set(
+                    session.getAllFolds().map(fold => fold.start.row)
+                );
+                codeEditorView.renderer.updateFull();
+            } else {
+                // Use old custom editor for tree tab
+                const visibleCollapsedLines = Array.from(
+                    codeEditor.querySelectorAll('.line-toggle:not(.empty)')
+                )
+                    .map(toggle => Number.parseInt(toggle.getAttribute('data-line'), 10))
+                    .filter(lineIndex => collapsedLines.has(lineIndex));
+
+                visibleCollapsedLines.forEach(lineIndex => collapsedLines.delete(lineIndex));
+                renderCodeEditor();
+            }
+            updateCollapseExpandButtonState();
         }
 
         function updateCollapseExpandButtonState() {
+            if (codeView.classList.contains('active') && codeEditorView) {
+                const session = codeEditorView.session;
+                const folds = session.getAllFolds();
+                const foldableRows = [];
+                for (let row = 0; row < session.getLength(); row++) {
+                    if (
+                        !isAceRootContainerRow(session, row) &&
+                        session.getFoldWidgetRange(row)
+                    ) {
+                        foldableRows.push(row);
+                    }
+                }
+
+                codeCollapseBtn.disabled = foldableRows.length === 0;
+                codeExpandBtn.disabled = folds.length === 0;
+                return;
+            }
+
             const totalCollapsible = jsonLines.filter(line => line.isCollapsible).length;
             
             if (collapsedLines.size === totalCollapsible && totalCollapsible > 0) {
@@ -702,5 +743,5 @@
         }
 
 
-        codeCollapseBtn.addEventListener('click', collapseAll);
-        codeExpandBtn.addEventListener('click', expandAll);
+        codeCollapseBtn.addEventListener('click', collapseToTopLevel);
+        codeExpandBtn.addEventListener('click', expandNextLevel);

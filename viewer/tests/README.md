@@ -88,6 +88,19 @@ Comprehensive test suite for the collapsible JSON editor feature.
 
 ---
 
+### [progressive-collapse.test.js](progressive-collapse.test.js)
+Regression test for the code editor's global collapse and expand controls, including when ACE's fold-widget cache has not been initialized.
+
+Run from the repository root:
+
+```bash
+node viewer/tests/progressive-collapse.test.js
+```
+
+It verifies that Collapse to top level discovers foldable ranges without relying on the cache, and that Expand next level removes only the currently visible fold objects.
+
+---
+
 ### [tree-view.test.html](tree-view.test.html)
 Comprehensive test suite for the tree view drag-and-drop feature.
 

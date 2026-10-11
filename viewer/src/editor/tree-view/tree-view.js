@@ -253,26 +253,60 @@
         function toggleTreeNode(nodeId) {
             if (treeCollapsedNodes.has(nodeId)) {
                 treeCollapsedNodes.delete(nodeId);
+                const node = findTreeNodeById(treeData, nodeId);
+                if (node) {
+                    collapseTreeNodeDescendants(node);
+                }
             } else {
                 treeCollapsedNodes.add(nodeId);
             }
             renderTreeView();
         }
 
-        // Collapse all tree nodes
-        function collapseAllTreeNodes(node = treeData) {
-            if (!node) return;
-            if (node.children.length > 0) {
-                treeCollapsedNodes.add(node.id);
-                node.children.forEach(child => collapseAllTreeNodes(child));
+        function findTreeNodeById(node, nodeId) {
+            if (!node) return null;
+            if (node.id === nodeId) return node;
+
+            for (const child of node.children) {
+                const found = findTreeNodeById(child, nodeId);
+                if (found) return found;
             }
+            return null;
         }
 
-        // Expand all tree nodes
-        function expandAllTreeNodes(node = treeData) {
+        function collapseTreeNodeDescendants(node) {
+            node.children.forEach(child => {
+                if (child.children.length > 0) {
+                    treeCollapsedNodes.add(child.id);
+                }
+                collapseTreeNodeDescendants(child);
+            });
+        }
+
+        function collapseTreeToTopLevel() {
+            treeCollapsedNodes.clear();
+            if (!treeData) return;
+
+            treeData.children.forEach(node => {
+                if (node.children.length > 0) {
+                    treeCollapsedNodes.add(node.id);
+                }
+                collapseTreeNodeDescendants(node);
+            });
+        }
+
+        function expandTreeNodesOneLevel(node = treeData) {
             if (!node) return;
-            treeCollapsedNodes.delete(node.id);
-            node.children.forEach(child => expandAllTreeNodes(child));
+
+            node.children.forEach(child => {
+                if (child.children.length === 0) return;
+
+                if (treeCollapsedNodes.has(child.id)) {
+                    treeCollapsedNodes.delete(child.id);
+                } else {
+                    expandTreeNodesOneLevel(child);
+                }
+            });
         }
 
         // Find node by ID in tree
@@ -830,11 +864,11 @@
         const treeExpandAllBtn = document.getElementById('treeExpandAllBtn');
 
         treeCollapseAllBtn.addEventListener('click', () => {
-            collapseAllTreeNodes();
+            collapseTreeToTopLevel();
             renderTreeView();
         });
 
         treeExpandAllBtn.addEventListener('click', () => {
-            expandAllTreeNodes();
+            expandTreeNodesOneLevel();
             renderTreeView();
         });

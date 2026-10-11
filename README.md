@@ -82,9 +82,9 @@ The full field-by-field reference for the `.emj`/`.emy` schema has moved to [`vi
 - **Smart labels** - See property names and item counts when collapsed
 - **Live editing** - Changes update the diagram in real-time
 - **Syntax highlighting** - Clear visual distinction
-- **Collapse/Expand All** - Quick navigation controls
+- **Collapse to top level / Expand next level** - Navigate nested objects and arrays progressively
 
-### 🌳 Tree View (NEW)
+### 🌳 Tree editor (NEW)
 - **Hierarchical visualization** - See the event model structure as a tree (regardless of whether the file is `.emj` or `.emy`)
 - **Drag-and-drop reordering** - Move items by dragging between elements
 - **Context menu for parent items** - Right-click on objects/arrays (not leaf values) to copy or delete
@@ -92,8 +92,8 @@ The full field-by-field reference for the `.emj`/`.emy` schema has moved to [`vi
 - **Copy with _copy suffix** - Duplicate items instantly with smart naming
 - **Delete with confirmation** - Safely remove items with confirmation dialog
 - **Meaningful badges** - Shows property names and types clearly
-- **Collapse/Expand** - Individual and global controls
-- **Real-time sync** - Changes update code view and diagram instantly
+- **Collapse to top level / Expand next level** - Individual controls stay local; global controls navigate progressively
+- **Real-time sync** - Changes update the code editor and diagram instantly
 - **Visual feedback** - Green/red indicators for valid/invalid drops
 
 ### ⏪ History & Undo/Redo (NEW)
@@ -139,16 +139,16 @@ Presentation state is stored locally in the browser. The Server-based Viewer dis
    - Select `em.emj` or `em.emy` (examples included)
    - Or paste JSON/YAML directly into the editor
 
-3. **Navigate the JSON**
+3. **Navigate the event model**
    
-   **Code View:**
+   **Code editor:**
    - Click ▼ to collapse sections
-   - Click ▶ to expand sections
-   - Use "Collapse All" / "Expand All" buttons
+   - Click ▶ to expand one level at a time
+   - Use "Collapse to top level" / "Expand next level" buttons
    - Use ↶/↷ buttons or Ctrl+Z/Ctrl+Y to undo/redo changes
    
-   **Tree View:**
-   - Click "Tree" tab to switch views
+   **Tree editor:**
+   - Click the "Tree" tab to switch to the tree editor
    - Drag boxes to reorder items
    - **Double-click leaf values** (strings, numbers, booleans, null) to edit them
    - Press Enter to save, Escape to cancel editing
@@ -156,7 +156,8 @@ Presentation state is stored locally in the browser. The Server-based Viewer dis
    - Select "Copy" to duplicate an item (adds _copy suffix)
    - Select "Delete" to remove an item (with confirmation)
    - Note: Context menu only works on parent items, not leaf values
-   - Click ▶/▼ to collapse/expand nodes
+   - Click ▶/▼ to collapse a node or expand its direct children
+   - Use "Collapse to top level" / "Expand next level" to navigate the whole tree progressively
    - Drop between items (green line = valid drop)
 
 ## Technology Stack

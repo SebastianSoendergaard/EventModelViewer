@@ -21,8 +21,16 @@ A workflow in which one or more events build a view that causes an automation tr
 A workflow in which an external input event contributes to a view that causes a translation trigger to invoke a command, producing an event in another context.
 
 **View**:
-A read model in an Event Model, represented by the `view` element and used as the canonical term throughout the viewer.
-_Avoid_: read model, readmodel
+A read model in an Event Model, represented by the `view` element.
+_Avoid_: read model, readmodel, code view, tree view
+
+**Code editor**:
+The textual editing surface for an event model document.
+_Avoid_: code view
+
+**Tree editor**:
+The hierarchical editing surface for an event model document.
+_Avoid_: tree view
 
 **Hotspot**:
 An important point or highlight in an Event Model, scoped either to the overall workflow or to an individual slice. Model-level and slice-level hotspots remain separate even when their text is identical.
