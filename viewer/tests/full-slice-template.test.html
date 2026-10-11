@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full Slice Template Tests</title>
+</head>
+<body>
+    <h1>Full Slice Template Tests</h1>
+    <pre id="testResults">Running…</pre>
+
+    <div hidden>
+        <div id="codeView"></div>
+        <div id="treeView"></div>
+        <button id="codeUndoBtn"></button>
+        <button id="codeRedoBtn"></button>
+        <button id="treeUndoBtn"></button>
+        <button id="treeRedoBtn"></button>
+        <button id="codeAddSliceBtn"></button>
+        <button id="treeAddSliceBtn"></button>
+        <div id="addSliceContextMenu">
+            <button class="add-slice-menu-item" data-action="full-slice">Full slice</button>
+        </div>
+    </div>
+
+    <script>
+        window.Events = {
+            FILE_LOADED: 'FILE_LOADED',
+            JSON_CHANGED: 'JSON_CHANGED',
+            CODE_SYNC: 'CODE_SYNC',
+            TREE_SYNC: 'TREE_SYNC'
+        };
+
+        const eventHandlers = new Map();
+        window.EventBus = {
+            on(event, callback) {
+                const listeners = eventHandlers.get(event) || [];
+                listeners.push(callback);
+                eventHandlers.set(event, listeners);
+            },
+            emit(event, payload) {
+                for (const callback of eventHandlers.get(event) || []) {
+                    callback(payload);
+                }
+            }
+        };
+    </script>
+    <script src="../src/editor/editor.js"></script>
+    <script>
+        const results = [];
+
+        function assert(condition, name) {
+            results.push(`${condition ? 'PASS' : 'FAIL'} ${name}`);
+            if (!condition) {
+                throw new Error(name);
+            }
+        }
+
+        function hasKeys(value, keys) {
+            return JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort());
+        }
+
+        function addFullSlice(model) {
+            EventBus.emit(Events.FILE_LOADED, { json: model });
+            document.querySelector('[data-action="full-slice"]').click();
+            return model.slices[model.slices.length - 1];
+        }
+
+        try {
+            const model = { slices: [] };
+            const slice = addFullSlice(model);
+            const secondSlice = addFullSlice(model);
+
+            assert(slice.name === 'New Slice' && slice.id === 'new-slice', 'first full slice uses the base name and matching ID');
+            assert(secondSlice.name === 'New Slice 2' && secondSlice.id === 'new-slice-2', 'later full slices use sequential unique names and IDs');
+            assert(hasKeys(slice, ['name', 'id', 'border', 'background', 'hotspots', 'hints', 'trigger', 'note', 'command', 'view', 'events', 'tests']), 'slice includes every documented top-level field');
+            assert(typeof slice.note === 'string' && slice.hotspots.length > 0 && slice.hints.length > 0, 'optional slice annotations have example values');
+            assert(hasKeys(slice.trigger, ['name', 'type', 'properties', 'swimlane', 'buttons', 'views']), 'trigger includes every documented field');
+            assert(slice.trigger.type === 'ui' && slice.trigger.views[0] === slice.view.id, 'trigger uses the selected valid type and references the view ID');
+            assert(slice.trigger.properties.length > 0 && hasKeys(slice.trigger.properties[0], ['name', 'value']), 'trigger property uses the documented name/value shape');
+            assert(slice.trigger.buttons.length > 0 && slice.trigger.views.length > 0, 'trigger button and view lists have example entries');
+            assert(hasKeys(slice.command, ['name', 'id', 'properties', 'events']), 'command includes every documented field');
+            assert(hasKeys(slice.view, ['name', 'id', 'properties', 'events']), 'view includes every documented field');
+            assert(slice.command.properties.length > 0 && hasKeys(slice.command.properties[0], ['name', 'type']), 'command property uses the documented name/type shape');
+            assert(slice.view.properties.length > 0 && hasKeys(slice.view.properties[0], ['name', 'type']), 'view property uses the documented name/type shape');
+            assert(hasKeys(slice.events[0], ['name', 'id', 'swimlane', 'external', 'properties']), 'event includes every documented field');
+            assert(typeof slice.events[0].external === 'boolean' && hasKeys(slice.events[0].properties[0], ['name', 'type']), 'event metadata and property shape are valid');
+            assert(slice.command.events[0] === slice.events[0].id && slice.view.events[0] === slice.events[0].id, 'command and view reference the event ID');
+            assert(hasKeys(slice.tests[0], ['name', 'given', 'when', 'then']), 'test includes the documented Given-When-Then structure');
+            assert(hasKeys(slice.tests[0].given, ['events']) && hasKeys(slice.tests[0].when, ['command']), 'given and when use the documented object shapes');
+            assert(hasKeys(slice.tests[0].then, ['events', 'views']), 'then is an object containing events and views');
+            assert(slice.tests[0].given.events.length > 0 && hasKeys(slice.tests[0].given.events[0].properties[0], ['name', 'value']), 'given event properties use the documented name/value shape');
+            assert(slice.tests[0].when.command.properties.length > 0 && hasKeys(slice.tests[0].when.command.properties[0], ['name', 'value']), 'when command properties use the documented name/value shape');
+            assert(slice.tests[0].then.events.length > 0 && hasKeys(slice.tests[0].then.events[0].properties[0], ['name', 'value']), 'then event properties use the documented name/value shape');
+            assert(slice.tests[0].then.views.length > 0 && hasKeys(slice.tests[0].then.views[0].properties[0], ['name', 'value']), 'then view properties use the documented name/value shape');
+
+            const collisions = {
+                slices: [
+                    { name: 'New Slice', id: 'new-slice' },
+                    { name: 'Existing', command: { id: 'new-slice-2-command' } },
+                    { name: 'New Slice 3', id: 'new-slice-3' },
+                    { name: 'Existing again', view: { name: 'new-slice-4-view' } }
+                ]
+            };
+            const collisionSafeSlice = addFullSlice(collisions);
+            assert(collisionSafeSlice.name === 'New Slice 5' && collisionSafeSlice.id === 'new-slice-5', 'name and IDs skip occupied explicit and fallback element IDs');
+
+            document.getElementById('testResults').textContent = results.join('\n');
+        } catch (error) {
+            document.getElementById('testResults').textContent = `${results.join('\n')}\n${error.message}`;
+            throw error;
+        }
+    </script>
+</body>
+</html>

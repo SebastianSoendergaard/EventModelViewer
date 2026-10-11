@@ -2187,7 +2187,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026101118</span>
+        <span class="build-number" title="Build number">Build 2026101119</span>
 <button class="help-btn" id="helpBtn" title="Help" aria-label="Open help" aria-expanded="false">?</button>
     </header>
 
@@ -2414,7 +2414,7 @@ trigger types:
         <section class="help-section">
             <h3>About</h3>
             <p>99% wibe coded with love <strong>&hearts;</strong></p>
-            <p>Build <strong>2026101118</strong></p>
+            <p>Build <strong>2026101119</strong></p>
             <p><a href="https://github.com/SebastianSoendergaard/EventModelViewer" target="_blank" rel="noopener noreferrer">GitHub repository</a></p>
         </section>
     </div>
@@ -6162,42 +6162,95 @@ trigger types:
         const treeAddSliceBtn = document.getElementById('treeAddSliceBtn');
         const addSliceContextMenu = document.getElementById('addSliceContextMenu');
 
+        function getUniqueFullSliceIdentity() {
+            const slices = Array.isArray(_editorJson?.slices) ? _editorJson.slices : [];
+            const existingNames = new Set(slices.map(slice => slice?.name).filter(name => typeof name === 'string'));
+            const existingIds = new Set();
+
+            for (const slice of slices) {
+                const elements = [slice, slice?.command, slice?.view, ...(Array.isArray(slice?.events) ? slice.events : [])];
+                for (const element of elements) {
+                    const id = typeof element?.id === 'string' && element.id ? element.id : element?.name;
+                    if (typeof id === 'string') {
+                        existingIds.add(id);
+                    }
+                }
+            }
+
+            for (let index = 1; ; index++) {
+                const name = index === 1 ? 'New Slice' : `New Slice ${index}`;
+                const id = name.toLowerCase().replace(/\s+/g, '-');
+                const nestedIds = [`${id}-command`, `${id}-event`, `${id}-view`];
+
+                if (!existingNames.has(name) && !existingIds.has(id) && nestedIds.every(nestedId => !existingIds.has(nestedId))) {
+                    return { name, id };
+                }
+            }
+        }
+
         // Function to create a full slice template
         function createFullSliceTemplate() {
+            const { name, id } = getUniqueFullSliceIdentity();
+            const commandId = `${id}-command`;
+            const eventId = `${id}-event`;
+            const viewId = `${id}-view`;
+
             return {
-                "name": "New Slice",
+                "name": name,
+                "id": id,
                 "border": "#000000",
+                "background": "#f0f0f0",
+                "hotspots": ["The item appears in the cart after it is added."],
+                "hints": ["Publish Item added only after the cart update succeeds."],
                 "trigger": {
-                    "swimlane": "User",
-                    "type": "input-ui",
-                    "buttons": ["Action"]
-                },
-                "command": {
-                    "name": "New Command",
+                    "name": "Add item to cart",
+                    "type": "ui",
                     "properties": [
                         {
-                            "name": "Property",
+                            "name": "Cart ID",
+                            "value": "cart-123"
+                        }
+                    ],
+                    "swimlane": "User",
+                    "buttons": ["Add item"],
+                    "views": [viewId]
+                },
+                "note": "Adds one item to a cart.",
+                "command": {
+                    "name": "Add item",
+                    "id": commandId,
+                    "properties": [
+                        {
+                            "name": "Cart ID",
+                            "type": "string"
+                        },
+                        {
+                            "name": "Item ID",
                             "type": "string"
                         }
                     ],
-                    "events": ["New Event"]
+                    "events": [eventId]
                 },
                 "view": {
-                    "name": "New View",
+                    "name": "Cart items",
+                    "id": viewId,
                     "properties": [
                         {
-                            "name": "Property",
+                            "name": "Item ID",
                             "type": "string"
                         }
                     ],
-                    "events": ["New Event"]
+                    "events": [eventId]
                 },
                 "events": [
                     {
-                        "name": "New Event",
+                        "name": "Item added",
+                        "id": eventId,
+                        "swimlane": "Cart",
+                        "external": false,
                         "properties": [
                             {
-                                "name": "Property",
+                                "name": "Item ID",
                                 "type": "string"
                             }
                         ]
@@ -6205,16 +6258,59 @@ trigger types:
                 ],
                 "tests": [
                     {
-                        "name": "New Test",
-                        "given": [],
-                        "when": {
-                            "name": "New Command"
+                        "name": "Adding an item to a cart",
+                        "given": {
+                            "events": [
+                                {
+                                    "name": "Cart created",
+                                    "properties": [
+                                        {
+                                            "name": "Cart ID",
+                                            "value": "cart-123"
+                                        }
+                                    ]
+                                }
+                            ]
                         },
-                        "then": [
-                            {
-                                "name": "New Event"
+                        "when": {
+                            "command": {
+                                "name": "Add item",
+                                "properties": [
+                                    {
+                                        "name": "Cart ID",
+                                        "value": "cart-123"
+                                    },
+                                    {
+                                        "name": "Item ID",
+                                        "value": "item-456"
+                                    }
+                                ]
                             }
-                        ]
+                        },
+                        "then": {
+                            "events": [
+                                {
+                                    "name": "Item added",
+                                    "properties": [
+                                        {
+                                            "name": "Item ID",
+                                            "value": "item-456"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "views": [
+                                {
+                                    "name": "Cart items",
+                                    "properties": [
+                                        {
+                                            "name": "Item ID",
+                                            "value": "item-456"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
                     }
                 ]
             };

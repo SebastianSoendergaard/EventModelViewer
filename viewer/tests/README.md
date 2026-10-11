@@ -4,6 +4,15 @@ This directory contains test files for the Event Model Viewer application.
 
 ## Available Tests
 
+### [full-slice-template.test.html](full-slice-template.test.html)
+Browser tests for the editor's “Full slice” menu action.
+
+**Test Coverage:**
+- ✅ Complete documented slice and nested element fields
+- ✅ Format-valid trigger and Given-When-Then test shapes
+- ✅ ID-based references and sequential unique slice names/IDs
+- ✅ Skipping occupied slice and nested element IDs
+
 ### [trigger-rendering.test.html](trigger-rendering.test.html)
 Comprehensive test suite for type-based trigger rendering in `src/viewer/diagram/diagram.js`.
 
