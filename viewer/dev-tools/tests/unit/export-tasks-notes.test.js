@@ -38,8 +38,8 @@ describe('note task export', () => {
       ]
     });
 
-    const markdown = files.find(file => file.name === '001-annotated.md').content;
-    const json = JSON.parse(files.find(file => file.name === '001-annotated.json').content);
+    const markdown = files.find(file => file.name === 'test-model-annotated.md').content;
+    const json = JSON.parse(files.find(file => file.name === 'test-model-annotated.json').content);
 
     expect(markdown).toContain('## Note');
     expect(markdown).toContain(['First', 'Second'].join('\n'));
@@ -53,11 +53,128 @@ describe('note task export', () => {
       slices: [{ id: 'A', name: 'Empty', note: '   ' }]
     });
 
-    const markdown = files.find(file => file.name === '001-empty.md').content;
-    const json = JSON.parse(files.find(file => file.name === '001-empty.json').content);
+    const markdown = files.find(file => file.name === 'test-model-empty.md').content;
+    const json = JSON.parse(files.find(file => file.name === 'test-model-empty.json').content);
 
     expect(markdown).not.toContain('## Note');
     expect(Object.prototype.hasOwnProperty.call(json, 'note')).toBe(false);
+  });
+});
+
+describe('task export naming and untitled slices', () => {
+  it('prefixes files with the source filename and omits untitled slices', () => {
+    const { generateExportFiles } = loadExportGenerator();
+    const files = generateExportFiles({
+      title: 'Model Title',
+      slices: [
+        { id: 'missing' },
+        { id: 'null', name: null },
+        { id: 'empty', name: '' },
+        { id: 'whitespace', name: '   ' },
+        { id: 'titled', name: 'First Slice' }
+      ]
+    }, 'C:\\models\\Cart Flow.EMY');
+
+    expect(files.map(file => file.name)).toEqual([
+      'cart-flow-index.md',
+      'cart-flow-index.json',
+      'cart-flow-first-slice.md',
+      'cart-flow-first-slice.json'
+    ]);
+    expect(files[0].content).toContain('cart-flow-first-slice.md');
+    expect(JSON.parse(files[1].content).slices).toHaveLength(1);
+  });
+
+  it('uses a model title or the event-model fallback when no source filename exists', () => {
+    const { generateExportFiles } = loadExportGenerator();
+    const titledFiles = generateExportFiles({
+      title: 'New Model',
+      slices: []
+    });
+    const untitledFiles = generateExportFiles({
+      title: '!!!',
+      slices: []
+    });
+
+    expect(titledFiles.map(file => file.name)).toEqual([
+      'new-model-index.md',
+      'new-model-index.json'
+    ]);
+    expect(untitledFiles.map(file => file.name)).toEqual([
+      'event-model-index.md',
+      'event-model-index.json'
+    ]);
+  });
+
+  it('exports only the indexes when every slice is untitled', () => {
+    const { generateExportFiles } = loadExportGenerator();
+    const files = generateExportFiles({
+      title: 'Cart Flow',
+      slices: [
+        { id: 'missing' },
+        { id: 'empty', name: '' },
+        { id: 'whitespace', name: '   ' }
+      ]
+    }, 'cart-flow.emj');
+
+    expect(files.map(file => file.name)).toEqual([
+      'cart-flow-index.md',
+      'cart-flow-index.json'
+    ]);
+    expect(JSON.parse(files[1].content).slices).toEqual([]);
+  });
+
+  it('uses a title from another merged fragment when the first fragment is blank', () => {
+    const { generateExportFiles } = loadExportGenerator();
+    const files = generateExportFiles({
+      title: 'Test Model',
+      slices: [
+        { id: 'A', name: '   ' },
+        { id: 'A', name: 'Named Slice' }
+      ]
+    });
+
+    expect(files.map(file => file.name)).toContain('test-model-named-slice.md');
+  });
+
+  it('merges same-name slices even when they have different IDs', () => {
+    const { generateExportFiles } = loadExportGenerator();
+    const files = generateExportFiles({
+      title: 'Test Model',
+      slices: [
+        { id: 'A', name: 'Same Slice' },
+        { id: 'B', name: 'Same Slice' }
+      ]
+    });
+
+    expect(files.map(file => file.name)).toEqual([
+      'test-model-index.md',
+      'test-model-index.json',
+      'test-model-same-slice.md',
+      'test-model-same-slice.json'
+    ]);
+  });
+
+  it('rejects different slices that normalize to the same filename', () => {
+    const { generateExportFiles } = loadExportGenerator();
+    const model = {
+      title: 'Test Model',
+      slices: [
+        { id: 'A', name: 'Create Order' },
+        { id: 'B', name: 'create-order' }
+      ]
+    };
+
+    expect(() => generateExportFiles(model)).toThrow(/filename collision/i);
+  });
+
+  it('rejects slice filenames that would overwrite the manifest', () => {
+    const { generateExportFiles } = loadExportGenerator();
+
+    expect(() => generateExportFiles({
+      title: 'Test Model',
+      slices: [{ id: 'A', name: 'Index' }]
+    })).toThrow(/filename collision/i);
   });
 });
 
@@ -72,10 +189,10 @@ describe('slice background task export', () => {
       ]
     });
 
-    const markdown = files.find(file => file.name === '001-colored.md').content;
-    const json = JSON.parse(files.find(file => file.name === '001-colored.json').content);
-    const indexMarkdown = files.find(file => file.name === 'index.md').content;
-    const indexJson = JSON.parse(files.find(file => file.name === 'index.json').content);
+    const markdown = files.find(file => file.name === 'test-model-colored.md').content;
+    const json = JSON.parse(files.find(file => file.name === 'test-model-colored.json').content);
+    const indexMarkdown = files.find(file => file.name === 'test-model-index.md').content;
+    const indexJson = JSON.parse(files.find(file => file.name === 'test-model-index.json').content);
 
     expect(markdown).toContain('- **Background:** #E8F5E9');
     expect(json.background).toBe('#E8F5E9');
@@ -91,8 +208,8 @@ describe('slice background task export', () => {
       slices: [{ id: 'A', name: 'Plain' }]
     });
 
-    const markdown = files.find(file => file.name === '001-plain.md').content;
-    const json = JSON.parse(files.find(file => file.name === '001-plain.json').content);
+    const markdown = files.find(file => file.name === 'test-model-plain.md').content;
+    const json = JSON.parse(files.find(file => file.name === 'test-model-plain.json').content);
 
     expect(markdown).toContain('- **Background:** _none_');
     expect(json.background).toBe('');

@@ -61,7 +61,7 @@ Per-file preferences for how an Event Model is displayed, including filter visib
 _Avoid_: View state (the canonical term **View** means an Event Model read model)
 
 **Task File Pair**:
-The `.md`/`.json` pair exported per Deduplicated Slice by Task Export, named `NNN-slicename.md`/`NNN-slicename.json`. Both describe the exact same slice — its pattern, own elements, one-hop-back dependencies, tests, and relations — the Markdown for a human or AI agent to read, the JSON (versioned via `schemaVersion`, see `docs/adr/0004-versioned-json-schema-for-exported-task-files.md`) for a code-generation tool to parse programmatically. `index.md`/`index.json` are the equivalent pair for the whole export's manifest. The file contract is shared by both viewer deployments; only delivery differs.
+The `.md`/`.json` pair exported per Deduplicated Slice by Task Export, named `modelname-slicename.md`/`modelname-slicename.json`, without a sequence prefix. The model name comes from the source filename stem, or the model title for a new document. Slices without a title are omitted. Both files describe the exact same slice — its pattern, own elements, one-hop-back dependencies, tests, and relations — the Markdown for a human or AI agent to read, the JSON (versioned via `schemaVersion`, see `docs/adr/0004-versioned-json-schema-for-exported-task-files.md`) for a code-generation tool to parse programmatically. The model-prefixed `modelname-index.md`/`modelname-index.json` are the equivalent pair for the whole export's manifest. The file contract is shared by both viewer deployments; only delivery differs.
 _Avoid_: task file (ambiguous about which half of the pair is meant)
 
 **Discovered encoding path**:

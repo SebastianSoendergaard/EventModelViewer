@@ -1,6 +1,13 @@
         // Server delivery for the shared task export capability.
 
         var _currentModel = null;
+        var _currentFileName = null;
+
+        EventBus.on(Events.FILE_LOADED, function(payload) {
+            _currentFileName = payload && typeof payload.fileName === 'string'
+                ? payload.fileName
+                : null;
+        });
 
         EventBus.on(Events.MODEL_CHANGED, function(payload) {
             _currentModel = payload ? payload.model : null;
@@ -109,8 +116,11 @@
 
         exportSelectBtn.addEventListener('click', async () => {
             if (!_exportBrowsePath || !_currentModel) return;
-            const files = EventModelTaskExport.generateExportFiles(_currentModel);
             try {
+                const files = EventModelTaskExport.generateExportFiles(
+                    _currentModel,
+                    _currentFileName
+                );
                 const res = await fetch(`${baseUrl()}/export`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

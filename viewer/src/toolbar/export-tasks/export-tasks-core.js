@@ -19,12 +19,27 @@
         // versioned — it's for humans/agents to read, not to parse structurally.
         var TASK_JSON_SCHEMA_VERSION = 1;
 
-        function sanitizeSliceName(name) {
-            return (name || '')
+        function sanitizeFileNamePart(name, fallback) {
+            return (typeof name === 'string' ? name : '')
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, '-')
                 .replace(/^-+|-+$/g, '')
-                .substring(0, 50) || 'slice';
+                .substring(0, 50) || fallback;
+        }
+
+        function sanitizeSliceName(name) {
+            return sanitizeFileNamePart(name, 'slice');
+        }
+
+        function getModelFilePrefix(model, fileName) {
+            var name = '';
+            if (typeof fileName === 'string' && fileName.trim()) {
+                name = fileName.split(/[\\/]/).pop()
+                    .replace(/\.(?:emj|emy)$/i, '');
+            } else if (model && typeof model.title === 'string') {
+                name = model.title;
+            }
+            return sanitizeFileNamePart(name, 'event-model');
         }
 
         function padOrder(n, width) {
@@ -46,7 +61,7 @@
          * *different* single entry in their `events`/`views` reference array —
          * those reference arrays are unioned across fragments too, not just
          * overwritten by the first fragment, so no dependency is silently dropped.
-         * Preserves order of first appearance (used later for file numbering).
+         * Preserves order of first appearance for task and manifest ordering.
          */
         function unionRefs(existing, incoming) {
             var result = (existing || []).slice();
@@ -78,15 +93,56 @@
         }
 
         function deduplicateSlices(slices) {
+            // Match by ID or exact name so duplicate slices with distinct IDs merge.
+            var sliceList = slices || [];
+            var parent = sliceList.map(function(_, index) {
+                return index;
+            });
+            var firstById = new Map();
+            var firstByName = new Map();
+
+            function findRoot(index) {
+                if (parent[index] !== index) {
+                    parent[index] = findRoot(parent[index]);
+                }
+                return parent[index];
+            }
+
+            function mergeRoots(first, second) {
+                var firstRoot = findRoot(first);
+                var secondRoot = findRoot(second);
+                if (firstRoot !== secondRoot) {
+                    var root = Math.min(firstRoot, secondRoot);
+                    parent[Math.max(firstRoot, secondRoot)] = root;
+                }
+            }
+
+            sliceList.forEach(function(slice, index) {
+                if (slice.id) {
+                    if (firstById.has(slice.id)) {
+                        mergeRoots(index, firstById.get(slice.id));
+                    } else {
+                        firstById.set(slice.id, index);
+                    }
+                }
+                if (typeof slice.name === 'string' && slice.name.length > 0) {
+                    if (firstByName.has(slice.name)) {
+                        mergeRoots(index, firstByName.get(slice.name));
+                    } else {
+                        firstByName.set(slice.name, index);
+                    }
+                }
+            });
+
             var order = [];
             var byKey = new Map();
 
-            (slices || []).forEach(function(slice, index) {
-                var key = slice.id || ('__slice_' + index);
+            sliceList.forEach(function(slice, index) {
+                var key = findRoot(index);
                 var merged = byKey.get(key);
                 if (!merged) {
                     merged = {
-                        id: slice.id || key,
+                        id: slice.id || ('__slice_' + index),
                         name: slice.name || '',
                         border: slice.border || '',
                         background: slice.background || '',
@@ -105,7 +161,12 @@
                     if (!Object.prototype.hasOwnProperty.call(merged, 'hints')) merged.hints = [];
                     merged.hints = mergeHints(merged.hints, slice.hints);
                 }
-                if (!merged.name && slice.name) merged.name = slice.name;
+                var mergedNameIsBlank = typeof merged.name !== 'string' || !merged.name.trim();
+                var sliceNameIsPresent = typeof slice.name === 'string' &&
+                    slice.name.trim().length > 0;
+                if (mergedNameIsBlank && sliceNameIsPresent) {
+                    merged.name = slice.name;
+                }
                 if (!merged.border && slice.border) merged.border = slice.border;
                 if (!merged.background && slice.background) merged.background = slice.background;
                 addNotePart(merged.noteParts, slice.note);
@@ -536,27 +597,40 @@
         }
 
         /**
-         * Main entry point: turns an enriched event model (from MODEL_CHANGED) into
-         * the full list of files to write — index.md + index.json plus, per
-         * deduplicated slice in order, a paired NNN-slicename.md (for humans/agents
-         * to read) and NNN-slicename.json (same information, structured for a
-         * code-gen tool to consume).
+         * Main entry point: turns an enriched event model into model-prefixed
+         * index files and, per titled deduplicated slice, a paired Markdown/JSON
+         * task file.
          */
-        function generateExportFiles(model) {
-            var dedupedSlices = deduplicateSlices(model.slices);
+        function generateExportFiles(model, modelFileName) {
+            var dedupedSlices = deduplicateSlices(model.slices).filter(function(slice) {
+                return typeof slice.name === 'string' && slice.name.trim().length > 0;
+            });
+            var modelPrefix = getModelFilePrefix(model, modelFileName);
             var globalMaps = buildGlobalMaps(dedupedSlices);
             var width = Math.max(3, String(dedupedSlices.length).length);
             var files = [];
             var indexEntries = [];
+            var indexFileNameMd = modelPrefix + '-index.md';
+            var indexFileNameJson = modelPrefix + '-index.json';
+            var fileNames = new Set([indexFileNameMd, indexFileNameJson]);
 
             dedupedSlices.forEach(function(slice, i) {
                 var order = i + 1;
                 var orderStr = padOrder(order, width);
                 var pattern = classifySlicePattern(slice);
                 var deps = computeDependencies(slice, globalMaps);
-                var baseName = orderStr + '-' + sanitizeSliceName(slice.name);
+                var baseName = modelPrefix + '-' + sanitizeSliceName(slice.name);
                 var fileNameMd = baseName + '.md';
                 var fileNameJson = baseName + '.json';
+
+                if (fileNames.has(fileNameMd) || fileNames.has(fileNameJson)) {
+                    throw new Error(
+                        'Export filename collision: ' + fileNameMd +
+                        '. Rename the slices to produce unique filenames.'
+                    );
+                }
+                fileNames.add(fileNameMd);
+                fileNames.add(fileNameJson);
 
                 files.push({ name: fileNameMd, content: buildSliceMarkdown(orderStr, slice, pattern, deps) });
 
@@ -570,10 +644,30 @@
                 });
             });
 
-            files.unshift({ name: 'index.json', content: JSON.stringify(buildIndexJson(model.title, indexEntries), null, 2) + '\n' });
-            files.unshift({ name: 'index.md', content: buildIndexMarkdown(model.title, indexEntries.map(function(e) {
-                return { order: e.orderStr, fileName: e.fileNameMd, name: e.name, pattern: e.pattern, state: e.state, background: e.background };
-            })) });
+            files.unshift({
+                name: indexFileNameJson,
+                content: JSON.stringify(
+                    buildIndexJson(model.title, indexEntries),
+                    null,
+                    2
+                ) + '\n'
+            });
+            files.unshift({
+                name: indexFileNameMd,
+                content: buildIndexMarkdown(
+                    model.title,
+                    indexEntries.map(function(e) {
+                        return {
+                            order: e.orderStr,
+                            fileName: e.fileNameMd,
+                            name: e.name,
+                            pattern: e.pattern,
+                            state: e.state,
+                            background: e.background
+                        };
+                    })
+                )
+            });
             return files;
         }
 

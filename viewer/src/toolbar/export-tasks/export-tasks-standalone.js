@@ -1,6 +1,13 @@
         // Standalone delivery for the shared task export capability.
 
         var _currentModel = null;
+        var _currentFileName = null;
+
+        EventBus.on(Events.FILE_LOADED, function(payload) {
+            _currentFileName = payload && typeof payload.fileName === 'string'
+                ? payload.fileName
+                : null;
+        });
 
         EventBus.on(Events.MODEL_CHANGED, function(payload) {
             _currentModel = payload ? payload.model : null;
@@ -43,7 +50,10 @@
 
             var files;
             try {
-                files = EventModelTaskExport.generateExportFiles(_currentModel);
+                files = EventModelTaskExport.generateExportFiles(
+                    _currentModel,
+                    _currentFileName
+                );
             } catch (error) {
                 alert('Error exporting: ' + error.message);
                 return;

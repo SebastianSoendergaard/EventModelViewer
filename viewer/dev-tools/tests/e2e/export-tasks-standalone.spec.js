@@ -32,4 +32,8 @@ test('standalone task export delivers every generated file', async ({ page }) =>
   await page.waitForTimeout(5000);
 
   expect(downloads).toHaveLength(expectedFileCount);
+  expect(downloads).toContain('download-test-index.md');
+  expect(downloads).toContain('download-test-index.json');
+  expect(downloads).toContain('download-test-slice-1.md');
+  expect(downloads).toContain('download-test-slice-1.json');
 });
