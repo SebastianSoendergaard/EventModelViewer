@@ -330,13 +330,33 @@ public class FileService : IDisposable
         }
 
         var full = FullPath(name);
-        if (File.Exists(full))
+        if (File.Exists(full) || Directory.Exists(full))
         {
             error = $"File already exists: {name}";
             return false;
         }
 
-        File.WriteAllText(full, "{}");
+        var content = Path.GetExtension(name).Equals(".emy", StringComparison.OrdinalIgnoreCase)
+            ? "title: \"\"\nslices: []\n"
+            : "{\n  \"title\": \"\",\n  \"slices\": []\n}";
+
+        FileStream stream;
+        try
+        {
+            stream = new FileStream(full, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        }
+        catch (IOException) when (File.Exists(full) || Directory.Exists(full))
+        {
+            error = $"File already exists: {name}";
+            return false;
+        }
+
+        using (stream)
+        using (var writer = new StreamWriter(stream))
+        {
+            writer.Write(content);
+        }
+
         error = string.Empty;
         return true;
     }

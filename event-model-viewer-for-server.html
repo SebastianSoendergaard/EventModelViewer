@@ -382,28 +382,32 @@
             font-weight: 600;
         }
 
-        #exportFolderBrowserCancel {
+        #exportFolderBrowserCancel,
+        .export-format-modal [data-action="cancel"] {
             background: #ecf0f1;
             color: #2c3e50;
         }
 
-        #exportFolderBrowserSelect {
+        #exportFolderBrowserSelect,
+        .export-format-modal [data-action="export"] {
             background: linear-gradient(135deg, #27ae60, #1e8449);
             color: white;
         }
 
-        #exportFolderBrowserSelect:disabled {
+        #exportFolderBrowserSelect:disabled,
+        .export-format-modal [data-action="export"]:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
 
-.export-format-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); align-items: center; justify-content: center; z-index: 10000; }
-.export-format-overlay.visible { display: flex; }
-.export-format-modal { background: white; border-radius: 10px; padding: 1.25rem 1.5rem; width: 360px; max-width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 0.75rem; }
-.export-format-modal h2 { font-size: 1.1rem; color: #2c3e50; }
-.export-format-modal label, .export-format-options label { cursor: pointer; }
-.export-format-hint, #exportFormatHint { color: #8a5a00; font-size: 0.85rem; }
-.export-format-options { display: flex; gap: 0.5rem; flex-direction: column; border: 1px solid #dfe4e8; padding: 0.6rem; }
+        .export-format-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); align-items: center; justify-content: center; z-index: 10000; }
+        .export-format-overlay.visible { display: flex; }
+        .export-format-modal { background: white; border-radius: 10px; padding: 1.25rem 1.5rem; width: 480px; max-width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 0.75rem; }
+        .export-format-modal h2 { font-size: 1.1rem; color: #2c3e50; }
+        .export-format-modal label, .export-format-options label { cursor: pointer; }
+        .export-format-hint, #exportFormatHint { color: #8a5a00; font-size: 0.85rem; }
+        .export-format-options { display: flex; gap: 0.5rem; flex-direction: column; border: 1px solid #dfe4e8; border-radius: 6px; padding: 0.6rem; }
+        .export-format-options legend { color: #2c3e50; font-weight: 600; padding: 0 0.25rem; }
 
         .checkbox-group {
             display: flex;
@@ -517,6 +521,11 @@
         }
 
         .format-picker-choice:hover {
+            border-color: #3498db;
+            background: #eaf4fc;
+        }
+
+        .format-picker-choice.selected {
             border-color: #3498db;
             background: #eaf4fc;
         }
@@ -3279,35 +3288,56 @@ trigger types:
         const newServerBtn = document.getElementById('newServerBtn');
 
         newServerBtn.addEventListener('click', async () => {
-            const choice = await FormatPicker.prompt({ askName: true, title: 'New Event Model' });
-            if (!choice) return;
+            let defaultName = '';
+            let defaultFormat;
 
-            // The picker's format button is authoritative — strip any extension the
-            // user may have typed themselves so it can't disagree with the choice.
-            const baseName = choice.name.replace(/\.(emj|emy)$/i, '');
-            const name = `${baseName}.${choice.extension}`;
-
-            try {
-                const createRes = await fetch(`${window.location.origin}/files`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name })
+            while (true) {
+                const choice = await FormatPicker.prompt({
+                    askName: true,
+                    title: 'New Event Model',
+                    defaultName,
+                    defaultFormat
                 });
+                if (!choice) return;
+
+                // The picker's format button is authoritative — strip any extension the
+                // user may have typed themselves so it can't disagree with the choice.
+                const baseName = choice.name.replace(/\.(emj|emy)$/i, '');
+                const name = `${baseName}.${choice.extension}`;
+
+                let createRes;
+                try {
+                    createRes = await fetch(`${window.location.origin}/files`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name })
+                    });
+                } catch (e) {
+                    alert('Error creating file: ' + e.message);
+                    defaultName = baseName;
+                    defaultFormat = choice.format;
+                    continue;
+                }
 
                 if (!createRes.ok) {
                     const msg = await createRes.text();
                     alert('Failed to create file: ' + msg);
-                    return;
+                    defaultName = baseName;
+                    defaultFormat = choice.format;
+                    continue;
                 }
 
                 // Select + load through ServerIntegration so its tracked state
                 // (_selectedFile, _selectedFormat, _lastSavedContent) stays consistent
                 // for auto-save; also refresh the dropdown immediately rather than
                 // waiting on the files-changed SSE broadcast.
-                await window.ServerIntegration.selectFile(name);
-                await window.ServerIntegration.populateDropdown(true);
-            } catch (e) {
-                alert('Error creating file: ' + e.message);
+                try {
+                    await window.ServerIntegration.selectFile(name);
+                    await window.ServerIntegration.populateDropdown(true);
+                } catch (e) {
+                    alert('Error creating file: ' + e.message);
+                }
+                return;
             }
         });
 })();
@@ -4396,7 +4426,7 @@ trigger types:
             }
         });
 
-        // window.FormatPicker.prompt({ askName, title, defaultName })
+        // window.FormatPicker.prompt({ askName, title, defaultName, defaultFormat })
         //   -> Promise<{ name?, format, extension } | null>  (null when cancelled)
         window.FormatPicker = {
             prompt(options = {}) {
@@ -4405,6 +4435,10 @@ trigger types:
                 formatPickerNameRow.style.display = _askName ? '' : 'none';
                 formatPickerNameInput.value = options.defaultName || '';
                 formatPickerErrorEl.textContent = '';
+                formatPickerJsonBtn.classList.toggle('selected', options.defaultFormat === Codec.JSON);
+                formatPickerYamlBtn.classList.toggle('selected', options.defaultFormat === Codec.YAML);
+                formatPickerJsonBtn.setAttribute('aria-pressed', String(options.defaultFormat === Codec.JSON));
+                formatPickerYamlBtn.setAttribute('aria-pressed', String(options.defaultFormat === Codec.YAML));
                 formatPickerOverlay.classList.add('visible');
                 if (_askName) setTimeout(() => formatPickerNameInput.focus(), 0);
                 return new Promise((resolve) => { _resolvePrompt = resolve; });

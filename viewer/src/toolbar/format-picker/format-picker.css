@@ -80,6 +80,11 @@
             background: #eaf4fc;
         }
 
+        .format-picker-choice.selected {
+            border-color: #3498db;
+            background: #eaf4fc;
+        }
+
         .format-picker-choice-ext {
             font-size: 0.8rem;
             font-weight: 400;

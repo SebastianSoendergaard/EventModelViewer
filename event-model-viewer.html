@@ -119,6 +119,115 @@
             border-radius: 6px;
         }
 
+        .export-folder-browser-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .export-folder-browser-overlay.visible {
+            display: flex;
+        }
+
+        .export-folder-browser-modal {
+            background: white;
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            width: 480px;
+            max-width: 90vw;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .export-folder-browser-modal h2 {
+            font-size: 1.1rem;
+            color: #2c3e50;
+        }
+
+        .export-folder-browser-path {
+            font-size: 0.85rem;
+            color: #34495e;
+            background: #f4f6f7;
+            border-radius: 6px;
+            padding: 0.4rem 0.6rem;
+            word-break: break-all;
+        }
+
+        .export-folder-browser-list {
+            border: 1px solid #dfe4e8;
+            border-radius: 6px;
+            height: 260px;
+            overflow-y: auto;
+        }
+
+        .export-folder-browser-item {
+            padding: 0.4rem 0.6rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .export-folder-browser-item:hover {
+            background: #eaf4fc;
+        }
+
+        .export-folder-browser-up {
+            font-weight: 600;
+            color: #2980b9;
+        }
+
+        .export-folder-browser-error {
+            color: #c0392b;
+            font-size: 0.85rem;
+            min-height: 1em;
+        }
+
+        .export-folder-browser-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .export-folder-browser-actions button {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        #exportFolderBrowserCancel,
+        .export-format-modal [data-action="cancel"] {
+            background: #ecf0f1;
+            color: #2c3e50;
+        }
+
+        #exportFolderBrowserSelect,
+        .export-format-modal [data-action="export"] {
+            background: linear-gradient(135deg, #27ae60, #1e8449);
+            color: white;
+        }
+
+        #exportFolderBrowserSelect:disabled,
+        .export-format-modal [data-action="export"]:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .export-format-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); align-items: center; justify-content: center; z-index: 10000; }
+        .export-format-overlay.visible { display: flex; }
+        .export-format-modal { background: white; border-radius: 10px; padding: 1.25rem 1.5rem; width: 480px; max-width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 0.75rem; }
+        .export-format-modal h2 { font-size: 1.1rem; color: #2c3e50; }
+        .export-format-modal label, .export-format-options label { cursor: pointer; }
+        .export-format-hint, #exportFormatHint { color: #8a5a00; font-size: 0.85rem; }
+        .export-format-options { display: flex; gap: 0.5rem; flex-direction: column; border: 1px solid #dfe4e8; border-radius: 6px; padding: 0.6rem; }
+        .export-format-options legend { color: #2c3e50; font-weight: 600; padding: 0 0.25rem; }
+
         .checkbox-group {
             display: flex;
             gap: 1.5rem;
@@ -231,6 +340,11 @@
         }
 
         .format-picker-choice:hover {
+            border-color: #3498db;
+            background: #eaf4fc;
+        }
+
+        .format-picker-choice.selected {
             border-color: #3498db;
             background: #eaf4fc;
         }
@@ -2592,7 +2706,11 @@ trigger types:
             fileInput.value = '';
             fileName.textContent = 'No file selected';
             
-            EventBus.emit(Events.FILE_LOADED, { json: null, fileName: null, format: _currentFormat });
+            EventBus.emit(Events.FILE_LOADED, {
+                json: { title: '', slices: [] },
+                fileName: null,
+                format: _currentFormat
+            });
             
             console.log('New document created (.' + Codec.extensionFor(_currentFormat) + ')');
         }
@@ -3440,7 +3558,7 @@ trigger types:
         }
 
         var FORMAT_PREF_KEY = 'exportTaskFormats';
-        function chooseFormats() { return new Promise(function(resolve) { var saved; try { saved=JSON.parse(localStorage.getItem(FORMAT_PREF_KEY))||{}; } catch(e) { saved={}; } var overlay=document.createElement('div'); overlay.className='export-format-overlay visible'; overlay.innerHTML='<div class="export-format-modal" role="dialog" aria-labelledby="exportFormatTitle"><h2 id="exportFormatTitle">Export as Tasks</h2><p>Select output formats:</p><label><input type="checkbox" data-format="markdown"> Markdown (.md)</label><label><input type="checkbox" data-format="json"> JSON (.json)</label><div class="export-format-hint" aria-live="polite">Select at least one format.</div><div class="export-folder-browser-actions"><button data-action="cancel">Cancel</button><button data-action="export" disabled>Export</button></div></div>'; document.body.appendChild(overlay); var boxes=overlay.querySelectorAll('input'); boxes[0].checked=!!saved.markdown; boxes[1].checked=!!saved.json; var action=overlay.querySelector('[data-action=export]'),hint=overlay.querySelector('.export-format-hint'); function update(){var v={markdown:boxes[0].checked,json:boxes[1].checked};localStorage.setItem(FORMAT_PREF_KEY,JSON.stringify(v));action.disabled=!(v.markdown||v.json);hint.hidden=!action.disabled;} boxes.forEach(function(b){b.addEventListener('change',update);});update(); overlay.querySelector('[data-action=cancel]').onclick=function(){overlay.remove();resolve(null);};action.onclick=function(){var v={markdown:boxes[0].checked,json:boxes[1].checked};overlay.remove();resolve(v);}; }); }
+        function chooseFormats() { return new Promise(function(resolve) { var saved; try { saved=JSON.parse(localStorage.getItem(FORMAT_PREF_KEY))||{}; } catch(e) { saved={}; } var overlay=document.createElement('div'); overlay.className='export-format-overlay visible'; overlay.innerHTML='<div class="export-format-modal" role="dialog" aria-labelledby="exportFormatTitle"><h2 id="exportFormatTitle">Export as Tasks</h2><fieldset class="export-format-options"><legend>Select output formats:</legend><label><input type="checkbox" data-format="markdown"> Markdown (.md)</label><label><input type="checkbox" data-format="json"> JSON (.json)</label></fieldset><div class="export-format-hint" aria-live="polite">Select at least one format.</div><div class="export-folder-browser-actions"><button data-action="cancel">Cancel</button><button data-action="export" disabled>Export</button></div></div>'; document.body.appendChild(overlay); var boxes=overlay.querySelectorAll('input'); boxes[0].checked=!!saved.markdown; boxes[1].checked=!!saved.json; var action=overlay.querySelector('[data-action=export]'),hint=overlay.querySelector('.export-format-hint'); function update(){var v={markdown:boxes[0].checked,json:boxes[1].checked};localStorage.setItem(FORMAT_PREF_KEY,JSON.stringify(v));action.disabled=!(v.markdown||v.json);hint.hidden=!action.disabled;} boxes.forEach(function(b){b.addEventListener('change',update);});update(); overlay.querySelector('[data-action=cancel]').onclick=function(){overlay.remove();resolve(null);};action.onclick=function(){var v={markdown:boxes[0].checked,json:boxes[1].checked};overlay.remove();resolve(v);}; }); }
         var exportTasksBtn = document.getElementById('exportTasksBtn');
 
         exportTasksBtn.addEventListener('click', async function() {
@@ -3597,7 +3715,7 @@ trigger types:
             }
         });
 
-        // window.FormatPicker.prompt({ askName, title, defaultName })
+        // window.FormatPicker.prompt({ askName, title, defaultName, defaultFormat })
         //   -> Promise<{ name?, format, extension } | null>  (null when cancelled)
         window.FormatPicker = {
             prompt(options = {}) {
@@ -3606,6 +3724,10 @@ trigger types:
                 formatPickerNameRow.style.display = _askName ? '' : 'none';
                 formatPickerNameInput.value = options.defaultName || '';
                 formatPickerErrorEl.textContent = '';
+                formatPickerJsonBtn.classList.toggle('selected', options.defaultFormat === Codec.JSON);
+                formatPickerYamlBtn.classList.toggle('selected', options.defaultFormat === Codec.YAML);
+                formatPickerJsonBtn.setAttribute('aria-pressed', String(options.defaultFormat === Codec.JSON));
+                formatPickerYamlBtn.setAttribute('aria-pressed', String(options.defaultFormat === Codec.YAML));
                 formatPickerOverlay.classList.add('visible');
                 if (_askName) setTimeout(() => formatPickerNameInput.focus(), 0);
                 return new Promise((resolve) => { _resolvePrompt = resolve; });

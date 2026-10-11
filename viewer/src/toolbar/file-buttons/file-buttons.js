@@ -108,7 +108,11 @@
             fileInput.value = '';
             fileName.textContent = 'No file selected';
             
-            EventBus.emit(Events.FILE_LOADED, { json: null, fileName: null, format: _currentFormat });
+            EventBus.emit(Events.FILE_LOADED, {
+                json: { title: '', slices: [] },
+                fileName: null,
+                format: _currentFormat
+            });
             
             console.log('New document created (.' + Codec.extensionFor(_currentFormat) + ')');
         }

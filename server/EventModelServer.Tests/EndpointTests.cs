@@ -277,6 +277,9 @@ public class EndpointTests : IDisposable
         var response = await _client.PostAsJsonAsync("/files", new { name = "new.emj" });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.True(File.Exists(Path.Combine(_tempRoot, "new.emj")));
+        Assert.Equal(
+            "{\n  \"title\": \"\",\n  \"slices\": []\n}",
+            File.ReadAllText(Path.Combine(_tempRoot, "new.emj")));
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("new.emj", body);
     }
@@ -287,6 +290,9 @@ public class EndpointTests : IDisposable
         var response = await _client.PostAsJsonAsync("/files", new { name = "new.emy" });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.True(File.Exists(Path.Combine(_tempRoot, "new.emy")));
+        Assert.Equal(
+            "title: \"\"\nslices: []\n",
+            File.ReadAllText(Path.Combine(_tempRoot, "new.emy")));
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("new.emy", body);
     }
@@ -294,9 +300,12 @@ public class EndpointTests : IDisposable
     [Fact]
     public async Task PostFiles_Returns_BadRequest_For_Duplicate()
     {
-        File.WriteAllText(Path.Combine(_tempRoot, "exists.emj"), "{}");
+        const string originalContent = "existing document";
+        var existingPath = Path.Combine(_tempRoot, "exists.emj");
+        File.WriteAllText(existingPath, originalContent);
         var response = await _client.PostAsJsonAsync("/files", new { name = "exists.emj" });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(originalContent, File.ReadAllText(existingPath));
     }
 
     [Fact]

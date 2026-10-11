@@ -78,7 +78,7 @@
             }
         });
 
-        // window.FormatPicker.prompt({ askName, title, defaultName })
+        // window.FormatPicker.prompt({ askName, title, defaultName, defaultFormat })
         //   -> Promise<{ name?, format, extension } | null>  (null when cancelled)
         window.FormatPicker = {
             prompt(options = {}) {
@@ -87,6 +87,10 @@
                 formatPickerNameRow.style.display = _askName ? '' : 'none';
                 formatPickerNameInput.value = options.defaultName || '';
                 formatPickerErrorEl.textContent = '';
+                formatPickerJsonBtn.classList.toggle('selected', options.defaultFormat === Codec.JSON);
+                formatPickerYamlBtn.classList.toggle('selected', options.defaultFormat === Codec.YAML);
+                formatPickerJsonBtn.setAttribute('aria-pressed', String(options.defaultFormat === Codec.JSON));
+                formatPickerYamlBtn.setAttribute('aria-pressed', String(options.defaultFormat === Codec.YAML));
                 formatPickerOverlay.classList.add('visible');
                 if (_askName) setTimeout(() => formatPickerNameInput.focus(), 0);
                 return new Promise((resolve) => { _resolvePrompt = resolve; });
