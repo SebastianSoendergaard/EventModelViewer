@@ -40,6 +40,10 @@ _Avoid_: server viewer
 The shared export capability that turns the current Event Model into the server-compatible set of Markdown/JSON task export files and `index.md`/`index.json`; the Server-based Viewer writes these files to a selected folder, while the Standalone Viewer downloads them individually.
 _Avoid_: task download (does not cover server delivery)
 
+**Diagram Image Export**:
+A static PNG or SVG image of the rendered Event Model diagram, capturing its presentation rather than emitting task files.
+_Avoid_: diagram export (ambiguous with Task Export), PNG export (specific to one format)
+
 **Deduplicated Slice**:
 The logical slice formed by merging every raw `slices[]` entry that shares an id (or name, when no id is set). Multiple raw entries with the same id are fragments of one slice — the layout mechanic places a fragment next to whichever elements feed it — not distinct slices. Merging unions their `events`/`tests` and fills in `trigger`/`command`/`view`/`border`/`background` from whichever fragment defines them.
 _Avoid_: duplicate slice (ambiguous about which side of the merge is meant)

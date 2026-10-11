@@ -8315,6 +8315,11 @@ trigger types:
                     });
                 }
 
+                const inputStates = Array.from(
+                    diagramDiv.querySelectorAll('.trigger-input-field'),
+                    input => ({ value: input.value, scrollLeft: input.scrollLeft })
+                );
+
                 // Capture the diagram as canvas.
                 // Two html2canvas quirks are worked around in the cloned document it renders from
                 // (this does not touch the live page):
@@ -8331,6 +8336,92 @@ trigger types:
                     scale: 2, // Higher quality
                     logging: false,
                     onclone: (clonedDoc) => {
+                        const clonedInputs = clonedDoc.querySelectorAll('.trigger-input-field');
+                        if (clonedInputs.length !== inputStates.length) {
+                            throw new Error('Unable to prepare Diagram Image Export: input fields changed during capture.');
+                        }
+
+                        const inputStyleProperties = [
+                            'box-sizing',
+                            'padding-top',
+                            'padding-right',
+                            'padding-bottom',
+                            'padding-left',
+                            'margin-top',
+                            'margin-right',
+                            'margin-bottom',
+                            'margin-left',
+                            'border-top-width',
+                            'border-top-style',
+                            'border-top-color',
+                            'border-right-width',
+                            'border-right-style',
+                            'border-right-color',
+                            'border-bottom-width',
+                            'border-bottom-style',
+                            'border-bottom-color',
+                            'border-left-width',
+                            'border-left-style',
+                            'border-left-color',
+                            'border-top-left-radius',
+                            'border-top-right-radius',
+                            'border-bottom-right-radius',
+                            'border-bottom-left-radius',
+                            'background-color',
+                            'color',
+                            'font-family',
+                            'font-size',
+                            'font-style',
+                            'font-weight',
+                            'line-height',
+                            'letter-spacing',
+                            'text-align',
+                            'text-indent',
+                            'text-transform',
+                            'direction'
+                        ];
+
+                        clonedInputs.forEach((input, index) => {
+                            const inputState = inputStates[index];
+                            const computedStyle = clonedDoc.defaultView.getComputedStyle(input);
+                            const staticField = clonedDoc.createElement('div');
+                            staticField.className = 'trigger-input-field diagram-image-export-static-input';
+
+                            inputStyleProperties.forEach(property => {
+                                const value = computedStyle.getPropertyValue(property);
+                                if (value) staticField.style.setProperty(property, value);
+                            });
+
+                            const bounds = input.getBoundingClientRect();
+                            staticField.style.width = `${bounds.width}px`;
+                            staticField.style.height = `${bounds.height}px`;
+                            staticField.style.display = 'flex';
+                            staticField.style.alignItems = 'center';
+                            staticField.style.overflow = 'hidden';
+                            staticField.style.whiteSpace = 'nowrap';
+
+                            const viewport = clonedDoc.createElement('span');
+                            viewport.className = 'diagram-image-export-static-input__viewport';
+                            viewport.style.display = 'flex';
+                            viewport.style.alignItems = 'center';
+                            viewport.style.flex = '1 1 auto';
+                            viewport.style.minWidth = '0';
+                            viewport.style.overflow = 'hidden';
+                            viewport.style.whiteSpace = 'nowrap';
+
+                            const text = clonedDoc.createElement('span');
+                            text.className = 'diagram-image-export-static-input__text';
+                            text.textContent = inputState.value;
+                            text.style.display = 'block';
+                            text.style.flex = '0 0 auto';
+                            text.style.whiteSpace = 'pre';
+                            text.style.transform = `translateX(${-inputState.scrollLeft}px)`;
+
+                            viewport.appendChild(text);
+                            staticField.appendChild(viewport);
+                            input.replaceWith(staticField);
+                        });
+
                         removeFilteredDiagramElements(clonedDoc.querySelector('.event-model-diagram'));
                         clonedDoc.querySelectorAll('.arrow-hitarea').forEach(el => el.remove());
                         const style = clonedDoc.createElement('style');
