@@ -8,6 +8,7 @@
         let _lastSavedContent = null; // stringified JSON as last saved to server
         let _currentJson = null;
         let _saveTimer = null;
+        let _saveQueue = Promise.resolve();
         let _eventSource = null;
         let _conflictBanner = null;
         let _connected = false;
@@ -291,12 +292,12 @@
         // ── File selection ────────────────────────────────────────────────────
 
         function selectFile(path) {
-            if (!path) return Promise.resolve();
+            if (!path) return Promise.resolve(false);
             const selectionGeneration = ++_selectionGeneration;
             clearFileError();
 
             const selection = _selectionQueue.then(async () => {
-                if (selectionGeneration !== _selectionGeneration) return;
+                if (selectionGeneration !== _selectionGeneration) return false;
                 try {
                     const response = await fetch(`${baseUrl()}/select`, {
                         method: 'POST',
@@ -306,17 +307,18 @@
                     if (!response.ok) {
                         throw new Error(`Server returned HTTP ${response.status}`);
                     }
-                    if (selectionGeneration !== _selectionGeneration) return;
+                    if (selectionGeneration !== _selectionGeneration) return false;
 
                     _selectedFile = path;
                     _selectedFormat = Codec.formatForFileName(path);
                     localStorage.setItem('serverSelectedFile', path);
-                    await loadSelectedFile(selectionGeneration);
+                    return await loadSelectedFile(selectionGeneration);
                 } catch (error) {
                     console.warn('[server] Error selecting file:', error);
                     if (selectionGeneration === _selectionGeneration) {
                         showFileError(path, error, '', Codec.formatForFileName(path));
                     }
+                    return false;
                 }
             });
             _selectionQueue = selection;
@@ -329,7 +331,7 @@
                 const response = await fetch(`${baseUrl()}/selected`);
                 if (!response.ok) throw new Error(`Server returned HTTP ${response.status}`);
                 text = await response.text();
-                if (selectionGeneration !== _selectionGeneration) return;
+                if (selectionGeneration !== _selectionGeneration) return false;
                 const json = Codec.parse(text, _selectedFormat);
                 clearFileError();
                 _lastSavedContent = text;
@@ -345,13 +347,68 @@
                     }
                 });
                 setSaveStatus('saved');
+                return true;
             } catch (error) {
                 console.warn('[server] Failed to load selected file:', error);
                 if (selectionGeneration === _selectionGeneration) {
                     showFileError(_selectedFile, error, text, _selectedFormat);
                 }
+                return false;
             }
         }
+
+        EventBus.on(Events.FORMAT_CONVERSION_READY, async ({ json, sourceFormat, targetFormat }) => {
+            if (!_selectedFile || sourceFormat !== _selectedFormat || targetFormat === sourceFormat) {
+                EventBus.emit(Events.FORMAT_CONVERSION_FAILED, {
+                    message: 'The active server document changed before conversion could complete.'
+                });
+                return;
+            }
+
+            const sourcePath = _selectedFile;
+            const separatorIndex = Math.max(sourcePath.lastIndexOf('/'), sourcePath.lastIndexOf('\\'));
+            const sourceName = sourcePath.slice(separatorIndex + 1);
+            if (!/\.(emj|emy)$/i.test(sourceName)) {
+                EventBus.emit(Events.FORMAT_CONVERSION_FAILED, {
+                    message: 'The selected server file does not have a supported model extension.'
+                });
+                return;
+            }
+
+            const convertedPath = sourcePath.slice(0, separatorIndex + 1)
+                + sourceName.replace(/\.(emj|emy)$/i, `.${Codec.extensionFor(targetFormat)}`);
+            const content = Codec.stringify(json, targetFormat);
+
+            if (_saveTimer) {
+                clearTimeout(_saveTimer);
+                _saveTimer = null;
+            }
+
+            try {
+                await _saveQueue;
+                const response = await fetch(`${baseUrl()}/files/convert`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: convertedPath, content })
+                });
+                if (!response.ok) {
+                    const details = await response.text();
+                    throw new Error(details || `Server returned HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (!result.path) {
+                    throw new Error('Server did not return the created file path.');
+                }
+                if (!await selectFile(result.path)) {
+                    throw new Error(`The converted file was created but could not be opened: ${result.path}`);
+                }
+            } catch (error) {
+                EventBus.emit(Events.FORMAT_CONVERSION_FAILED, {
+                    message: `Could not create the converted server file: ${error.message}`
+                });
+            }
+        });
 
         // ── Save status ───────────────────────────────────────────────────────
 
@@ -377,7 +434,12 @@
 
         function scheduleAutoSave() {
             if (_saveTimer) clearTimeout(_saveTimer);
-            _saveTimer = setTimeout(trySaveToServer, 1000);
+            _saveTimer = setTimeout(() => {
+                _saveTimer = null;
+                _saveQueue = _saveQueue
+                    .then(trySaveToServer)
+                    .catch(error => console.error('[server] Auto-save queue error:', error));
+            }, 1000);
         }
 
         async function trySaveToServer() {

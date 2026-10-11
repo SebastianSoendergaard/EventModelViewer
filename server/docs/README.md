@@ -133,6 +133,30 @@ Creates a new empty event model file in the root folder with content `{}` (valid
 
 ---
 
+### `POST /files/convert`
+
+Creates a converted event model file with the supplied content. `path` is relative to the active root and may include an existing subfolder; absolute paths, traversal segments, unsupported extensions, and existing destinations are rejected. The server writes to a temporary sibling file and moves it into place only after writing succeeds, so the target is never overwritten and a failed write does not leave an empty model file.
+
+**Request body:**
+
+```json
+{
+  "path": "domain/my-model.emy",
+  "content": "title: Cart\nslices: []\n"
+}
+```
+
+The client chooses the destination extension (`.emj` or `.emy`) and supplies serialized content in that encoding. The server does not parse or infer the content format. The destination's parent folder must already exist.
+
+**Responses:**
+
+| Status | Meaning |
+|--------|---------|
+| `201 Created` | File created — `{ "path": "domain/my-model.emy" }` |
+| `400 Bad Request` | String `path` or `content` missing, invalid path, unsupported extension, missing folder, or destination already exists |
+
+---
+
 ### `POST /select`
 
 Selects a file to work with. Subsequent calls to `/selected` operate on this file. A `FileSystemWatcher` is attached to it immediately, so external editor saves trigger a `file-changed` SSE event.

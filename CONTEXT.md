@@ -5,7 +5,7 @@ Visualizes and edits Event Model documents (per Dymitruk/Dilger Event Modeling) 
 ## Language
 
 **Event Model**:
-The document this app edits — slices, triggers, commands, events, views, and tests. It has exactly one schema, but is stored on disk in either of two text encodings, chosen explicitly per document (never inferred from content, never converted after the fact).
+The document this app edits — slices, triggers, commands, events, views, and tests. It has exactly one schema, but is stored on disk in either of two text encodings, chosen explicitly per document. A user may explicitly convert between encodings; the encoding is never inferred from content.
 _Avoid_: model file (ambiguous about which encoding)
 
 **Command Pattern**:

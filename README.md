@@ -33,7 +33,7 @@ Use **📤 Export as Tasks** to write the selected Markdown and/or JSON task exp
 
 ## Event Model Format (.emj / .emy)
 
-The viewer supports event models defined in either the `.emj` format (Event Model JSON) or the `.emy` format (Event Model YAML) — same schema, just a different encoding on disk. When creating a new file you choose which one to use; opening/saving always keeps the file in the format it's already in (see [`CONTEXT.md`](CONTEXT.md) for the full glossary). The structure is:
+The viewer supports event models defined in either the `.emj` format (Event Model JSON) or the `.emy` format (Event Model YAML) — same schema, just a different encoding on disk. When creating a new file you choose which one to use; opening and editing use the encoding identified by the file extension or explicit document format. You can explicitly convert between encodings from the code editor toolbar; the format is never inferred from the text (see [`CONTEXT.md`](CONTEXT.md) for the full glossary). The structure is:
 
 
 ### Building Blocks
@@ -78,6 +78,7 @@ The full field-by-field reference for the `.emj`/`.emy` schema has moved to [`vi
 
 ### 📝 Code Editor (JSON or YAML)
 - **Format-aware editing** - Shows raw JSON for `.emj` files or raw YAML for `.emy` files
+- **JSON/YAML conversion** - Convert the active document to the other encoding from the editor toolbar; standalone mode updates the active document, while server mode creates a new file beside the source
 - **Collapsable objects and arrays** - Navigate large event model files easily
 - **Smart labels** - See property names and item counts when collapsed
 - **Live editing** - Changes update the diagram in real-time

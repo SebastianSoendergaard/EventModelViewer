@@ -18,6 +18,30 @@
         // don't carry a filename, so they keep using whatever was last resolved here.
         let _currentFormat = Codec.JSON;
 
+        function updateFormatConversionOptions() {
+            const hasDocument = _codeViewJson !== null;
+            const jsonToYaml = document.getElementById('convertJsonToYamlBtn');
+            const yamlToJson = document.getElementById('convertYamlToJsonBtn');
+            if (!jsonToYaml || !yamlToJson) return;
+
+            jsonToYaml.disabled = !hasDocument || _currentFormat !== Codec.JSON;
+            yamlToJson.disabled = !hasDocument || _currentFormat !== Codec.YAML;
+        }
+
+        function showFormatConversionError(message) {
+            const status = document.getElementById('formatConversionStatus');
+            if (!status) return;
+            status.textContent = message;
+            status.hidden = false;
+        }
+
+        function clearFormatConversionError() {
+            const status = document.getElementById('formatConversionStatus');
+            if (!status) return;
+            status.textContent = '';
+            status.hidden = true;
+        }
+
         // Subscribe to events
         EventBus.on(Events.FILE_LOADED, ({ json, fileName, format }) => {
             _codeViewJson = json;
@@ -25,6 +49,8 @@
             // explicit `format` chosen via the New-document format picker.
             _currentFormat = format || Codec.formatForFileName(fileName);
             collapsedLines.clear();
+            updateFormatConversionOptions();
+            clearFormatConversionError();
             if (codeEditorView && codeEditorView.setValue) {
                 codeEditorView.session.setMode(Codec.aceMode(_currentFormat));
                 codeEditorView.setValue(json ? Codec.stringify(json, _currentFormat) : '', -1);
@@ -34,9 +60,33 @@
         EventBus.on(Events.JSON_CHANGED, ({ json, source }) => {
             if (source === 'code') return; // Don't update from our own edits
             _codeViewJson = json;
+            updateFormatConversionOptions();
             if (codeEditorView && codeEditorView.setValue) {
                 codeEditorView.setValue(Codec.stringify(json, _currentFormat), -1);
             }
+        });
+
+        EventBus.on(Events.FORMAT_CONVERSION_REQUESTED, ({ targetFormat }) => {
+            const expectedTarget = _currentFormat === Codec.JSON ? Codec.YAML : Codec.JSON;
+            if (!_codeViewJson || !codeEditorView || targetFormat !== expectedTarget) {
+                showFormatConversionError('No active document is available to convert.');
+                return;
+            }
+
+            try {
+                const json = Codec.parse(codeEditorView.getValue(), _currentFormat);
+                EventBus.emit(Events.FORMAT_CONVERSION_READY, {
+                    json,
+                    sourceFormat: _currentFormat,
+                    targetFormat
+                });
+            } catch (error) {
+                showFormatConversionError(`Could not convert document: ${error.message}`);
+            }
+        });
+
+        EventBus.on(Events.FORMAT_CONVERSION_FAILED, ({ message }) => {
+            showFormatConversionError(message);
         });
 
         EventBus.on(Events.EDITOR_RESIZED, () => {

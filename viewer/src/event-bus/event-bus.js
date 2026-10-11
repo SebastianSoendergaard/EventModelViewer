@@ -26,6 +26,14 @@
             // Payload: { json, source }  — source: 'code' | 'tree' | 'history' | 'addslice'
             JSON_CHANGED:   'json:changed',
 
+            // An explicit request to convert the active document's text encoding.
+            // Payload: FORMAT_CONVERSION_REQUESTED { targetFormat }
+            //         FORMAT_CONVERSION_READY { json, sourceFormat, targetFormat }
+            //         FORMAT_CONVERSION_FAILED { message }
+            FORMAT_CONVERSION_REQUESTED: 'format:conversion-requested',
+            FORMAT_CONVERSION_READY:     'format:conversion-ready',
+            FORMAT_CONVERSION_FAILED:    'format:conversion-failed',
+
             // A filter checkbox was toggled.
             // Payload: { type, checked }  — type: 'slices' | 'tests' | 'types' | 'swimlanes'
             FILTER_TOGGLED: 'filter:toggled',

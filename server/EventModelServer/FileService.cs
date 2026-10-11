@@ -361,6 +361,137 @@ public class FileService : IDisposable
         return true;
     }
 
+    public bool TryCreateFileWithContent(string relativePath, string content, out string error)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath))
+        {
+            error = "File path must be relative to the active root";
+            return false;
+        }
+
+        var segments = relativePath.Split(new[] { '/', '\\' }, StringSplitOptions.None);
+        if (segments.Length == 0 || segments.Any(segment =>
+                string.IsNullOrWhiteSpace(segment)
+                || segment is "." or ".."
+                || segment.Contains(':')
+                || segment.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0))
+        {
+            error = "File path contains invalid path segments";
+            return false;
+        }
+
+        var extension = Path.GetExtension(segments[^1]);
+        if (!extension.Equals(".emj", StringComparison.OrdinalIgnoreCase)
+            && !extension.Equals(".emy", StringComparison.OrdinalIgnoreCase))
+        {
+            error = "Converted file must use the .emj or .emy extension";
+            return false;
+        }
+
+        var root = Path.GetFullPath(_root);
+        var full = FullPath(Path.Combine(segments));
+        var rootPrefix = Path.EndsInDirectorySeparator(root)
+            ? root
+            : root + Path.DirectorySeparatorChar;
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        if (!full.StartsWith(rootPrefix, comparison))
+        {
+            error = "File path must stay within the active root";
+            return false;
+        }
+
+        var parent = Path.GetDirectoryName(full);
+        if (parent is null || !Directory.Exists(parent))
+        {
+            error = $"Destination folder does not exist: {relativePath}";
+            return false;
+        }
+
+        var currentDirectory = root;
+        foreach (var segment in segments[..^1])
+        {
+            currentDirectory = Path.Combine(currentDirectory, segment);
+            if (!Directory.Exists(currentDirectory))
+            {
+                error = $"Destination folder does not exist: {relativePath}";
+                return false;
+            }
+
+            FileAttributes attributes;
+            try
+            {
+                attributes = File.GetAttributes(currentDirectory);
+            }
+            catch (IOException exception)
+            {
+                error = $"Could not access destination folder '{relativePath}': {exception.Message}";
+                return false;
+            }
+            catch (UnauthorizedAccessException exception)
+            {
+                error = $"Could not access destination folder '{relativePath}': {exception.Message}";
+                return false;
+            }
+
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                error = $"Destination folder contains a link: {relativePath}";
+                return false;
+            }
+        }
+
+        if (File.Exists(full) || Directory.Exists(full))
+        {
+            error = $"File already exists: {relativePath}";
+            return false;
+        }
+
+        var temporaryPath = Path.Combine(parent, $".{Path.GetFileName(full)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using (var stream = new FileStream(
+                       temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var writer = new StreamWriter(stream))
+            {
+                writer.Write(content);
+            }
+
+            File.Move(temporaryPath, full);
+            error = string.Empty;
+            return true;
+        }
+        catch (IOException exception)
+        {
+            error = File.Exists(full) || Directory.Exists(full)
+                ? $"File already exists: {relativePath}"
+                : $"Could not create file '{relativePath}': {exception.Message}";
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            error = $"Could not create file '{relativePath}': {exception.Message}";
+        }
+
+        try
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
+        catch (IOException exception)
+        {
+            error += $" Temporary-file cleanup failed: {exception.Message}";
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            error += $" Temporary-file cleanup failed: {exception.Message}";
+        }
+
+        return false;
+    }
+
     public string? SelectedRelative => _selectedRelative;
 
     /// <summary>

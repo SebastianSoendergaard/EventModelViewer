@@ -923,6 +923,55 @@
             margin-left: 8px;
         }
 
+        .format-conversion {
+            position: relative;
+        }
+
+        .code-toolbar .format-conversion-button {
+            margin-left: 8px;
+        }
+
+        .format-conversion-button svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .format-conversion-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            z-index: 1001;
+            min-width: 140px;
+            padding: 4px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .format-conversion-menu button {
+            width: 100%;
+            height: auto;
+            justify-content: flex-start;
+            padding: 6px 8px;
+            background: transparent;
+            border: 0;
+            border-radius: 3px;
+            white-space: nowrap;
+            font-size: 13px;
+        }
+
+        .format-conversion-menu button:hover:not(:disabled) {
+            background: #f0f0f0;
+            border-color: transparent;
+        }
+
+        .format-conversion-status {
+            margin-left: 0.5rem;
+            color: #a12622;
+            font-size: 12px;
+        }
+
         #codeEditorTextarea {
             width: 100%;
             height: 100%;
@@ -2243,6 +2292,26 @@
                         <button id="codeUndoBtn" title="Undo (Ctrl+Z)" disabled>↶</button>
                         <button id="codeRedoBtn" title="Redo (Ctrl+Y)" disabled>↷</button>
                         <button id="codeAddSliceBtn" title="Add new slice">+</button>
+                        <div class="format-conversion">
+                            <button id="formatConversionBtn" class="format-conversion-button" type="button"
+                                    title="Convert document format" aria-label="Convert document format"
+                                    aria-haspopup="menu" aria-expanded="false" aria-controls="formatConversionMenu">
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M4 7h13l-3-3m3 3-3 3M20 17H7l3 3m-3-3 3-3"
+                                          fill="none" stroke="currentColor" stroke-width="2"
+                                          stroke-linecap="round" stroke-linejoin="round"></path>
+                                </svg>
+                            </button>
+                            <div id="formatConversionMenu" class="format-conversion-menu" role="menu"
+                                 aria-label="Convert document format" hidden>
+                                <button id="convertJsonToYamlBtn" type="button" role="menuitem"
+                                        data-target-format="yaml" disabled>json -> yaml</button>
+                                <button id="convertYamlToJsonBtn" type="button" role="menuitem"
+                                        data-target-format="json" disabled>yaml -> json</button>
+                            </div>
+                        </div>
+                        <span id="formatConversionStatus" class="format-conversion-status"
+                              role="status" aria-live="polite" hidden></span>
                     </div>
                     <div id="codeEditor">
                         <div style="color: #999; padding: 1rem;">Loading code editor...</div>
@@ -2517,6 +2586,14 @@ trigger types:
             // JSON content was changed by a user edit or undo/redo.
             // Payload: { json, source }  — source: 'code' | 'tree' | 'history' | 'addslice'
             JSON_CHANGED:   'json:changed',
+
+            // An explicit request to convert the active document's text encoding.
+            // Payload: FORMAT_CONVERSION_REQUESTED { targetFormat }
+            //         FORMAT_CONVERSION_READY { json, sourceFormat, targetFormat }
+            //         FORMAT_CONVERSION_FAILED { message }
+            FORMAT_CONVERSION_REQUESTED: 'format:conversion-requested',
+            FORMAT_CONVERSION_READY:     'format:conversion-ready',
+            FORMAT_CONVERSION_FAILED:    'format:conversion-failed',
 
             // A filter checkbox was toggled.
             // Payload: { type, checked }  — type: 'slices' | 'tests' | 'types' | 'swimlanes'
@@ -2804,6 +2881,7 @@ trigger types:
         let _lastSavedContent = null; // stringified JSON as last saved to server
         let _currentJson = null;
         let _saveTimer = null;
+        let _saveQueue = Promise.resolve();
         let _eventSource = null;
         let _conflictBanner = null;
         let _connected = false;
@@ -3087,12 +3165,12 @@ trigger types:
         // ── File selection ────────────────────────────────────────────────────
 
         function selectFile(path) {
-            if (!path) return Promise.resolve();
+            if (!path) return Promise.resolve(false);
             const selectionGeneration = ++_selectionGeneration;
             clearFileError();
 
             const selection = _selectionQueue.then(async () => {
-                if (selectionGeneration !== _selectionGeneration) return;
+                if (selectionGeneration !== _selectionGeneration) return false;
                 try {
                     const response = await fetch(`${baseUrl()}/select`, {
                         method: 'POST',
@@ -3102,17 +3180,18 @@ trigger types:
                     if (!response.ok) {
                         throw new Error(`Server returned HTTP ${response.status}`);
                     }
-                    if (selectionGeneration !== _selectionGeneration) return;
+                    if (selectionGeneration !== _selectionGeneration) return false;
 
                     _selectedFile = path;
                     _selectedFormat = Codec.formatForFileName(path);
                     localStorage.setItem('serverSelectedFile', path);
-                    await loadSelectedFile(selectionGeneration);
+                    return await loadSelectedFile(selectionGeneration);
                 } catch (error) {
                     console.warn('[server] Error selecting file:', error);
                     if (selectionGeneration === _selectionGeneration) {
                         showFileError(path, error, '', Codec.formatForFileName(path));
                     }
+                    return false;
                 }
             });
             _selectionQueue = selection;
@@ -3125,7 +3204,7 @@ trigger types:
                 const response = await fetch(`${baseUrl()}/selected`);
                 if (!response.ok) throw new Error(`Server returned HTTP ${response.status}`);
                 text = await response.text();
-                if (selectionGeneration !== _selectionGeneration) return;
+                if (selectionGeneration !== _selectionGeneration) return false;
                 const json = Codec.parse(text, _selectedFormat);
                 clearFileError();
                 _lastSavedContent = text;
@@ -3141,13 +3220,68 @@ trigger types:
                     }
                 });
                 setSaveStatus('saved');
+                return true;
             } catch (error) {
                 console.warn('[server] Failed to load selected file:', error);
                 if (selectionGeneration === _selectionGeneration) {
                     showFileError(_selectedFile, error, text, _selectedFormat);
                 }
+                return false;
             }
         }
+
+        EventBus.on(Events.FORMAT_CONVERSION_READY, async ({ json, sourceFormat, targetFormat }) => {
+            if (!_selectedFile || sourceFormat !== _selectedFormat || targetFormat === sourceFormat) {
+                EventBus.emit(Events.FORMAT_CONVERSION_FAILED, {
+                    message: 'The active server document changed before conversion could complete.'
+                });
+                return;
+            }
+
+            const sourcePath = _selectedFile;
+            const separatorIndex = Math.max(sourcePath.lastIndexOf('/'), sourcePath.lastIndexOf('\\'));
+            const sourceName = sourcePath.slice(separatorIndex + 1);
+            if (!/\.(emj|emy)$/i.test(sourceName)) {
+                EventBus.emit(Events.FORMAT_CONVERSION_FAILED, {
+                    message: 'The selected server file does not have a supported model extension.'
+                });
+                return;
+            }
+
+            const convertedPath = sourcePath.slice(0, separatorIndex + 1)
+                + sourceName.replace(/\.(emj|emy)$/i, `.${Codec.extensionFor(targetFormat)}`);
+            const content = Codec.stringify(json, targetFormat);
+
+            if (_saveTimer) {
+                clearTimeout(_saveTimer);
+                _saveTimer = null;
+            }
+
+            try {
+                await _saveQueue;
+                const response = await fetch(`${baseUrl()}/files/convert`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: convertedPath, content })
+                });
+                if (!response.ok) {
+                    const details = await response.text();
+                    throw new Error(details || `Server returned HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (!result.path) {
+                    throw new Error('Server did not return the created file path.');
+                }
+                if (!await selectFile(result.path)) {
+                    throw new Error(`The converted file was created but could not be opened: ${result.path}`);
+                }
+            } catch (error) {
+                EventBus.emit(Events.FORMAT_CONVERSION_FAILED, {
+                    message: `Could not create the converted server file: ${error.message}`
+                });
+            }
+        });
 
         // ── Save status ───────────────────────────────────────────────────────
 
@@ -3173,7 +3307,12 @@ trigger types:
 
         function scheduleAutoSave() {
             if (_saveTimer) clearTimeout(_saveTimer);
-            _saveTimer = setTimeout(trySaveToServer, 1000);
+            _saveTimer = setTimeout(() => {
+                _saveTimer = null;
+                _saveQueue = _saveQueue
+                    .then(trySaveToServer)
+                    .catch(error => console.error('[server] Auto-save queue error:', error));
+            }, 1000);
         }
 
         async function trySaveToServer() {
@@ -4480,6 +4619,30 @@ trigger types:
         // don't carry a filename, so they keep using whatever was last resolved here.
         let _currentFormat = Codec.JSON;
 
+        function updateFormatConversionOptions() {
+            const hasDocument = _codeViewJson !== null;
+            const jsonToYaml = document.getElementById('convertJsonToYamlBtn');
+            const yamlToJson = document.getElementById('convertYamlToJsonBtn');
+            if (!jsonToYaml || !yamlToJson) return;
+
+            jsonToYaml.disabled = !hasDocument || _currentFormat !== Codec.JSON;
+            yamlToJson.disabled = !hasDocument || _currentFormat !== Codec.YAML;
+        }
+
+        function showFormatConversionError(message) {
+            const status = document.getElementById('formatConversionStatus');
+            if (!status) return;
+            status.textContent = message;
+            status.hidden = false;
+        }
+
+        function clearFormatConversionError() {
+            const status = document.getElementById('formatConversionStatus');
+            if (!status) return;
+            status.textContent = '';
+            status.hidden = true;
+        }
+
         // Subscribe to events
         EventBus.on(Events.FILE_LOADED, ({ json, fileName, format }) => {
             _codeViewJson = json;
@@ -4487,6 +4650,8 @@ trigger types:
             // explicit `format` chosen via the New-document format picker.
             _currentFormat = format || Codec.formatForFileName(fileName);
             collapsedLines.clear();
+            updateFormatConversionOptions();
+            clearFormatConversionError();
             if (codeEditorView && codeEditorView.setValue) {
                 codeEditorView.session.setMode(Codec.aceMode(_currentFormat));
                 codeEditorView.setValue(json ? Codec.stringify(json, _currentFormat) : '', -1);
@@ -4496,9 +4661,33 @@ trigger types:
         EventBus.on(Events.JSON_CHANGED, ({ json, source }) => {
             if (source === 'code') return; // Don't update from our own edits
             _codeViewJson = json;
+            updateFormatConversionOptions();
             if (codeEditorView && codeEditorView.setValue) {
                 codeEditorView.setValue(Codec.stringify(json, _currentFormat), -1);
             }
+        });
+
+        EventBus.on(Events.FORMAT_CONVERSION_REQUESTED, ({ targetFormat }) => {
+            const expectedTarget = _currentFormat === Codec.JSON ? Codec.YAML : Codec.JSON;
+            if (!_codeViewJson || !codeEditorView || targetFormat !== expectedTarget) {
+                showFormatConversionError('No active document is available to convert.');
+                return;
+            }
+
+            try {
+                const json = Codec.parse(codeEditorView.getValue(), _currentFormat);
+                EventBus.emit(Events.FORMAT_CONVERSION_READY, {
+                    json,
+                    sourceFormat: _currentFormat,
+                    targetFormat
+                });
+            } catch (error) {
+                showFormatConversionError(`Could not convert document: ${error.message}`);
+            }
+        });
+
+        EventBus.on(Events.FORMAT_CONVERSION_FAILED, ({ message }) => {
+            showFormatConversionError(message);
         });
 
         EventBus.on(Events.EDITOR_RESIZED, () => {
@@ -6248,6 +6437,41 @@ trigger types:
         const codeAddSliceBtn = document.getElementById('codeAddSliceBtn');
         const treeAddSliceBtn = document.getElementById('treeAddSliceBtn');
         const addSliceContextMenu = document.getElementById('addSliceContextMenu');
+
+        const formatConversionBtn = document.getElementById('formatConversionBtn');
+        const formatConversionMenu = document.getElementById('formatConversionMenu');
+        const formatConversionOptions = formatConversionMenu.querySelectorAll('[data-target-format]');
+
+        function setFormatConversionMenuOpen(isOpen) {
+            formatConversionMenu.hidden = !isOpen;
+            formatConversionBtn.setAttribute('aria-expanded', String(isOpen));
+        }
+
+        formatConversionBtn.addEventListener('click', () => {
+            setFormatConversionMenuOpen(formatConversionMenu.hidden);
+        });
+
+        formatConversionOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                EventBus.emit(Events.FORMAT_CONVERSION_REQUESTED, {
+                    targetFormat: option.dataset.targetFormat
+                });
+                setFormatConversionMenuOpen(false);
+            });
+        });
+
+        document.addEventListener('click', event => {
+            if (!event.target.closest('.format-conversion')) {
+                setFormatConversionMenuOpen(false);
+            }
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !formatConversionMenu.hidden) {
+                setFormatConversionMenuOpen(false);
+                formatConversionBtn.focus();
+            }
+        });
 
         function getUniqueSliceIdentity(elementSuffixes) {
             const slices = Array.isArray(_editorJson?.slices) ? _editorJson.slices : [];

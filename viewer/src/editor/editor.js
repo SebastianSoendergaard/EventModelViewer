@@ -160,6 +160,41 @@
         const treeAddSliceBtn = document.getElementById('treeAddSliceBtn');
         const addSliceContextMenu = document.getElementById('addSliceContextMenu');
 
+        const formatConversionBtn = document.getElementById('formatConversionBtn');
+        const formatConversionMenu = document.getElementById('formatConversionMenu');
+        const formatConversionOptions = formatConversionMenu.querySelectorAll('[data-target-format]');
+
+        function setFormatConversionMenuOpen(isOpen) {
+            formatConversionMenu.hidden = !isOpen;
+            formatConversionBtn.setAttribute('aria-expanded', String(isOpen));
+        }
+
+        formatConversionBtn.addEventListener('click', () => {
+            setFormatConversionMenuOpen(formatConversionMenu.hidden);
+        });
+
+        formatConversionOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                EventBus.emit(Events.FORMAT_CONVERSION_REQUESTED, {
+                    targetFormat: option.dataset.targetFormat
+                });
+                setFormatConversionMenuOpen(false);
+            });
+        });
+
+        document.addEventListener('click', event => {
+            if (!event.target.closest('.format-conversion')) {
+                setFormatConversionMenuOpen(false);
+            }
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !formatConversionMenu.hidden) {
+                setFormatConversionMenuOpen(false);
+                formatConversionBtn.focus();
+            }
+        });
+
         function getUniqueSliceIdentity(elementSuffixes) {
             const slices = Array.isArray(_editorJson?.slices) ? _editorJson.slices : [];
             const existingNames = new Set(slices.map(slice => slice?.name).filter(name => typeof name === 'string'));

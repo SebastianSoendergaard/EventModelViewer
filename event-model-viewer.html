@@ -742,6 +742,55 @@
             margin-left: 8px;
         }
 
+        .format-conversion {
+            position: relative;
+        }
+
+        .code-toolbar .format-conversion-button {
+            margin-left: 8px;
+        }
+
+        .format-conversion-button svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .format-conversion-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            z-index: 1001;
+            min-width: 140px;
+            padding: 4px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .format-conversion-menu button {
+            width: 100%;
+            height: auto;
+            justify-content: flex-start;
+            padding: 6px 8px;
+            background: transparent;
+            border: 0;
+            border-radius: 3px;
+            white-space: nowrap;
+            font-size: 13px;
+        }
+
+        .format-conversion-menu button:hover:not(:disabled) {
+            background: #f0f0f0;
+            border-color: transparent;
+        }
+
+        .format-conversion-status {
+            margin-left: 0.5rem;
+            color: #a12622;
+            font-size: 12px;
+        }
+
         #codeEditorTextarea {
             width: 100%;
             height: 100%;
@@ -2057,6 +2106,26 @@
                         <button id="codeUndoBtn" title="Undo (Ctrl+Z)" disabled>↶</button>
                         <button id="codeRedoBtn" title="Redo (Ctrl+Y)" disabled>↷</button>
                         <button id="codeAddSliceBtn" title="Add new slice">+</button>
+                        <div class="format-conversion">
+                            <button id="formatConversionBtn" class="format-conversion-button" type="button"
+                                    title="Convert document format" aria-label="Convert document format"
+                                    aria-haspopup="menu" aria-expanded="false" aria-controls="formatConversionMenu">
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M4 7h13l-3-3m3 3-3 3M20 17H7l3 3m-3-3 3-3"
+                                          fill="none" stroke="currentColor" stroke-width="2"
+                                          stroke-linecap="round" stroke-linejoin="round"></path>
+                                </svg>
+                            </button>
+                            <div id="formatConversionMenu" class="format-conversion-menu" role="menu"
+                                 aria-label="Convert document format" hidden>
+                                <button id="convertJsonToYamlBtn" type="button" role="menuitem"
+                                        data-target-format="yaml" disabled>json -> yaml</button>
+                                <button id="convertYamlToJsonBtn" type="button" role="menuitem"
+                                        data-target-format="json" disabled>yaml -> json</button>
+                            </div>
+                        </div>
+                        <span id="formatConversionStatus" class="format-conversion-status"
+                              role="status" aria-live="polite" hidden></span>
                     </div>
                     <div id="codeEditor">
                         <div style="color: #999; padding: 1rem;">Loading code editor...</div>
@@ -2331,6 +2400,14 @@ trigger types:
             // JSON content was changed by a user edit or undo/redo.
             // Payload: { json, source }  — source: 'code' | 'tree' | 'history' | 'addslice'
             JSON_CHANGED:   'json:changed',
+
+            // An explicit request to convert the active document's text encoding.
+            // Payload: FORMAT_CONVERSION_REQUESTED { targetFormat }
+            //         FORMAT_CONVERSION_READY { json, sourceFormat, targetFormat }
+            //         FORMAT_CONVERSION_FAILED { message }
+            FORMAT_CONVERSION_REQUESTED: 'format:conversion-requested',
+            FORMAT_CONVERSION_READY:     'format:conversion-ready',
+            FORMAT_CONVERSION_FAILED:    'format:conversion-failed',
 
             // A filter checkbox was toggled.
             // Payload: { type, checked }  — type: 'slices' | 'tests' | 'types' | 'swimlanes'
@@ -2633,6 +2710,40 @@ trigger types:
             _saveJsonToLocalStorage(json, _currentFileName, _currentFormat);
         });
 
+        EventBus.on(Events.FORMAT_CONVERSION_READY, ({ json, sourceFormat, targetFormat }) => {
+            if (_currentJson === null || sourceFormat !== _currentFormat || targetFormat === sourceFormat) {
+                EventBus.emit(Events.FORMAT_CONVERSION_FAILED, {
+                    message: 'The active document changed before conversion could complete.'
+                });
+                return;
+            }
+
+            const convertedFileName = _currentFileName
+                ? _currentFileName.replace(/\.(emj|emy)$/i, `.${Codec.extensionFor(targetFormat)}`)
+                : null;
+
+            _currentJson = json;
+            _currentFileName = convertedFileName;
+            _currentFormat = targetFormat;
+
+            if (_currentFileName) {
+                fileName.textContent = _currentFileName;
+            }
+
+            const identity = _currentFileName
+                ? { type: 'standalone', fileName: _currentFileName }
+                : null;
+            EventBus.emit(Events.FILE_LOADED, {
+                json,
+                fileName: _currentFileName,
+                format: _currentFormat,
+                presentationIdentity: identity
+            });
+            if (identity) {
+                EventBus.emit(Events.PRESENTATION_IDENTITY_CHANGED, { identity });
+            }
+        });
+
         // Self-initialize when app is ready
         EventBus.on(Events.APP_INIT, () => {
             loadJsonFromLocalStorage();
@@ -2650,6 +2761,8 @@ trigger types:
                 localStorage.setItem('eventModelJson', jsonString);
                 if (name) {
                     localStorage.setItem('eventModelFileName', name);
+                } else {
+                    localStorage.removeItem('eventModelFileName');
                 }
                 localStorage.setItem('eventModelFormat', format || Codec.JSON);
                 console.log('JSON auto-saved to localStorage');
@@ -3769,6 +3882,30 @@ trigger types:
         // don't carry a filename, so they keep using whatever was last resolved here.
         let _currentFormat = Codec.JSON;
 
+        function updateFormatConversionOptions() {
+            const hasDocument = _codeViewJson !== null;
+            const jsonToYaml = document.getElementById('convertJsonToYamlBtn');
+            const yamlToJson = document.getElementById('convertYamlToJsonBtn');
+            if (!jsonToYaml || !yamlToJson) return;
+
+            jsonToYaml.disabled = !hasDocument || _currentFormat !== Codec.JSON;
+            yamlToJson.disabled = !hasDocument || _currentFormat !== Codec.YAML;
+        }
+
+        function showFormatConversionError(message) {
+            const status = document.getElementById('formatConversionStatus');
+            if (!status) return;
+            status.textContent = message;
+            status.hidden = false;
+        }
+
+        function clearFormatConversionError() {
+            const status = document.getElementById('formatConversionStatus');
+            if (!status) return;
+            status.textContent = '';
+            status.hidden = true;
+        }
+
         // Subscribe to events
         EventBus.on(Events.FILE_LOADED, ({ json, fileName, format }) => {
             _codeViewJson = json;
@@ -3776,6 +3913,8 @@ trigger types:
             // explicit `format` chosen via the New-document format picker.
             _currentFormat = format || Codec.formatForFileName(fileName);
             collapsedLines.clear();
+            updateFormatConversionOptions();
+            clearFormatConversionError();
             if (codeEditorView && codeEditorView.setValue) {
                 codeEditorView.session.setMode(Codec.aceMode(_currentFormat));
                 codeEditorView.setValue(json ? Codec.stringify(json, _currentFormat) : '', -1);
@@ -3785,9 +3924,33 @@ trigger types:
         EventBus.on(Events.JSON_CHANGED, ({ json, source }) => {
             if (source === 'code') return; // Don't update from our own edits
             _codeViewJson = json;
+            updateFormatConversionOptions();
             if (codeEditorView && codeEditorView.setValue) {
                 codeEditorView.setValue(Codec.stringify(json, _currentFormat), -1);
             }
+        });
+
+        EventBus.on(Events.FORMAT_CONVERSION_REQUESTED, ({ targetFormat }) => {
+            const expectedTarget = _currentFormat === Codec.JSON ? Codec.YAML : Codec.JSON;
+            if (!_codeViewJson || !codeEditorView || targetFormat !== expectedTarget) {
+                showFormatConversionError('No active document is available to convert.');
+                return;
+            }
+
+            try {
+                const json = Codec.parse(codeEditorView.getValue(), _currentFormat);
+                EventBus.emit(Events.FORMAT_CONVERSION_READY, {
+                    json,
+                    sourceFormat: _currentFormat,
+                    targetFormat
+                });
+            } catch (error) {
+                showFormatConversionError(`Could not convert document: ${error.message}`);
+            }
+        });
+
+        EventBus.on(Events.FORMAT_CONVERSION_FAILED, ({ message }) => {
+            showFormatConversionError(message);
         });
 
         EventBus.on(Events.EDITOR_RESIZED, () => {
@@ -5537,6 +5700,41 @@ trigger types:
         const codeAddSliceBtn = document.getElementById('codeAddSliceBtn');
         const treeAddSliceBtn = document.getElementById('treeAddSliceBtn');
         const addSliceContextMenu = document.getElementById('addSliceContextMenu');
+
+        const formatConversionBtn = document.getElementById('formatConversionBtn');
+        const formatConversionMenu = document.getElementById('formatConversionMenu');
+        const formatConversionOptions = formatConversionMenu.querySelectorAll('[data-target-format]');
+
+        function setFormatConversionMenuOpen(isOpen) {
+            formatConversionMenu.hidden = !isOpen;
+            formatConversionBtn.setAttribute('aria-expanded', String(isOpen));
+        }
+
+        formatConversionBtn.addEventListener('click', () => {
+            setFormatConversionMenuOpen(formatConversionMenu.hidden);
+        });
+
+        formatConversionOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                EventBus.emit(Events.FORMAT_CONVERSION_REQUESTED, {
+                    targetFormat: option.dataset.targetFormat
+                });
+                setFormatConversionMenuOpen(false);
+            });
+        });
+
+        document.addEventListener('click', event => {
+            if (!event.target.closest('.format-conversion')) {
+                setFormatConversionMenuOpen(false);
+            }
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !formatConversionMenu.hidden) {
+                setFormatConversionMenuOpen(false);
+                formatConversionBtn.focus();
+            }
+        });
 
         function getUniqueSliceIdentity(elementSuffixes) {
             const slices = Array.isArray(_editorJson?.slices) ? _editorJson.slices : [];

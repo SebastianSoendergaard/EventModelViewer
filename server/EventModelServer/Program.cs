@@ -151,6 +151,27 @@ app.MapPost("/files", async (HttpRequest request) =>
     return Results.Created($"/files/{Uri.EscapeDataString(name)}", new { path = name });
 });
 
+// POST /files/convert — atomically create a converted model file at a root-relative path.
+app.MapPost("/files/convert", async (HttpRequest request) =>
+{
+    using var doc = await JsonDocument.ParseAsync(request.Body);
+    if (doc.RootElement.ValueKind != JsonValueKind.Object)
+        return Results.BadRequest("Request body must be a JSON object");
+    if (!doc.RootElement.TryGetProperty("path", out var pathElement)
+        || pathElement.ValueKind != JsonValueKind.String)
+        return Results.BadRequest("Missing string 'path'");
+    if (!doc.RootElement.TryGetProperty("content", out var contentElement)
+        || contentElement.ValueKind != JsonValueKind.String)
+        return Results.BadRequest("Missing string 'content'");
+
+    var path = pathElement.GetString() ?? string.Empty;
+    var content = contentElement.GetString() ?? string.Empty;
+    if (!fileService.TryCreateFileWithContent(path, content, out var error))
+        return Results.BadRequest(error);
+
+    return Results.Created($"/files/{Uri.EscapeDataString(path)}", new { path });
+});
+
 // POST /export — body: { "path": "C:\\out", "files": [{ "name": "001-add-item.md", "content": "..." }] }
 // Writes the "Export as Tasks" Markdown files into an arbitrary destination folder,
 // chosen via the same folder-browse flow as /root/browse. Independent of the active

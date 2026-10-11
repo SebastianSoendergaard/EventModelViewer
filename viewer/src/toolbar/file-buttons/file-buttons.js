@@ -23,6 +23,40 @@
             _saveJsonToLocalStorage(json, _currentFileName, _currentFormat);
         });
 
+        EventBus.on(Events.FORMAT_CONVERSION_READY, ({ json, sourceFormat, targetFormat }) => {
+            if (_currentJson === null || sourceFormat !== _currentFormat || targetFormat === sourceFormat) {
+                EventBus.emit(Events.FORMAT_CONVERSION_FAILED, {
+                    message: 'The active document changed before conversion could complete.'
+                });
+                return;
+            }
+
+            const convertedFileName = _currentFileName
+                ? _currentFileName.replace(/\.(emj|emy)$/i, `.${Codec.extensionFor(targetFormat)}`)
+                : null;
+
+            _currentJson = json;
+            _currentFileName = convertedFileName;
+            _currentFormat = targetFormat;
+
+            if (_currentFileName) {
+                fileName.textContent = _currentFileName;
+            }
+
+            const identity = _currentFileName
+                ? { type: 'standalone', fileName: _currentFileName }
+                : null;
+            EventBus.emit(Events.FILE_LOADED, {
+                json,
+                fileName: _currentFileName,
+                format: _currentFormat,
+                presentationIdentity: identity
+            });
+            if (identity) {
+                EventBus.emit(Events.PRESENTATION_IDENTITY_CHANGED, { identity });
+            }
+        });
+
         // Self-initialize when app is ready
         EventBus.on(Events.APP_INIT, () => {
             loadJsonFromLocalStorage();
@@ -40,6 +74,8 @@
                 localStorage.setItem('eventModelJson', jsonString);
                 if (name) {
                     localStorage.setItem('eventModelFileName', name);
+                } else {
+                    localStorage.removeItem('eventModelFileName');
                 }
                 localStorage.setItem('eventModelFormat', format || Codec.JSON);
                 console.log('JSON auto-saved to localStorage');

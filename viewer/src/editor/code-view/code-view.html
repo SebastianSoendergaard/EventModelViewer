@@ -5,6 +5,26 @@
                         <button id="codeUndoBtn" title="Undo (Ctrl+Z)" disabled>↶</button>
                         <button id="codeRedoBtn" title="Redo (Ctrl+Y)" disabled>↷</button>
                         <button id="codeAddSliceBtn" title="Add new slice">+</button>
+                        <div class="format-conversion">
+                            <button id="formatConversionBtn" class="format-conversion-button" type="button"
+                                    title="Convert document format" aria-label="Convert document format"
+                                    aria-haspopup="menu" aria-expanded="false" aria-controls="formatConversionMenu">
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M4 7h13l-3-3m3 3-3 3M20 17H7l3 3m-3-3 3-3"
+                                          fill="none" stroke="currentColor" stroke-width="2"
+                                          stroke-linecap="round" stroke-linejoin="round"></path>
+                                </svg>
+                            </button>
+                            <div id="formatConversionMenu" class="format-conversion-menu" role="menu"
+                                 aria-label="Convert document format" hidden>
+                                <button id="convertJsonToYamlBtn" type="button" role="menuitem"
+                                        data-target-format="yaml" disabled>json -> yaml</button>
+                                <button id="convertYamlToJsonBtn" type="button" role="menuitem"
+                                        data-target-format="json" disabled>yaml -> json</button>
+                            </div>
+                        </div>
+                        <span id="formatConversionStatus" class="format-conversion-status"
+                              role="status" aria-live="polite" hidden></span>
                     </div>
                     <div id="codeEditor">
                         <div style="color: #999; padding: 1rem;">Loading code editor...</div>
