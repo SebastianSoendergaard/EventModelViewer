@@ -2236,7 +2236,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026101121</span>
+        <span class="build-number" title="Build number">Build 2026101207</span>
 <button class="help-btn" id="helpBtn" title="Help" aria-label="Open help" aria-expanded="false">?</button>
     </header>
 
@@ -2483,7 +2483,7 @@ trigger types:
         <section class="help-section">
             <h3>About</h3>
             <p>99% wibe coded with love <strong>&hearts;</strong></p>
-            <p>Build <strong>2026101121</strong></p>
+            <p>Build <strong>2026101207</strong></p>
             <p><a href="https://github.com/SebastianSoendergaard/EventModelViewer" target="_blank" rel="noopener noreferrer">GitHub repository</a></p>
         </section>
     </div>
@@ -6664,8 +6664,10 @@ trigger types:
 
             if (type === 'ui') {
                 trigger.properties = [];
-                trigger.swimlane = 'User';
                 trigger.buttons = [];
+            } else if (type === 'ui-input' || type === 'ui-input-disabled') {
+                trigger.properties = [{ name: 'property', value: 'input' }];
+                trigger.buttons = ['ok'];
             }
 
             if (viewId) {
@@ -6692,7 +6694,7 @@ trigger types:
             return {
                 name,
                 id,
-                trigger: createPatternTrigger("UI Trigger", "ui"),
+                trigger: createPatternTrigger("UI Trigger", "ui-input"),
                 command: {
                     name: "New Command",
                     id: commandId,
@@ -6711,7 +6713,7 @@ trigger types:
             return {
                 name,
                 id,
-                trigger: createPatternTrigger("Open View", "ui", viewId),
+                trigger: createPatternTrigger("Open View", "ui-input-disabled", viewId),
                 view: createPatternView(viewId, eventId),
                 events: [createPatternEvent("Input Event", eventId)]
             };

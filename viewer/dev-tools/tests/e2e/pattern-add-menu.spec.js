@@ -40,6 +40,18 @@ test('each pattern action adds a slice with its diagram elements', async ({ page
     await page.locator('#codeAddSliceBtn:visible, #treeAddSliceBtn:visible').first().click();
     await page.locator(`#addSliceContextMenu [data-action="${actions[index]}"]`).click();
     await expect(page.locator('.element.trigger')).toHaveCount(index + 1);
+
+    if (actions[index] === 'command-pattern') {
+      const commandTrigger = page.locator('.element.trigger').first();
+      await expect(commandTrigger.locator('.trigger-input-label')).toHaveText('property');
+      await expect(commandTrigger.locator('.trigger-button')).toHaveText('ok');
+    }
+
+    if (actions[index] === 'view-pattern') {
+      const viewTrigger = page.locator('.element.trigger').nth(index);
+      await expect(viewTrigger.locator('.trigger-input-label')).toHaveText('property');
+      await expect(viewTrigger.locator('.trigger-button')).toHaveText('ok');
+    }
   }
 
   await expect(page.locator('.element.trigger')).toHaveCount(4);

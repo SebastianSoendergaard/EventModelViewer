@@ -386,8 +386,10 @@
 
             if (type === 'ui') {
                 trigger.properties = [];
-                trigger.swimlane = 'User';
                 trigger.buttons = [];
+            } else if (type === 'ui-input' || type === 'ui-input-disabled') {
+                trigger.properties = [{ name: 'property', value: 'input' }];
+                trigger.buttons = ['ok'];
             }
 
             if (viewId) {
@@ -414,7 +416,7 @@
             return {
                 name,
                 id,
-                trigger: createPatternTrigger("UI Trigger", "ui"),
+                trigger: createPatternTrigger("UI Trigger", "ui-input"),
                 command: {
                     name: "New Command",
                     id: commandId,
@@ -433,7 +435,7 @@
             return {
                 name,
                 id,
-                trigger: createPatternTrigger("Open View", "ui", viewId),
+                trigger: createPatternTrigger("Open View", "ui-input-disabled", viewId),
                 view: createPatternView(viewId, eventId),
                 events: [createPatternEvent("Input Event", eventId)]
             };

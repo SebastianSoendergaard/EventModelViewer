@@ -18,6 +18,8 @@
         <button id="treeRedoBtn"></button>
         <button id="codeAddSliceBtn"></button>
         <button id="treeAddSliceBtn"></button>
+        <button id="formatConversionBtn"></button>
+        <div id="formatConversionMenu"></div>
         <div id="addSliceContextMenu">
             <button class="add-slice-menu-item" data-action="full-slice">Full slice</button>
             <button class="add-slice-menu-item" data-action="event-slice">Event in empty slice</button>
@@ -131,17 +133,27 @@
                 'pattern templates receive unique slice names and IDs'
             );
             assert(
-                commandPattern.trigger.type === 'ui' &&
+                commandPattern.trigger.type === 'ui-input' &&
+                commandPattern.trigger.properties.length === 1 &&
+                commandPattern.trigger.properties[0].name === 'property' &&
+                commandPattern.trigger.properties[0].value === 'input' &&
+                commandPattern.trigger.buttons.length === 1 &&
+                commandPattern.trigger.buttons[0] === 'ok' &&
                 commandPattern.command.events.length === 1 &&
                 commandPattern.command.events[0] === commandPattern.events[0].id,
-                'Command Pattern is UI Trigger → Command → one Event'
+                'Command Pattern is UI input with property value and ok button → Command → one Event'
             );
             assert(
-                viewPattern.trigger.type === 'ui' &&
+                viewPattern.trigger.type === 'ui-input-disabled' &&
+                viewPattern.trigger.properties.length === 1 &&
+                viewPattern.trigger.properties[0].name === 'property' &&
+                viewPattern.trigger.properties[0].value === 'input' &&
+                viewPattern.trigger.buttons.length === 1 &&
+                viewPattern.trigger.buttons[0] === 'ok' &&
                 viewPattern.trigger.views[0] === viewPattern.view.id &&
                 viewPattern.view.events[0] === viewPattern.events[0].id &&
                 !Object.prototype.hasOwnProperty.call(viewPattern, 'command'),
-                'View Pattern connects one Event and its View to a UI Trigger without a Command'
+                'View Pattern connects one Event and its View to a UI input trigger with property and ok button, without a Command'
             );
             assert(
                 automationPattern.trigger.type === 'automation' &&
