@@ -524,9 +524,9 @@
             return { bullets: bullets, mermaid: mermaid.join('\n') };
         }
 
-        function buildSliceMarkdown(orderStr, slice, pattern, deps) {
+        function buildSliceMarkdown(slice, pattern, deps) {
             var lines = [];
-            lines.push('# ' + orderStr + '. ' + (slice.name || '(unnamed slice)'));
+            lines.push('# ' + (slice.name || '(unnamed slice)'));
             lines.push('');
             lines.push('- **State:** ' + (slice.border || '_none_'));
             lines.push('- **Background:** ' + (slice.background || '_none_'));
@@ -549,9 +549,9 @@
 
         function buildIndexMarkdown(title, entries) {
             var lines = ['# ' + (title || 'Event Model') + ' \u2014 Task Index', '',
-                '| Order | File | Slice | Pattern | State | Background |', '| --- | --- | --- | --- | --- | --- |'];
+                '| File | Slice | Pattern | State | Background |', '| --- | --- | --- | --- | --- |'];
             entries.forEach(function(e) {
-                lines.push('| ' + e.order + ' | [' + e.fileName + '](' + e.fileName + ') | ' + e.name + ' | ' + e.pattern + ' | ' + (e.state || '_none_') + ' | ' + (e.background || '_none_') + ' |');
+                lines.push('| [' + e.fileName + '](' + e.fileName + ') | ' + e.name + ' | ' + e.pattern + ' | ' + (e.state || '_none_') + ' | ' + (e.background || '_none_') + ' |');
             });
             return lines.join('\n') + '\n';
         }
@@ -607,19 +607,16 @@
             });
             var modelPrefix = getModelFilePrefix(model, modelFileName);
             var globalMaps = buildGlobalMaps(dedupedSlices);
-            var width = Math.max(3, String(dedupedSlices.length).length);
             var files = [];
             var indexEntries = [];
-            var indexFileNameMd = modelPrefix + '-index.md';
-            var indexFileNameJson = modelPrefix + '-index.json';
+            var indexFileNameMd = modelPrefix + '---index.md';
+            var indexFileNameJson = modelPrefix + '---index.json';
             var fileNames = new Set([indexFileNameMd, indexFileNameJson]);
 
-            dedupedSlices.forEach(function(slice, i) {
-                var order = i + 1;
-                var orderStr = padOrder(order, width);
+            dedupedSlices.forEach(function(slice) {
                 var pattern = classifySlicePattern(slice);
                 var deps = computeDependencies(slice, globalMaps);
-                var baseName = modelPrefix + '-' + sanitizeSliceName(slice.name);
+                var baseName = modelPrefix + '---' + sanitizeSliceName(slice.name);
                 var fileNameMd = baseName + '.md';
                 var fileNameJson = baseName + '.json';
 
@@ -632,13 +629,13 @@
                 fileNames.add(fileNameMd);
                 fileNames.add(fileNameJson);
 
-                files.push({ name: fileNameMd, content: buildSliceMarkdown(orderStr, slice, pattern, deps) });
+                files.push({ name: fileNameMd, content: buildSliceMarkdown(slice, pattern, deps) });
 
                 var json = buildSliceJson(slice, pattern, deps);
                 files.push({ name: fileNameJson, content: JSON.stringify(json, null, 2) + '\n' });
 
                 indexEntries.push({
-                    order: order, orderStr: orderStr, id: slice.id, name: slice.name || '(unnamed)', pattern: pattern,
+                    id: slice.id, name: slice.name || '(unnamed)', pattern: pattern,
                     state: slice.border, background: slice.background,
                     fileNameMd: fileNameMd, fileNameJson: fileNameJson
                 });
@@ -658,7 +655,6 @@
                     model.title,
                     indexEntries.map(function(e) {
                         return {
-                            order: e.orderStr,
                             fileName: e.fileNameMd,
                             name: e.name,
                             pattern: e.pattern,

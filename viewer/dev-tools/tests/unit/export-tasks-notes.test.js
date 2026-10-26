@@ -38,8 +38,8 @@ describe('note task export', () => {
       ]
     });
 
-    const markdown = files.find(file => file.name === 'test-model-annotated.md').content;
-    const json = JSON.parse(files.find(file => file.name === 'test-model-annotated.json').content);
+    const markdown = files.find(file => file.name === 'test-model---annotated.md').content;
+    const json = JSON.parse(files.find(file => file.name === 'test-model---annotated.json').content);
 
     expect(markdown).toContain('## Note');
     expect(markdown).toContain(['First', 'Second'].join('\n'));
@@ -53,8 +53,8 @@ describe('note task export', () => {
       slices: [{ id: 'A', name: 'Empty', note: '   ' }]
     });
 
-    const markdown = files.find(file => file.name === 'test-model-empty.md').content;
-    const json = JSON.parse(files.find(file => file.name === 'test-model-empty.json').content);
+    const markdown = files.find(file => file.name === 'test-model---empty.md').content;
+    const json = JSON.parse(files.find(file => file.name === 'test-model---empty.json').content);
 
     expect(markdown).not.toContain('## Note');
     expect(Object.prototype.hasOwnProperty.call(json, 'note')).toBe(false);
@@ -76,12 +76,17 @@ describe('task export naming and untitled slices', () => {
     }, 'C:\\models\\Cart Flow.EMY');
 
     expect(files.map(file => file.name)).toEqual([
-      'cart-flow-index.md',
-      'cart-flow-index.json',
-      'cart-flow-first-slice.md',
-      'cart-flow-first-slice.json'
+      'cart-flow---index.md',
+      'cart-flow---index.json',
+      'cart-flow---first-slice.md',
+      'cart-flow---first-slice.json'
     ]);
-    expect(files[0].content).toContain('cart-flow-first-slice.md');
+    expect(files[0].content).toContain('cart-flow---first-slice.md');
+    expect(files[0].content).not.toContain('| Order |');
+    expect(files.find(file => file.name === 'cart-flow---first-slice.md').content)
+      .toContain('# First Slice');
+    expect(files.find(file => file.name === 'cart-flow---first-slice.md').content)
+      .not.toContain('# 001.');
     expect(JSON.parse(files[1].content).slices).toHaveLength(1);
   });
 
@@ -97,12 +102,12 @@ describe('task export naming and untitled slices', () => {
     });
 
     expect(titledFiles.map(file => file.name)).toEqual([
-      'new-model-index.md',
-      'new-model-index.json'
+      'new-model---index.md',
+      'new-model---index.json'
     ]);
     expect(untitledFiles.map(file => file.name)).toEqual([
-      'event-model-index.md',
-      'event-model-index.json'
+      'event-model---index.md',
+      'event-model---index.json'
     ]);
   });
 
@@ -118,8 +123,8 @@ describe('task export naming and untitled slices', () => {
     }, 'cart-flow.emj');
 
     expect(files.map(file => file.name)).toEqual([
-      'cart-flow-index.md',
-      'cart-flow-index.json'
+      'cart-flow---index.md',
+      'cart-flow---index.json'
     ]);
     expect(JSON.parse(files[1].content).slices).toEqual([]);
   });
@@ -134,7 +139,7 @@ describe('task export naming and untitled slices', () => {
       ]
     });
 
-    expect(files.map(file => file.name)).toContain('test-model-named-slice.md');
+    expect(files.map(file => file.name)).toContain('test-model---named-slice.md');
   });
 
   it('merges same-name slices even when they have different IDs', () => {
@@ -148,10 +153,10 @@ describe('task export naming and untitled slices', () => {
     });
 
     expect(files.map(file => file.name)).toEqual([
-      'test-model-index.md',
-      'test-model-index.json',
-      'test-model-same-slice.md',
-      'test-model-same-slice.json'
+      'test-model---index.md',
+      'test-model---index.json',
+      'test-model---same-slice.md',
+      'test-model---same-slice.json'
     ]);
   });
 
@@ -189,10 +194,10 @@ describe('slice background task export', () => {
       ]
     });
 
-    const markdown = files.find(file => file.name === 'test-model-colored.md').content;
-    const json = JSON.parse(files.find(file => file.name === 'test-model-colored.json').content);
-    const indexMarkdown = files.find(file => file.name === 'test-model-index.md').content;
-    const indexJson = JSON.parse(files.find(file => file.name === 'test-model-index.json').content);
+    const markdown = files.find(file => file.name === 'test-model---colored.md').content;
+    const json = JSON.parse(files.find(file => file.name === 'test-model---colored.json').content);
+    const indexMarkdown = files.find(file => file.name === 'test-model---index.md').content;
+    const indexJson = JSON.parse(files.find(file => file.name === 'test-model---index.json').content);
 
     expect(markdown).toContain('- **Background:** #E8F5E9');
     expect(json.background).toBe('#E8F5E9');
@@ -208,8 +213,8 @@ describe('slice background task export', () => {
       slices: [{ id: 'A', name: 'Plain' }]
     });
 
-    const markdown = files.find(file => file.name === 'test-model-plain.md').content;
-    const json = JSON.parse(files.find(file => file.name === 'test-model-plain.json').content);
+    const markdown = files.find(file => file.name === 'test-model---plain.md').content;
+    const json = JSON.parse(files.find(file => file.name === 'test-model---plain.json').content);
 
     expect(markdown).toContain('- **Background:** _none_');
     expect(json.background).toBe('');

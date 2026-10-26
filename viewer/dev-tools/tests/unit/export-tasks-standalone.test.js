@@ -108,9 +108,9 @@ describe('standalone task export format selection', () => {
   });
 
   it.each([
-    [{ markdown: true, json: false }, ['model-index.md', 'model-slice.md']],
-    [{ markdown: false, json: true }, ['model-index.json', 'model-slice.json']],
-    [{ markdown: true, json: true }, ['model-index.md', 'model-index.json', 'model-slice.md', 'model-slice.json']]
+    [{ markdown: true, json: false }, ['model---index.md', 'model---slice.md']],
+    [{ markdown: false, json: true }, ['model---index.json', 'model---slice.json']],
+    [{ markdown: true, json: true }, ['model---index.md', 'model---index.json', 'model---slice.md', 'model---slice.json']]
   ])('downloads the selected format set including its index', async (formats, expected) => {
     const { dom, listeners, downloadedFiles } = loadStandaloneExporter();
     dom.window.localStorage.setItem('exportTaskFormats', JSON.stringify(formats));
