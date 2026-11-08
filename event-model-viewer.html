@@ -791,6 +791,18 @@
             font-size: 12px;
         }
 
+        .code-toolbar .follow-selection-button,
+        .tree-toolbar .follow-selection-button {
+            margin-left: auto;
+        }
+
+        .code-toolbar .follow-selection-button[aria-pressed="true"],
+        .tree-toolbar .follow-selection-button[aria-pressed="true"] {
+            background: #d7ecfa;
+            border-color: #3498db;
+            color: #176a9b;
+        }
+
         #codeEditorTextarea {
             width: 100%;
             height: 100%;
@@ -883,6 +895,11 @@
             border-color: #3498db;
             box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
             transform: translateY(-1px);
+        }
+
+        .tree-box.diagram-selection-target {
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.25);
         }
 
         .tree-box.dragging {
@@ -2369,6 +2386,9 @@
                         </div>
                         <span id="formatConversionStatus" class="format-conversion-status"
                               role="status" aria-live="polite" hidden></span>
+                        <button id="codeFollowSelectionBtn" class="follow-selection-button" type="button"
+                                title="Follow diagram selection" aria-label="Follow diagram selection"
+                                aria-pressed="false">↗</button>
                     </div>
                     <div id="codeEditor">
                         <div style="color: #999; padding: 1rem;">Loading code editor...</div>
@@ -2381,6 +2401,9 @@
                         <button id="treeUndoBtn" title="Undo (Ctrl+Z)" disabled>↶</button>
                         <button id="treeRedoBtn" title="Redo (Ctrl+Y)" disabled>↷</button>
                         <button id="treeAddSliceBtn" title="Add new slice">+</button>
+                        <button id="treeFollowSelectionBtn" class="follow-selection-button" type="button"
+                                title="Follow diagram selection" aria-label="Follow diagram selection"
+                                aria-pressed="false">↗</button>
                     </div>
                     <div id="treeEditor"></div>
                 </div>
@@ -2687,6 +2710,14 @@ trigger types:
             // Request an editable diagram element to open its inline editor.
             // Payload: { element }
             INLINE_EDIT_REQUESTED: 'inline-edit:requested',
+
+            // A diagram element was clicked.
+            // Payload: { element, path }
+            DIAGRAM_ELEMENT_SELECTED: 'diagram:element-selected',
+
+            // Whether editor views should follow diagram selection.
+            // Payload: { enabled }
+            DIAGRAM_SELECTION_FOLLOW_TOGGLED: 'diagram-selection-follow:toggled',
 
             // The event model has been built from raw JSON (on FILE_LOADED or JSON_CHANGED).
             // Payload: { model, source }  — fully-enriched event model object, or { model: null } for cleared document.
@@ -4128,6 +4159,8 @@ trigger types:
         let codeEditorView = null;
         let previousFolds = new Set();
         let isProcessingFolds = false;
+        let followDiagramSelection = false;
+        let lastDiagramSelectionPath = null;
 
         // Local JSON state
         let _codeViewJson = null;
@@ -4164,6 +4197,7 @@ trigger types:
         // Subscribe to events
         EventBus.on(Events.FILE_LOADED, ({ json, fileName, format }) => {
             _codeViewJson = json;
+            lastDiagramSelectionPath = null;
             // A brand-new, not-yet-named document (fileName is null) still carries an
             // explicit `format` chosen via the New-document format picker.
             _currentFormat = format || Codec.formatForFileName(fileName);
@@ -4182,6 +4216,24 @@ trigger types:
             updateFormatConversionOptions();
             if (codeEditorView && codeEditorView.setValue) {
                 codeEditorView.setValue(Codec.stringify(json, _currentFormat), -1);
+                if (followDiagramSelection && lastDiagramSelectionPath) {
+                    focusDiagramSelection(lastDiagramSelectionPath);
+                }
+            }
+        });
+
+        EventBus.on(Events.DIAGRAM_ELEMENT_SELECTED, ({ path }) => {
+            lastDiagramSelectionPath = path;
+            if (followDiagramSelection) {
+                focusDiagramSelection(path);
+            }
+        });
+
+        EventBus.on(Events.DIAGRAM_SELECTION_FOLLOW_TOGGLED, ({ enabled }) => {
+            followDiagramSelection = enabled;
+            codeFollowSelectionBtn.setAttribute('aria-pressed', String(enabled));
+            if (enabled && lastDiagramSelectionPath) {
+                focusDiagramSelection(lastDiagramSelectionPath);
             }
         });
 
@@ -4224,6 +4276,9 @@ trigger types:
             const expected = Codec.stringify(json, _currentFormat);
             if (codeEditorView.getValue() !== expected) {
                 codeEditorView.setValue(expected, -1);
+                if (followDiagramSelection && lastDiagramSelectionPath) {
+                    focusDiagramSelection(lastDiagramSelectionPath);
+                }
             }
         });
 
@@ -4266,6 +4321,115 @@ trigger types:
             
             return lines;
         }
+
+        function lineIndent(line) {
+            return line.length - line.trimStart().length;
+        }
+
+        function isPropertyLine(line, key) {
+            const escapedKey = String(key).replace(/[.*+?^${}()|[\]\\]/g, '\\        // RESIZER_JS');
+            return new RegExp(`^\\s*(?:"${escapedKey}"|${escapedKey})\\s*:`).test(line);
+        }
+
+        function findValueEnd(lines, start, rangeEnd) {
+            const indent = lineIndent(lines[start]);
+            for (let index = start + 1; index <= rangeEnd; index++) {
+                const trimmed = lines[index].trim();
+                if (!trimmed || trimmed === '}' || trimmed === ']' || lineIndent(lines[index]) > indent) continue;
+                if (lineIndent(lines[index]) <= indent) return index - 1;
+            }
+            return rangeEnd;
+        }
+
+        function findDirectProperty(lines, range, key) {
+            const expectedIndent = range.indent + 2;
+            for (let index = range.start; index <= range.end; index++) {
+                if (lineIndent(lines[index]) !== expectedIndent) continue;
+                if (isPropertyLine(lines[index], key)) {
+                    return {
+                        line: index,
+                        range: {
+                            start: index,
+                            end: findValueEnd(lines, index, range.end),
+                            indent: expectedIndent
+                        }
+                    };
+                }
+            }
+            return null;
+        }
+
+        function findArrayItems(lines, range) {
+            const arrayIndent = lineIndent(lines[range.start]);
+            const itemIndent = arrayIndent + 2;
+            const itemStarts = [];
+            for (let index = range.start + 1; index <= range.end; index++) {
+                const trimmed = lines[index].trim();
+                if (lineIndent(lines[index]) !== itemIndent) continue;
+                const isJsonItem = trimmed.startsWith('{') || trimmed.startsWith('[') ||
+                    trimmed.startsWith('"') || trimmed.startsWith("'") ||
+                    trimmed === 'null' || trimmed === 'true' || trimmed === 'false' || /^-?\d/.test(trimmed);
+                const isYamlItem = trimmed.startsWith('-');
+                if (isJsonItem || isYamlItem) itemStarts.push(index);
+            }
+
+            return itemStarts.map((start, itemIndex) => ({
+                line: start,
+                index: itemIndex,
+                range: {
+                    start,
+                    end: (itemStarts[itemIndex + 1] || range.end + 1) - 1,
+                    indent: itemIndent
+                }
+            }));
+        }
+
+        function findLineForPath(text, path) {
+            const lines = text.split('\n');
+            const firstLine = lines.find(line => line.trim()) || '';
+            const rootIndent = firstLine.trimStart().startsWith('{') || firstLine.trimStart().startsWith('[')
+                ? 0
+                : -2;
+            let range = { start: 0, end: lines.length - 1, indent: rootIndent };
+            let valueLine = 0;
+
+            for (const segment of path) {
+                if (typeof segment === 'string') {
+                    const property = findDirectProperty(lines, range, segment);
+                    if (!property) return null;
+                    valueLine = property.line;
+                    range = property.range;
+                } else {
+                    const items = findArrayItems(lines, { ...range, start: valueLine });
+                    const item = items[segment];
+                    if (!item) return null;
+                    valueLine = item.line;
+                    range = item.range;
+                }
+            }
+
+            if (typeof path[path.length - 1] === 'string') {
+                const name = findDirectProperty(lines, range, 'name');
+                if (name) return name.line;
+            }
+            return valueLine;
+        }
+
+        function focusDiagramSelection(path) {
+            if (!codeEditorView || !path) return;
+            if (!path || path.some(value => Number.isNaN(value))) return;
+            const line = findLineForPath(codeEditorView.getValue(), path);
+            if (line === null) return;
+            codeEditorView.gotoLine(line + 1, 0, true);
+            codeEditorView.selection.clearSelection();
+        }
+
+        const codeFollowSelectionBtn = document.getElementById('codeFollowSelectionBtn');
+        codeFollowSelectionBtn.addEventListener('click', () => {
+            EventBus.emit(Events.DIAGRAM_SELECTION_FOLLOW_TOGGLED, {
+                enabled: !followDiagramSelection
+            });
+        });
 
         function findMatchingBracket(lines, startIndex) {
             const startLine = lines[startIndex];
@@ -4917,7 +5081,8 @@ trigger types:
 })();
 
 (function() {
-﻿        const treeEditor = document.getElementById('treeEditor');
+const treeEditor = document.getElementById('treeEditor');
+const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn');
 
         // Tree View State
         let treeData = null;
@@ -4928,6 +5093,8 @@ trigger types:
 
         // Local JSON state
         let _treeViewJson = null;
+        let followDiagramSelection = false;
+        let lastDiagramSelectionPath = null;
 
         function escapeHtml(text) {
             const div = document.createElement('div');
@@ -4938,6 +5105,7 @@ trigger types:
         // Subscribe to events
         EventBus.on(Events.FILE_LOADED, ({ json }) => {
             _treeViewJson = json;
+            lastDiagramSelectionPath = null;
             renderTreeView();
         });
 
@@ -4949,6 +5117,21 @@ trigger types:
 
         EventBus.on(Events.TREE_SYNC, () => {
             renderTreeView();
+        });
+
+        EventBus.on(Events.DIAGRAM_ELEMENT_SELECTED, ({ path }) => {
+            lastDiagramSelectionPath = path;
+            if (followDiagramSelection) {
+                focusDiagramSelection(path);
+            }
+        });
+
+        EventBus.on(Events.DIAGRAM_SELECTION_FOLLOW_TOGGLED, ({ enabled }) => {
+            followDiagramSelection = enabled;
+            treeFollowSelectionBtn.setAttribute('aria-pressed', String(enabled));
+            if (enabled && lastDiagramSelectionPath) {
+                focusDiagramSelection(lastDiagramSelectionPath);
+            }
         });
 
         // Context Menu State
@@ -5132,6 +5315,9 @@ trigger types:
                 treeEditor.innerHTML = html;
                 
                 attachTreeEventListeners();
+                if (followDiagramSelection && lastDiagramSelectionPath) {
+                    focusDiagramSelection(lastDiagramSelectionPath);
+                }
             } catch (error) {
                 console.error('Error rendering tree view:', error);
                 treeEditor.innerHTML = `<div style="color: #e74c3c; padding: 1rem;">Error rendering tree: ${escapeHtml(error.message)}</div>`;
@@ -5191,6 +5377,44 @@ trigger types:
                 if (found) return found;
             }
             return null;
+        }
+
+        function findTreeNodeByPath(path, node = treeData) {
+            if (!node || !path) return null;
+            if (JSON.stringify(node.path) === JSON.stringify(path)) return node;
+            for (const child of node.children) {
+                const found = findTreeNodeByPath(path, child);
+                if (found) return found;
+            }
+            return null;
+        }
+
+        function focusDiagramSelection(path) {
+            if (!treeData || !path) return;
+            const target = findTreeNodeByPath(path);
+            if (!target) return;
+
+            let expandedAncestor = false;
+            for (let length = 0; length < path.length; length++) {
+                const ancestor = findTreeNodeByPath(path.slice(0, length));
+                if (ancestor && ancestor.children.length > 0 && treeCollapsedNodes.has(ancestor.id)) {
+                    treeCollapsedNodes.delete(ancestor.id);
+                    expandedAncestor = true;
+                }
+            }
+            if (expandedAncestor) {
+                renderTreeView();
+                return;
+            }
+
+            treeEditor.querySelectorAll('.tree-box.diagram-selection-target').forEach(box => {
+                box.classList.remove('diagram-selection-target');
+            });
+            const targetBox = Array.from(treeEditor.querySelectorAll('.tree-box'))
+                .find(box => box.getAttribute('data-node-id') === target.id);
+            if (!targetBox) return;
+            targetBox.classList.add('diagram-selection-target');
+            targetBox.scrollIntoView({ block: 'center', inline: 'nearest' });
         }
 
         function collapseTreeNodeDescendants(node) {
@@ -5790,6 +6014,12 @@ trigger types:
         treeExpandAllBtn.addEventListener('click', () => {
             expandTreeNodesOneLevel();
             renderTreeView();
+        });
+
+        treeFollowSelectionBtn.addEventListener('click', () => {
+            EventBus.emit(Events.DIAGRAM_SELECTION_FOLLOW_TOGGLED, {
+                enabled: !followDiagramSelection
+            });
         });
 })();
 
@@ -6792,6 +7022,60 @@ trigger types:
                 if (_model) drawAllArrows();
             }
         });
+
+        function selectionPathForElement(element) {
+            const kind = element.getAttribute('data-inline-edit-kind');
+            const number = attribute => Number.parseInt(element.getAttribute(attribute), 10);
+            const slicePath = ['slices', number('data-slice-index')];
+            if (!kind) return null;
+
+            switch (kind) {
+                case 'slice':
+                    return slicePath;
+                case 'trigger':
+                    return [...slicePath, 'trigger'];
+                case 'command':
+                    return [...slicePath, 'command'];
+                case 'view':
+                    return [...slicePath, 'view'];
+                case 'event':
+                    return [...slicePath, 'events', number('data-event-index')];
+                case 'note':
+                    return [...slicePath, 'note'];
+                case 'hotspot':
+                    return element.getAttribute('data-hotspot-scope') === 'model'
+                        ? ['hotspots', number('data-hotspot-index')]
+                        : [...slicePath, 'hotspots', number('data-hotspot-index')];
+                case 'test-name':
+                    return [...slicePath, 'tests', number('data-test-index')];
+                case 'test-error':
+                    return [...slicePath, 'tests', number('data-test-index'), 'then', 'error'];
+                case 'test-item': {
+                    const itemPath = [
+                        ...slicePath,
+                        'tests',
+                        number('data-test-index'),
+                        element.getAttribute('data-test-section')
+                    ];
+                    return element.getAttribute('data-test-collection') === 'command'
+                        ? [...itemPath, 'command']
+                        : [...itemPath, element.getAttribute('data-test-collection'), number('data-test-item-index')];
+                }
+                default:
+                    return null;
+            }
+        }
+
+        function emitDiagramElementSelection(event) {
+            const element = event.target.closest && event.target.closest('[data-inline-edit-kind]');
+            if (!element || !diagramElement.contains(element)) return;
+            EventBus.emit(Events.DIAGRAM_ELEMENT_SELECTED, {
+                element,
+                path: selectionPathForElement(element)
+            });
+        }
+
+        diagramElement.addEventListener('click', emitDiagramElementSelection);
 
         // Mouse drag to pan — remove from here, handled in zoom-export.js
         function toggleSliceBorders(show) {

@@ -9,6 +9,8 @@
         let codeEditorView = null;
         let previousFolds = new Set();
         let isProcessingFolds = false;
+        let followDiagramSelection = false;
+        let lastDiagramSelectionPath = null;
 
         // Local JSON state
         let _codeViewJson = null;
@@ -45,6 +47,7 @@
         // Subscribe to events
         EventBus.on(Events.FILE_LOADED, ({ json, fileName, format }) => {
             _codeViewJson = json;
+            lastDiagramSelectionPath = null;
             // A brand-new, not-yet-named document (fileName is null) still carries an
             // explicit `format` chosen via the New-document format picker.
             _currentFormat = format || Codec.formatForFileName(fileName);
@@ -63,6 +66,24 @@
             updateFormatConversionOptions();
             if (codeEditorView && codeEditorView.setValue) {
                 codeEditorView.setValue(Codec.stringify(json, _currentFormat), -1);
+                if (followDiagramSelection && lastDiagramSelectionPath) {
+                    focusDiagramSelection(lastDiagramSelectionPath);
+                }
+            }
+        });
+
+        EventBus.on(Events.DIAGRAM_ELEMENT_SELECTED, ({ path }) => {
+            lastDiagramSelectionPath = path;
+            if (followDiagramSelection) {
+                focusDiagramSelection(path);
+            }
+        });
+
+        EventBus.on(Events.DIAGRAM_SELECTION_FOLLOW_TOGGLED, ({ enabled }) => {
+            followDiagramSelection = enabled;
+            codeFollowSelectionBtn.setAttribute('aria-pressed', String(enabled));
+            if (enabled && lastDiagramSelectionPath) {
+                focusDiagramSelection(lastDiagramSelectionPath);
             }
         });
 
@@ -105,6 +126,9 @@
             const expected = Codec.stringify(json, _currentFormat);
             if (codeEditorView.getValue() !== expected) {
                 codeEditorView.setValue(expected, -1);
+                if (followDiagramSelection && lastDiagramSelectionPath) {
+                    focusDiagramSelection(lastDiagramSelectionPath);
+                }
             }
         });
 
@@ -147,6 +171,115 @@
             
             return lines;
         }
+
+        function lineIndent(line) {
+            return line.length - line.trimStart().length;
+        }
+
+        function isPropertyLine(line, key) {
+            const escapedKey = String(key).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            return new RegExp(`^\\s*(?:"${escapedKey}"|${escapedKey})\\s*:`).test(line);
+        }
+
+        function findValueEnd(lines, start, rangeEnd) {
+            const indent = lineIndent(lines[start]);
+            for (let index = start + 1; index <= rangeEnd; index++) {
+                const trimmed = lines[index].trim();
+                if (!trimmed || trimmed === '}' || trimmed === ']' || lineIndent(lines[index]) > indent) continue;
+                if (lineIndent(lines[index]) <= indent) return index - 1;
+            }
+            return rangeEnd;
+        }
+
+        function findDirectProperty(lines, range, key) {
+            const expectedIndent = range.indent + 2;
+            for (let index = range.start; index <= range.end; index++) {
+                if (lineIndent(lines[index]) !== expectedIndent) continue;
+                if (isPropertyLine(lines[index], key)) {
+                    return {
+                        line: index,
+                        range: {
+                            start: index,
+                            end: findValueEnd(lines, index, range.end),
+                            indent: expectedIndent
+                        }
+                    };
+                }
+            }
+            return null;
+        }
+
+        function findArrayItems(lines, range) {
+            const arrayIndent = lineIndent(lines[range.start]);
+            const itemIndent = arrayIndent + 2;
+            const itemStarts = [];
+            for (let index = range.start + 1; index <= range.end; index++) {
+                const trimmed = lines[index].trim();
+                if (lineIndent(lines[index]) !== itemIndent) continue;
+                const isJsonItem = trimmed.startsWith('{') || trimmed.startsWith('[') ||
+                    trimmed.startsWith('"') || trimmed.startsWith("'") ||
+                    trimmed === 'null' || trimmed === 'true' || trimmed === 'false' || /^-?\d/.test(trimmed);
+                const isYamlItem = trimmed.startsWith('-');
+                if (isJsonItem || isYamlItem) itemStarts.push(index);
+            }
+
+            return itemStarts.map((start, itemIndex) => ({
+                line: start,
+                index: itemIndex,
+                range: {
+                    start,
+                    end: (itemStarts[itemIndex + 1] || range.end + 1) - 1,
+                    indent: itemIndent
+                }
+            }));
+        }
+
+        function findLineForPath(text, path) {
+            const lines = text.split('\n');
+            const firstLine = lines.find(line => line.trim()) || '';
+            const rootIndent = firstLine.trimStart().startsWith('{') || firstLine.trimStart().startsWith('[')
+                ? 0
+                : -2;
+            let range = { start: 0, end: lines.length - 1, indent: rootIndent };
+            let valueLine = 0;
+
+            for (const segment of path) {
+                if (typeof segment === 'string') {
+                    const property = findDirectProperty(lines, range, segment);
+                    if (!property) return null;
+                    valueLine = property.line;
+                    range = property.range;
+                } else {
+                    const items = findArrayItems(lines, { ...range, start: valueLine });
+                    const item = items[segment];
+                    if (!item) return null;
+                    valueLine = item.line;
+                    range = item.range;
+                }
+            }
+
+            if (typeof path[path.length - 1] === 'string') {
+                const name = findDirectProperty(lines, range, 'name');
+                if (name) return name.line;
+            }
+            return valueLine;
+        }
+
+        function focusDiagramSelection(path) {
+            if (!codeEditorView || !path) return;
+            if (!path || path.some(value => Number.isNaN(value))) return;
+            const line = findLineForPath(codeEditorView.getValue(), path);
+            if (line === null) return;
+            codeEditorView.gotoLine(line + 1, 0, true);
+            codeEditorView.selection.clearSelection();
+        }
+
+        const codeFollowSelectionBtn = document.getElementById('codeFollowSelectionBtn');
+        codeFollowSelectionBtn.addEventListener('click', () => {
+            EventBus.emit(Events.DIAGRAM_SELECTION_FOLLOW_TOGGLED, {
+                enabled: !followDiagramSelection
+            });
+        });
 
         function findMatchingBracket(lines, startIndex) {
             const startLine = lines[startIndex];

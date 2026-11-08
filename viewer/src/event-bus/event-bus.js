@@ -70,6 +70,14 @@
             // Payload: { element }
             INLINE_EDIT_REQUESTED: 'inline-edit:requested',
 
+            // A diagram element was clicked.
+            // Payload: { element, path }
+            DIAGRAM_ELEMENT_SELECTED: 'diagram:element-selected',
+
+            // Whether editor views should follow diagram selection.
+            // Payload: { enabled }
+            DIAGRAM_SELECTION_FOLLOW_TOGGLED: 'diagram-selection-follow:toggled',
+
             // The event model has been built from raw JSON (on FILE_LOADED or JSON_CHANGED).
             // Payload: { model, source }  — fully-enriched event model object, or { model: null } for cleared document.
             // source identifies the originating change when available.

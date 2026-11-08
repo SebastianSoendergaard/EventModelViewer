@@ -187,6 +187,18 @@
             font-size: 12px;
         }
 
+        .code-toolbar .follow-selection-button,
+        .tree-toolbar .follow-selection-button {
+            margin-left: auto;
+        }
+
+        .code-toolbar .follow-selection-button[aria-pressed="true"],
+        .tree-toolbar .follow-selection-button[aria-pressed="true"] {
+            background: #d7ecfa;
+            border-color: #3498db;
+            color: #176a9b;
+        }
+
         #codeEditorTextarea {
             width: 100%;
             height: 100%;

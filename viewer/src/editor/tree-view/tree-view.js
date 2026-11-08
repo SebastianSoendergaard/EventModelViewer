@@ -1,4 +1,5 @@
-﻿        const treeEditor = document.getElementById('treeEditor');
+const treeEditor = document.getElementById('treeEditor');
+const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn');
 
         // Tree View State
         let treeData = null;
@@ -9,6 +10,8 @@
 
         // Local JSON state
         let _treeViewJson = null;
+        let followDiagramSelection = false;
+        let lastDiagramSelectionPath = null;
 
         function escapeHtml(text) {
             const div = document.createElement('div');
@@ -19,6 +22,7 @@
         // Subscribe to events
         EventBus.on(Events.FILE_LOADED, ({ json }) => {
             _treeViewJson = json;
+            lastDiagramSelectionPath = null;
             renderTreeView();
         });
 
@@ -30,6 +34,21 @@
 
         EventBus.on(Events.TREE_SYNC, () => {
             renderTreeView();
+        });
+
+        EventBus.on(Events.DIAGRAM_ELEMENT_SELECTED, ({ path }) => {
+            lastDiagramSelectionPath = path;
+            if (followDiagramSelection) {
+                focusDiagramSelection(path);
+            }
+        });
+
+        EventBus.on(Events.DIAGRAM_SELECTION_FOLLOW_TOGGLED, ({ enabled }) => {
+            followDiagramSelection = enabled;
+            treeFollowSelectionBtn.setAttribute('aria-pressed', String(enabled));
+            if (enabled && lastDiagramSelectionPath) {
+                focusDiagramSelection(lastDiagramSelectionPath);
+            }
         });
 
         // Context Menu State
@@ -213,6 +232,9 @@
                 treeEditor.innerHTML = html;
                 
                 attachTreeEventListeners();
+                if (followDiagramSelection && lastDiagramSelectionPath) {
+                    focusDiagramSelection(lastDiagramSelectionPath);
+                }
             } catch (error) {
                 console.error('Error rendering tree view:', error);
                 treeEditor.innerHTML = `<div style="color: #e74c3c; padding: 1rem;">Error rendering tree: ${escapeHtml(error.message)}</div>`;
@@ -272,6 +294,44 @@
                 if (found) return found;
             }
             return null;
+        }
+
+        function findTreeNodeByPath(path, node = treeData) {
+            if (!node || !path) return null;
+            if (JSON.stringify(node.path) === JSON.stringify(path)) return node;
+            for (const child of node.children) {
+                const found = findTreeNodeByPath(path, child);
+                if (found) return found;
+            }
+            return null;
+        }
+
+        function focusDiagramSelection(path) {
+            if (!treeData || !path) return;
+            const target = findTreeNodeByPath(path);
+            if (!target) return;
+
+            let expandedAncestor = false;
+            for (let length = 0; length < path.length; length++) {
+                const ancestor = findTreeNodeByPath(path.slice(0, length));
+                if (ancestor && ancestor.children.length > 0 && treeCollapsedNodes.has(ancestor.id)) {
+                    treeCollapsedNodes.delete(ancestor.id);
+                    expandedAncestor = true;
+                }
+            }
+            if (expandedAncestor) {
+                renderTreeView();
+                return;
+            }
+
+            treeEditor.querySelectorAll('.tree-box.diagram-selection-target').forEach(box => {
+                box.classList.remove('diagram-selection-target');
+            });
+            const targetBox = Array.from(treeEditor.querySelectorAll('.tree-box'))
+                .find(box => box.getAttribute('data-node-id') === target.id);
+            if (!targetBox) return;
+            targetBox.classList.add('diagram-selection-target');
+            targetBox.scrollIntoView({ block: 'center', inline: 'nearest' });
         }
 
         function collapseTreeNodeDescendants(node) {
@@ -871,4 +931,10 @@
         treeExpandAllBtn.addEventListener('click', () => {
             expandTreeNodesOneLevel();
             renderTreeView();
+        });
+
+        treeFollowSelectionBtn.addEventListener('click', () => {
+            EventBus.emit(Events.DIAGRAM_SELECTION_FOLLOW_TOGGLED, {
+                enabled: !followDiagramSelection
+            });
         });

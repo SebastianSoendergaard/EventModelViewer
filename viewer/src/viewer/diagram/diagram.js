@@ -40,6 +40,60 @@
             }
         });
 
+        function selectionPathForElement(element) {
+            const kind = element.getAttribute('data-inline-edit-kind');
+            const number = attribute => Number.parseInt(element.getAttribute(attribute), 10);
+            const slicePath = ['slices', number('data-slice-index')];
+            if (!kind) return null;
+
+            switch (kind) {
+                case 'slice':
+                    return slicePath;
+                case 'trigger':
+                    return [...slicePath, 'trigger'];
+                case 'command':
+                    return [...slicePath, 'command'];
+                case 'view':
+                    return [...slicePath, 'view'];
+                case 'event':
+                    return [...slicePath, 'events', number('data-event-index')];
+                case 'note':
+                    return [...slicePath, 'note'];
+                case 'hotspot':
+                    return element.getAttribute('data-hotspot-scope') === 'model'
+                        ? ['hotspots', number('data-hotspot-index')]
+                        : [...slicePath, 'hotspots', number('data-hotspot-index')];
+                case 'test-name':
+                    return [...slicePath, 'tests', number('data-test-index')];
+                case 'test-error':
+                    return [...slicePath, 'tests', number('data-test-index'), 'then', 'error'];
+                case 'test-item': {
+                    const itemPath = [
+                        ...slicePath,
+                        'tests',
+                        number('data-test-index'),
+                        element.getAttribute('data-test-section')
+                    ];
+                    return element.getAttribute('data-test-collection') === 'command'
+                        ? [...itemPath, 'command']
+                        : [...itemPath, element.getAttribute('data-test-collection'), number('data-test-item-index')];
+                }
+                default:
+                    return null;
+            }
+        }
+
+        function emitDiagramElementSelection(event) {
+            const element = event.target.closest && event.target.closest('[data-inline-edit-kind]');
+            if (!element || !diagramElement.contains(element)) return;
+            EventBus.emit(Events.DIAGRAM_ELEMENT_SELECTED, {
+                element,
+                path: selectionPathForElement(element)
+            });
+        }
+
+        diagramElement.addEventListener('click', emitDiagramElementSelection);
+
         // Mouse drag to pan — remove from here, handled in zoom-export.js
         function toggleSliceBorders(show) {
             const stateMarkers = document.querySelectorAll('.slice-border');

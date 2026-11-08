@@ -77,6 +77,11 @@
             transform: translateY(-1px);
         }
 
+        .tree-box.diagram-selection-target {
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.25);
+        }
+
         .tree-box.dragging {
             opacity: 0.5;
             cursor: grabbing;
