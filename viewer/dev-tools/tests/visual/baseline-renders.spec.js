@@ -60,9 +60,9 @@ test.describe('Visual Regression Tests', () => {
     await page.waitForSelector('.event-model-diagram');
     
     // Ensure borders are visible
-    const showSlicesCheckbox = page.locator('#showSlices');
-    if (!(await showSlicesCheckbox.isChecked())) {
-      await showSlicesCheckbox.click();
+    const showBordersCheckbox = page.locator('#showBorders');
+    if (!(await showBordersCheckbox.isChecked())) {
+      await showBordersCheckbox.click();
     }
     await page.waitForTimeout(500);
     

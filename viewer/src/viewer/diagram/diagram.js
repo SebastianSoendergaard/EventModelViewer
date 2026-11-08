@@ -5,7 +5,7 @@
         // diagram.js consumes the enriched model emitted by event-model.js via MODEL_CHANGED.
         // It no longer subscribes to FILE_LOADED / JSON_CHANGED directly.
         let _model = null;
-        const _filters = { slices: true, tests: true, types: true, swimlanes: true };
+        const _filters = { borders: true, background: true, tests: true, types: true, swimlanes: true };
 
         // Subscribe to events
         EventBus.on(Events.MODEL_CHANGED, ({ model }) => {
@@ -26,9 +26,11 @@
             if (type === 'swimlanes') {
                 // Swimlanes require full re-render
                 if (_model) renderDiagram(_model);
-            } else if (type === 'slices') {
+            } else if (type === 'borders') {
                 toggleSliceBorders(checked);
                 if (_model) drawAllArrows();
+            } else if (type === 'background') {
+                toggleSliceBackgrounds(checked);
             } else if (type === 'tests') {
                 // Always re-render diagram when toggling tests to ensure arrows and layout are correct
                 if (_model) renderDiagram(_model);
@@ -40,9 +42,16 @@
 
         // Mouse drag to pan — remove from here, handled in zoom-export.js
         function toggleSliceBorders(show) {
-            const stateMarkers = document.querySelectorAll('.slice-border, .slice-background');
+            const stateMarkers = document.querySelectorAll('.slice-border');
             stateMarkers.forEach(marker => {
                 marker.style.display = show ? 'block' : 'none';
+            });
+        }
+
+        function toggleSliceBackgrounds(show) {
+            const backgrounds = document.querySelectorAll('.slice-background');
+            backgrounds.forEach(background => {
+                background.style.display = show ? 'block' : 'none';
             });
         }
 
@@ -90,7 +99,8 @@
                 diagramElement.innerHTML = html;
 
                 // Apply current filter states
-                toggleSliceBorders(_filters.slices);
+                toggleSliceBorders(_filters.borders);
+                toggleSliceBackgrounds(_filters.background);
                 toggleTests(_filters.tests);
                 toggleTypes(_filters.types);
 

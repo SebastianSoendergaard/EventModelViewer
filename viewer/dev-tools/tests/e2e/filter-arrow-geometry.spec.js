@@ -82,7 +82,7 @@ test('arrows track box geometry across filter changes and restored state', async
   const restoredTypes = await readArrowGeometry(page);
   expectEndpointToTrackEvent(withoutTypes, restoredTypes);
 
-  for (const selector of ['#showSlices', '#showTests', '#showSwimlanes']) {
+  for (const selector of ['#showBorders', '#showBackground', '#showTests', '#showSwimlanes']) {
     const filter = page.locator(selector);
     const beforeDisable = await readArrowGeometry(page);
     await filter.uncheck();

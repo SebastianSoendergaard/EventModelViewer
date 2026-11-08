@@ -42,7 +42,8 @@ test.describe('EventModelViewer E2E', () => {
     await expect(page.locator('#zoomResetBtn')).toBeVisible();
     
     // Check toggle checkboxes
-    await expect(page.locator('#showSlices')).toBeVisible();
+    await expect(page.locator('#showBorders')).toBeVisible();
+    await expect(page.locator('#showBackground')).toBeVisible();
     await expect(page.locator('#showTests')).toBeVisible();
     await expect(page.locator('#showTypes')).toBeVisible();
   });
@@ -158,18 +159,18 @@ test.describe('EventModelViewer E2E', () => {
     await page.locator('#fileInput').setInputFiles(fixturePath);
     await page.waitForSelector('.event-model-diagram');
     
-    const showSlicesCheckbox = page.locator('#showSlices');
+    const showBordersCheckbox = page.locator('#showBorders');
     
     // Borders should be visible initially (checkbox checked)
-    await expect(showSlicesCheckbox).toBeChecked();
+    await expect(showBordersCheckbox).toBeChecked();
     
     // Toggle off
-    await showSlicesCheckbox.click();
-    await expect(showSlicesCheckbox).not.toBeChecked();
+    await showBordersCheckbox.click();
+    await expect(showBordersCheckbox).not.toBeChecked();
     
     // Toggle back on
-    await showSlicesCheckbox.click();
-    await expect(showSlicesCheckbox).toBeChecked();
+    await showBordersCheckbox.click();
+    await expect(showBordersCheckbox).toBeChecked();
   });
 
   test('should toggle tests visibility', async ({ page }) => {

@@ -35,7 +35,7 @@
             FORMAT_CONVERSION_FAILED:    'format:conversion-failed',
 
             // A filter checkbox was toggled.
-            // Payload: { type, checked }  — type: 'slices' | 'tests' | 'types' | 'swimlanes'
+            // Payload: { type, checked }  — type: 'borders' | 'background' | 'tests' | 'types' | 'swimlanes'
             FILTER_TOGGLED: 'filter:toggled',
 
             // The active file's presentation preferences were loaded.

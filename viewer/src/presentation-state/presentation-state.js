@@ -1,8 +1,9 @@
 (function() {
     const STORAGE_KEY = 'eventModelViewerPresentationState';
-    const FILTER_NAMES = ['slices', 'tests', 'types', 'swimlanes'];
+    const FILTER_NAMES = ['borders', 'background', 'tests', 'types', 'swimlanes'];
     const DEFAULT_FILTERS = {
-        slices: true,
+        borders: true,
+        background: true,
         tests: true,
         types: true,
         swimlanes: true
@@ -41,6 +42,10 @@
                     state.filters[name] = value.filters[name];
                 }
             });
+            if (typeof value.filters.slices === 'boolean') {
+                if (typeof value.filters.borders !== 'boolean') state.filters.borders = value.filters.slices;
+                if (typeof value.filters.background !== 'boolean') state.filters.background = value.filters.slices;
+            }
         }
 
         if (Number.isFinite(value.zoom) && value.zoom > 0 && value.zoom <= 5) {

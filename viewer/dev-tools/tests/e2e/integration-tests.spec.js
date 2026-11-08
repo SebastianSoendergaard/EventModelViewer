@@ -122,12 +122,12 @@ test.describe('Toggle Features Integration', () => {
     expect(initialCount).toBeGreaterThan(0);
     
     // Toggle off - borders should be affected
-    const initialState = await page.locator('#showSlices').isChecked();
-    await page.locator('#showSlices').click();
+    const initialState = await page.locator('#showBorders').isChecked();
+    await page.locator('#showBorders').click();
     await page.waitForTimeout(100);
     
     // Verify checkbox state changed
-    const newState = await page.locator('#showSlices').isChecked();
+    const newState = await page.locator('#showBorders').isChecked();
     expect(newState).not.toBe(initialState);
   });
 
@@ -169,13 +169,15 @@ test.describe('Toggle Features Integration', () => {
 
   test('multiple toggles work together', async ({ page }) => {
     // Turn off all toggles
-    await page.locator('#showSlices').click();
+    await page.locator('#showBorders').click();
+    await page.locator('#showBackground').click();
     await page.locator('#showTests').click();
     await page.locator('#showTypes').click();
     await page.waitForTimeout(200);
     
     // Verify all are off
-    await expect(page.locator('#showSlices')).not.toBeChecked();
+    await expect(page.locator('#showBorders')).not.toBeChecked();
+    await expect(page.locator('#showBackground')).not.toBeChecked();
     await expect(page.locator('#showTests')).not.toBeChecked();
     await expect(page.locator('#showTypes')).not.toBeChecked();
     
@@ -183,13 +185,15 @@ test.describe('Toggle Features Integration', () => {
     await expect(page.locator('.tests-container').first()).toBeHidden();
     
     // Turn them all back on
-    await page.locator('#showSlices').click();
+    await page.locator('#showBorders').click();
+    await page.locator('#showBackground').click();
     await page.locator('#showTests').click();
     await page.locator('#showTypes').click();
     await page.waitForTimeout(200);
     
     // Verify all are on
-    await expect(page.locator('#showSlices')).toBeChecked();
+    await expect(page.locator('#showBorders')).toBeChecked();
+    await expect(page.locator('#showBackground')).toBeChecked();
     await expect(page.locator('#showTests')).toBeChecked();
     await expect(page.locator('#showTypes')).toBeChecked();
     

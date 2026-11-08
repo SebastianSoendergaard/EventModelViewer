@@ -71,7 +71,7 @@ describe('per-file presentation state', () => {
     expect(harness.latestLoadedState()).toMatchObject({
       hasSavedState: false,
       state: {
-        filters: { slices: true, tests: true, types: true, swimlanes: true },
+        filters: { borders: true, background: true, tests: true, types: true, swimlanes: true },
         zoom: null,
         scrollLeft: 0,
         scrollTop: 0
@@ -151,7 +151,7 @@ describe('per-file presentation state', () => {
     harness.emit(harness.Events.FILE_LOADED, {
       presentationIdentity: { type: 'standalone', fileName: 'current.emj' }
     });
-    harness.emit(harness.Events.FILTER_TOGGLED, { type: 'slices', checked: false });
+    harness.emit(harness.Events.FILTER_TOGGLED, { type: 'borders', checked: false });
 
     harness.emit(harness.Events.FILE_LOADED, {
       presentationIdentity: { type: 'standalone', fileName: 'next.emj' }
@@ -160,6 +160,6 @@ describe('per-file presentation state', () => {
       presentationIdentity: { type: 'standalone', fileName: 'current.emj' }
     });
 
-    expect(harness.latestLoadedState().state.filters.slices).toBe(false);
+    expect(harness.latestLoadedState().state.filters.borders).toBe(false);
   });
 });

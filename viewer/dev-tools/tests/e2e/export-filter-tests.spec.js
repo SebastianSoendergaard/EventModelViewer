@@ -16,7 +16,7 @@ test.describe('Filtered diagram exports', () => {
   });
 
   test('PNG and SVG exports omit content hidden by filters', async ({ page }) => {
-    for (const filter of ['#showTests', '#showTypes', '#showSlices', '#showSwimlanes']) {
+    for (const filter of ['#showTests', '#showTypes', '#showBorders', '#showBackground', '#showSwimlanes']) {
       await page.locator(filter).uncheck();
     }
 

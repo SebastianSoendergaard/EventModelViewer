@@ -72,19 +72,25 @@ describe('slice background rendering', () => {
     expect(background.getAttribute('style')).toContain('background-color: " onmouseover="alert(1');
   });
 
-  it('hides backgrounds together with slice borders', () => {
+  it('toggles borders and backgrounds independently', () => {
     const { dom, renderer, handlers } = loadDiagramRenderer();
     dom.window.document.body.innerHTML = renderer(baseModel([
       { name: 'Background only', background: '#E8F5E9' },
       { name: 'Border and background', border: '#4CBB17', background: '#FFF8E1' }
     ]));
 
-    handlers.FILTER_TOGGLED({ type: 'slices', checked: false });
-    [...dom.window.document.querySelectorAll('.slice-background, .slice-border')]
+    handlers.FILTER_TOGGLED({ type: 'borders', checked: false });
+    [...dom.window.document.querySelectorAll('.slice-border')]
+      .forEach(marker => expect(marker.style.display).toBe('none'));
+    [...dom.window.document.querySelectorAll('.slice-background')]
+      .forEach(marker => expect(marker.style.display).not.toBe('none'));
+
+    handlers.FILTER_TOGGLED({ type: 'background', checked: false });
+    [...dom.window.document.querySelectorAll('.slice-background')]
       .forEach(marker => expect(marker.style.display).toBe('none'));
 
-    handlers.FILTER_TOGGLED({ type: 'slices', checked: true });
-    [...dom.window.document.querySelectorAll('.slice-background, .slice-border')]
+    handlers.FILTER_TOGGLED({ type: 'borders', checked: true });
+    [...dom.window.document.querySelectorAll('.slice-border')]
       .forEach(marker => expect(marker.style.display).toBe('block'));
   });
 });
