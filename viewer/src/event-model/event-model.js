@@ -363,10 +363,16 @@
 
         EventBus.on(Events.FILE_LOADED, function(payload) {
             var json = payload ? payload.json : null;
-            EventBus.emit(Events.MODEL_CHANGED, { model: buildEventModel(json) });
+            EventBus.emit(Events.MODEL_CHANGED, {
+                model: buildEventModel(json),
+                source: 'file'
+            });
         });
 
         EventBus.on(Events.JSON_CHANGED, function(payload) {
             var json = payload ? payload.json : null;
-            EventBus.emit(Events.MODEL_CHANGED, { model: buildEventModel(json) });
+            EventBus.emit(Events.MODEL_CHANGED, {
+                model: buildEventModel(json),
+                source: payload ? payload.source : undefined
+            });
         });

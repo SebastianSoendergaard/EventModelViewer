@@ -688,20 +688,21 @@
 
         // ===== END GRID LAYOUT HELPERS =====
 
-        function generateHotspot(hotspot) {
-            let html = '<div class="element hotspot">';
+        function generateHotspot(hotspot, hotspotIndex, scope, sliceIndex) {
+            const sliceAttribute = sliceIndex === undefined ? '' : ` data-slice-index="${sliceIndex}"`;
+            let html = `<div class="element hotspot" data-inline-edit-kind="hotspot" data-hotspot-scope="${scope}" data-hotspot-index="${hotspotIndex}"${sliceAttribute}>`;
             html += '<div class="element-title">Hot Spot!</div>';
             html += `<div class="element-text">${escapeHtml(hotspot)}</div>`;
             html += '</div>';
             return html;
         }
 
-        function generateHotspotGroup(hotspots, className) {
-            return `<div class="${className}">${hotspots.map(generateHotspot).join('')}</div>`;
+        function generateHotspotGroup(hotspots, className, scope, sliceIndex) {
+            return `<div class="${className}">${hotspots.map((hotspot, index) => generateHotspot(hotspot, index, scope, sliceIndex)).join('')}</div>`;
         }
 
-        function generateNote(note) {
-            let html = '<div class="element note">';
+        function generateNote(note, sliceIndex) {
+            let html = `<div class="element note" data-inline-edit-kind="note" data-slice-index="${sliceIndex}">`;
             html += '<div class="element-title">Note</div>';
             html += `<div class="element-text">${escapeHtml(note)}</div>`;
             html += '</div>';
@@ -732,7 +733,7 @@
 
             if (Array.isArray(model.hotspots) && model.hotspots.length > 0) {
                 const alignmentClass = showSwimlanes ? ' model-hotspots--swimlane-aligned' : '';
-                html += generateHotspotGroup(model.hotspots, `model-hotspots${alignmentClass}`);
+                html += generateHotspotGroup(model.hotspots, `model-hotspots${alignmentClass}`, 'model');
             }
 
             // Build CSS Grid
@@ -749,7 +750,7 @@
                 const borderColor = slice.border || '';
                 const borderStyle = slice.border ? `border-color: ${slice.border};` : '';
                 const hasBackground = slice.background ? 'with-background' : '';
-                html += `<div class="grid-cell slice-header ${hasBorder} ${hasBackground}" style="grid-column: ${colNum}; grid-row: 1; ${borderStyle}" data-slice-border-color="${borderColor}" data-slice-background-color="${escapeAttribute(slice.background || '')}">`;
+                html += `<div class="grid-cell slice-header ${hasBorder} ${hasBackground}" style="grid-column: ${colNum}; grid-row: 1; ${borderStyle}" data-inline-edit-kind="slice" data-slice-index="${sliceIndex}" data-slice-border-color="${borderColor}" data-slice-background-color="${escapeAttribute(slice.background || '')}">`;
                 if (slice.name) {
                     html += escapeHtml(slice.name);
                 }
@@ -792,7 +793,7 @@
                     if (sliceHotspots.length > 0) {
                         const hotspotCellKey = `${colNum}-${gridMap.sliceHotspotsRow}`;
                         if (!cellContents.has(hotspotCellKey)) cellContents.set(hotspotCellKey, []);
-                        cellContents.get(hotspotCellKey).push(generateHotspotGroup(sliceHotspots, 'slice-hotspots-group'));
+                        cellContents.get(hotspotCellKey).push(generateHotspotGroup(sliceHotspots, 'slice-hotspots-group', 'slice', sliceIndex));
                     }
                 }
 
@@ -815,7 +816,7 @@
                 // Collect command/view elements; note appears first, then view, then command.
                 const cmdViewItems = [];
                 if (slice.note) {
-                    cmdViewItems.push(generateNote(slice.note));
+                    cmdViewItems.push(generateNote(slice.note, sliceIndex));
                 }
                 if (slice.view) {
                     cmdViewItems.push(generateView(slice.view, sliceIndex));
@@ -866,7 +867,7 @@
                 if (slice.tests && Array.isArray(slice.tests) && slice.tests.length > 0) {
                     const testCellKey = `${colNum}-${gridMap.testRow}`;
                     if (!cellContents.has(testCellKey)) cellContents.set(testCellKey, []);
-                    cellContents.get(testCellKey).push(generateTests(slice.tests));
+                    cellContents.get(testCellKey).push(generateTests(slice.tests, sliceIndex));
                     const meta = ensureCellMeta(testCellKey);
                     meta.hasTests = true;
                 }
@@ -906,7 +907,7 @@
                 const meta = cellMeta.get(cellKey);
                 const cellClass = meta && meta.hasTests ? 'grid-cell test-cell' : 'grid-cell';
                 
-                html += `<div class="${cellClass}" style="grid-column: ${colNum}; grid-row: ${rowNum};" data-slice-index="${sliceIndex}">`;
+                html += `<div class="${cellClass}" style="grid-column: ${colNum}; grid-row: ${rowNum};" data-inline-edit-kind="slice" data-slice-index="${sliceIndex}">`;
                 html += contents.join('');
                 html += `</div>`;
             });
@@ -917,7 +918,7 @@
                     const colNum = showSwimlanes ? sliceIndex + 2 : sliceIndex + 1;
                     const cellKey = `${colNum}-${row}`;
                     if (!cellContents.has(cellKey)) {
-                        html += `<div class="grid-cell" style="grid-column: ${colNum}; grid-row: ${row};" data-slice-index="${sliceIndex}"></div>`;
+                        html += `<div class="grid-cell" style="grid-column: ${colNum}; grid-row: ${row};" data-inline-edit-kind="slice" data-slice-index="${sliceIndex}"></div>`;
                     }
                 }
             }
@@ -934,7 +935,7 @@
             const hasBorder = slice.border ? 'with-border' : '';
             const borderStyle = slice.border ? `border-color: ${slice.border};` : '';
             
-            let html = `<div class="slice ${hasBorder}" style="${borderStyle}" data-slice-index="${index}">`;
+            let html = `<div class="slice ${hasBorder}" style="${borderStyle}" data-inline-edit-kind="slice" data-slice-index="${index}">`;
             
             if (slice.name) {
                 html += `<div class="slice-name">${escapeHtml(slice.name)}</div>`;
@@ -997,8 +998,8 @@
             // Add test cases if present
             if (slice.tests && slice.tests.length > 0) {
                 html += '<div class="tests-container">';
-                slice.tests.forEach(test => {
-                    html += generateTestCase(test);
+                slice.tests.forEach((test, testIndex) => {
+                    html += generateTestCase(test, index, testIndex);
                 });
                 html += '</div>';
             }
@@ -1007,11 +1008,11 @@
             return html;
         }
 
-        function generateTestCase(test) {
-            let html = '<div class="test-case">';
+        function generateTestCase(test, sliceIndex, testIndex) {
+            let html = `<div class="test-case" data-inline-edit-kind="test-name" data-slice-index="${sliceIndex}" data-test-index="${testIndex}">`;
 
-            const renderTestItem = (item, className) => {
-                let itemHtml = `<div class="${className}">`;
+            const renderTestItem = (item, className, section, collection, itemIndex) => {
+                let itemHtml = `<div class="${className}" data-inline-edit-kind="test-item" data-slice-index="${sliceIndex}" data-test-index="${testIndex}" data-test-section="${section}" data-test-collection="${collection}" data-test-item-index="${itemIndex}">`;
                 const itemName = item && item.name ? item.name : '(unnamed)';
                 itemHtml += `${escapeHtml(itemName)}`;
                 if (item.properties && item.properties.length > 0) {
@@ -1026,35 +1027,35 @@
                 itemHtml += '</div>';
                 return itemHtml;
             };
+            const renderSectionLabel = (section, label) =>
+                `<div class="test-section-label" data-context-menu-test-section="${section}" data-slice-index="${sliceIndex}" data-test-index="${testIndex}">${label}:</div>`;
             
             // Test name
             if (test.name) {
-                html += `<div class="test-section-label" style="margin-bottom: 6px; font-size: 12px; color: #2c3e50;">${escapeHtml(test.name)}</div>`;
+                html += `<div class="test-section-label" data-inline-edit-kind="test-name" data-slice-index="${sliceIndex}" data-test-index="${testIndex}" style="margin-bottom: 6px; font-size: 12px; color: #2c3e50;">${escapeHtml(test.name)}</div>`;
             }
             
             // Given section
             const givenEvents = test.given && Array.isArray(test.given.events) ? test.given.events : [];
             const givenViews = test.given && Array.isArray(test.given.views) ? test.given.views : [];
 
-            if (givenEvents.length > 0 || givenViews.length > 0) {
-                html += '<div class="test-section">';
-                html += '<div class="test-section-label">Given:</div>';
-                givenEvents.forEach(event => {
-                    html += renderTestItem(event, 'test-event');
-                });
-                givenViews.forEach(view => {
-                    html += renderTestItem(view, 'test-view');
-                });
-                html += '</div>';
-            }
+            html += '<div class="test-section">';
+            html += renderSectionLabel('given', 'Given');
+            givenEvents.forEach((event, itemIndex) => {
+                html += renderTestItem(event, 'test-event', 'given', 'events', itemIndex);
+            });
+            givenViews.forEach((view, itemIndex) => {
+                html += renderTestItem(view, 'test-view', 'given', 'views', itemIndex);
+            });
+            html += '</div>';
             
             // When section
             const whenCommand = test.when && test.when.command ? test.when.command : null;
+            html += '<div class="test-section">';
+            html += renderSectionLabel('when', 'When');
             if (whenCommand) {
-                html += '<div class="test-section">';
-                html += '<div class="test-section-label">When:</div>';
                 const commandName = whenCommand.name ? whenCommand.name : '(unnamed command)';
-                html += `<div class="test-command">${escapeHtml(commandName)}`;
+                html += `<div class="test-command" data-inline-edit-kind="test-item" data-slice-index="${sliceIndex}" data-test-index="${testIndex}" data-test-section="when" data-test-collection="command" data-test-item-index="0">${escapeHtml(commandName)}`;
                 if (whenCommand.properties && whenCommand.properties.length > 0) {
                     whenCommand.properties.forEach(prop => {
                         const propLabel = prop && prop.name ? prop.name : '(property)';
@@ -1065,28 +1066,27 @@
                     });
                 }
                 html += '</div>';
-                html += '</div>';
             }
+            html += '</div>';
             
             // Then section
             const thenEvents = test.then && Array.isArray(test.then.events) ? test.then.events : [];
             const thenViews = test.then && Array.isArray(test.then.views) ? test.then.views : [];
-            const thenError = test.then && typeof test.then.error === 'string' ? test.then.error : null;
+            const hasThenError = test.then && typeof test.then.error === 'string';
+            const thenError = hasThenError ? test.then.error : null;
 
-            if (thenEvents.length > 0 || thenViews.length > 0 || thenError) {
-                html += '<div class="test-section">';
-                html += '<div class="test-section-label">Then:</div>';
-                thenEvents.forEach(event => {
-                    html += renderTestItem(event, 'test-event');
-                });
-                thenViews.forEach(view => {
-                    html += renderTestItem(view, 'test-view');
-                });
-                if (thenError) {
-                    html += `<div class="test-error">Error: ${escapeHtml(thenError)}</div>`;
-                }
-                html += '</div>';
+            html += '<div class="test-section">';
+            html += renderSectionLabel('then', 'Then');
+            thenEvents.forEach((event, itemIndex) => {
+                html += renderTestItem(event, 'test-event', 'then', 'events', itemIndex);
+            });
+            thenViews.forEach((view, itemIndex) => {
+                html += renderTestItem(view, 'test-view', 'then', 'views', itemIndex);
+            });
+            if (hasThenError) {
+                html += `<div class="test-error" data-inline-edit-kind="test-error" data-slice-index="${sliceIndex}" data-test-index="${testIndex}">Error: ${escapeHtml(thenError)}</div>`;
             }
+            html += '</div>';
             
             html += '</div>';
             return html;
@@ -1099,7 +1099,7 @@
         function normalizeTriggerType(rawType) {
             if (!rawType || typeof rawType !== 'string' || !rawType.trim()) return 'ui';
             const t = rawType.trim().toLowerCase();
-            const known = ['automation', 'translation', 'ui-input', 'ui-input-disabled',
+            const known = ['ui', 'automation', 'translation', 'ui-input', 'ui-input-disabled',
                            'ui-table', 'ui-chart-line', 'ui-chart-column', 'ui-chart-pie'];
             if (known.includes(t)) return t;
             // Any other type starting with "ui" → generic UI fallback
@@ -1234,7 +1234,7 @@
             const displayName = trigger.name || '';
 
             // Outer layout wrapper — NOT the arrow anchor
-            let html = '<div class="trigger-slot">';
+            let html = `<div class="trigger-slot" data-inline-edit-kind="trigger" data-slice-index="${sliceIndex}">`;
 
             // Name label sits above the visual trigger
             if (displayName) {
@@ -1242,7 +1242,7 @@
             }
 
             // .element.trigger is the stable arrow anchor — all data-* attributes live here
-            html += `<div class="element trigger ${variantClass}" data-slice-index="${sliceIndex}" data-trigger-views="${escapeHtml(triggerViews)}" data-trigger-id="${escapeHtml(trigger.id || '')}">`;
+            html += `<div class="element trigger ${variantClass}" data-inline-edit-kind="trigger" data-slice-index="${sliceIndex}" data-trigger-views="${escapeHtml(triggerViews)}" data-trigger-id="${escapeHtml(trigger.id || '')}">`;
 
             if (isGear) {
                 // Automation / translation: gear icon only, no dialog chrome
@@ -1276,7 +1276,7 @@
         function generateCommand(command, sliceIndex) {
     // command.events is pre-resolved to canonical ids by event-model.js
     const commandEvents = (command.events || []).join(',');
-    let html = `<div class="element command" data-command-events="${escapeHtml(commandEvents)}" data-slice-index="${sliceIndex}">`;
+    let html = `<div class="element command" data-inline-edit-kind="command" data-command-events="${escapeHtml(commandEvents)}" data-slice-index="${sliceIndex}">`;
     html += `<div class="element-title">${escapeHtml(command.name)}</div>`;
     
     if (command.properties && command.properties.length > 0) {
@@ -1297,7 +1297,7 @@
             // Always emit data-event-id — enriched model guarantees every event has a calculated id
             const eventIdAttr = event.id ? ` data-event-id="${escapeHtml(event.id)}"` : '';
             const gridColumnStyle = gridColumn ? ` style="grid-column: ${gridColumn};"` : '';
-            let html = `<div class="element event${externalClass}" id="${eventId}" data-event-name="${escapeHtml(event.name)}" data-slice-index="${sliceIndex}"${eventIdAttr}${gridColumnStyle}>`;
+            let html = `<div class="element event${externalClass}" data-inline-edit-kind="event" id="${eventId}" data-event-name="${escapeHtml(event.name)}" data-slice-index="${sliceIndex}" data-event-index="${eventIndex}"${eventIdAttr}${gridColumnStyle}>`;
             html += `<div class="element-title">${escapeHtml(event.name)}</div>`;
             
             if (event.properties && event.properties.length > 0) {
@@ -1323,7 +1323,7 @@
             const viewId = `view-${sliceIndex}`;
             // view.id is guaranteed by enrichment; view.events are pre-resolved canonical ids
             const eventNamesAttr = (view.events || []).join(',');
-            let html = `<div class="element view" id="${viewId}" data-view-id="${escapeHtml(view.id)}" data-view-name="${escapeHtml(view.name || '')}" data-view-events="${escapeHtml(eventNamesAttr)}">`;
+            let html = `<div class="element view" data-inline-edit-kind="view" id="${viewId}" data-view-id="${escapeHtml(view.id)}" data-view-name="${escapeHtml(view.name || '')}" data-view-events="${escapeHtml(eventNamesAttr)}" data-slice-index="${sliceIndex}">`;
             html += `<div class="element-title">${escapeHtml(view.name)}</div>`;
             
             if (view.properties && view.properties.length > 0) {
@@ -1338,10 +1338,10 @@
             return html;
         }
 
-        function generateTests(tests) {
+        function generateTests(tests, sliceIndex) {
             let html = '<div class="tests-container">';
-            tests.forEach(test => {
-                html += generateTestCase(test);
+            tests.forEach((test, testIndex) => {
+                html += generateTestCase(test, sliceIndex, testIndex);
             });
             html += '</div>';
             return html;

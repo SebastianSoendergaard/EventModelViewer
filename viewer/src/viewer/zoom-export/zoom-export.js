@@ -516,9 +516,10 @@
 
         // Mouse drag to pan the diagram
         diagramContainer.addEventListener('mousedown', (e) => {
-            // Ignore if clicking on zoom controls or if resizer is currently being dragged
+            // Ignore controls and the modal diagram editor so form controls can receive focus.
             const resizerEl = document.getElementById('resizer');
-            if (e.target.closest('.zoom-controls') || (resizerEl && resizerEl.classList.contains('resizing'))) return;
+            if (e.target.closest('.zoom-controls, .inline-edit-editor, .inline-edit-rename-choice, input, textarea, select, button') ||
+                (resizerEl && resizerEl.classList.contains('resizing'))) return;
             
             isDragging = true;
             diagramContainer.classList.add('dragging');

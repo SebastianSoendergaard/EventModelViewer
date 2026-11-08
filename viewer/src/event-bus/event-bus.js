@@ -23,7 +23,7 @@
             FILE_LOADED:    'file:loaded',
 
             // JSON content was changed by a user edit or undo/redo.
-            // Payload: { json, source }  — source: 'code' | 'tree' | 'history' | 'addslice'
+            // Payload: { json, source }  — source: 'code' | 'tree' | 'history' | 'addslice' | 'diagram-context-menu'
             JSON_CHANGED:   'json:changed',
 
             // An explicit request to convert the active document's text encoding.
@@ -66,8 +66,13 @@
             // Payload: { json }
             CODE_SYNC:      'code:sync',
 
+            // Request an editable diagram element to open its inline editor.
+            // Payload: { element }
+            INLINE_EDIT_REQUESTED: 'inline-edit:requested',
+
             // The event model has been built from raw JSON (on FILE_LOADED or JSON_CHANGED).
-            // Payload: { model }  — fully-enriched event model object, or { model: null } for cleared document
+            // Payload: { model, source }  — fully-enriched event model object, or { model: null } for cleared document.
+            // source identifies the originating change when available.
             MODEL_CHANGED:  'model:changed',
 
             // The server's active root folder (scanned for .emj/.emy files) changed.

@@ -91,6 +91,10 @@ const eventModelJs = readFile('src/event-model/event-model.js');
 const diagramHtml = readFile('src/viewer/diagram/diagram.html');
 const diagramCss  = readFile('src/viewer/diagram/diagram.css');
 const diagramJs   = readFile('src/viewer/diagram/diagram.js');
+const inlineEditCss = readFile('src/viewer/diagram/inline-edit.css');
+const inlineEditJs  = readFile('src/viewer/diagram/inline-edit.js');
+const contextMenuCss = readFile('src/viewer/diagram/context-menu.css');
+const contextMenuJs  = readFile('src/viewer/diagram/context-menu.js');
 const zoomExportHtml = readFile('src/viewer/zoom-export/zoom-export.html');
 const zoomExportCss  = readFile('src/viewer/zoom-export/zoom-export.css');
 const zoomExportJs   = readFile('src/viewer/zoom-export/zoom-export.js');
@@ -122,8 +126,8 @@ function assembleViewer() {
     let html = viewerHtml;
     html = html.replace('            <!-- DIAGRAM_HTML -->', diagramHtml.trimEnd());
     html = html.replace('            <!-- ZOOM_EXPORT_HTML -->', zoomExportHtml.trimEnd());
-    const css = viewerCss.trimEnd() + '\n\n' + diagramCss.trimEnd() + '\n\n' + zoomExportCss.trimEnd();
-    const js  = iife(eventModelJs) + '\n\n' + iife(diagramJs) + '\n\n' + iife(zoomExportJs) + '\n\n' + iife(viewerJs);
+    const css = viewerCss.trimEnd() + '\n\n' + diagramCss.trimEnd() + '\n\n' + inlineEditCss.trimEnd() + '\n\n' + contextMenuCss.trimEnd() + '\n\n' + zoomExportCss.trimEnd();
+    const js  = iife(eventModelJs) + '\n\n' + iife(diagramJs) + '\n\n' + iife(inlineEditJs) + '\n\n' + iife(contextMenuJs) + '\n\n' + iife(zoomExportJs) + '\n\n' + iife(viewerJs);
     return { html, css, js };
 }
 

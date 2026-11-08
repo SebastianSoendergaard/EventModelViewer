@@ -5,8 +5,40 @@ Visualizes and edits Event Model documents (per Dymitruk/Dilger Event Modeling) 
 ## Language
 
 **Event Model**:
-The document this app edits — slices, triggers, commands, events, views, and tests. It has exactly one schema, but is stored on disk in either of two text encodings, chosen explicitly per document. A user may explicitly convert between encodings; the encoding is never inferred from content.
+The document this app edits — slices and their diagram elements: triggers, commands, events, views, and tests. It has exactly one schema, but is stored on disk in either of two text encodings, chosen explicitly per document. A user may explicitly convert between encodings; the encoding is never inferred from content.
 _Avoid_: model file (ambiguous about which encoding)
+
+**Diagram Element**:
+A single occurrence of a trigger, command, event, view, or test in an Event Model slice. Occurrences remain distinct even when they share a name.
+_Avoid_: node, item
+
+**Main Element Property**:
+A property on a command, event, or view, written as `name:type`; the name identifies the property and the type describes the kind of value it carries.
+_Avoid_: field, attribute
+
+**Scenario/Test Property**:
+A property on an event, command, or view within a test scenario, written as `name:value`; the name identifies the property and the value records the example held by that scenario.
+_Avoid_: test field
+
+**Trigger Property**:
+A named value belonging to a trigger, written as `name:value`; it describes data shown or entered through the trigger rather than the type of a main element property.
+_Avoid_: main element property
+
+**Button**:
+An available user action named by a UI trigger. A Button is an action offered by the trigger, not a property value.
+_Avoid_: trigger property
+
+**Name-based Reference**:
+A reference to an Event Model element by its name when no explicit identifier is supplied. Names are a fallback identity, so repeated names may require occurrence context to select the intended element.
+_Avoid_: name lookup, text match
+
+**Selected Occurrence**:
+The particular diagram element occurrence chosen as the target of a reference or edit when a name identifies more than one occurrence. It is one occurrence, not every element with the same name.
+_Avoid_: selected element
+
+**Duplicate Rename Scope**:
+The scope applied when renaming a name shared by multiple occurrences: current changes only the selected occurrence; all changes every matching occurrence. The choice concerns occurrences of the duplicate name, not unrelated elements with similar text.
+_Avoid_: global rename
 
 **Command Pattern**:
 A workflow in which a trigger invokes a command, and the command produces one or more events.
