@@ -1,4 +1,5 @@
 ﻿        const codeEditor = document.getElementById('codeEditor');
+const codeView = document.getElementById('codeView');
         const codeCollapseBtn = document.getElementById('codeCollapseBtn');
         const codeExpandBtn = document.getElementById('codeExpandBtn');
 
@@ -57,6 +58,7 @@
             if (codeEditorView && codeEditorView.setValue) {
                 codeEditorView.session.setMode(Codec.aceMode(_currentFormat));
                 codeEditorView.setValue(json ? Codec.stringify(json, _currentFormat) : '', -1);
+                updateCollapseExpandButtonState();
             }
         });
 
@@ -66,6 +68,7 @@
             updateFormatConversionOptions();
             if (codeEditorView && codeEditorView.setValue) {
                 codeEditorView.setValue(Codec.stringify(json, _currentFormat), -1);
+                updateCollapseExpandButtonState();
                 if (followDiagramSelection && lastDiagramSelectionPath) {
                     focusDiagramSelection(lastDiagramSelectionPath);
                 }
@@ -130,6 +133,7 @@
                     focusDiagramSelection(lastDiagramSelectionPath);
                 }
             }
+            updateCollapseExpandButtonState();
         });
 
         function parseJsonToLines(json) {
@@ -538,14 +542,14 @@
                             expandedRows.forEach(row => {
                                 const parentLine = editor.session.getLine(row);
                                 const parentIndent = parentLine.length - parentLine.trimStart().length;
-                                const parentRange = editor.session.getFoldWidgetRange(row);
+                                const parentRange = getAceFoldWidgetRange(editor.session, row);
                                 if (!parentRange) return;
 
                                 const childFolds = [];
                                 for (let i = row + 1; i <= parentRange.end.row; i++) {
                                     const line = editor.session.getLine(i);
                                     const indent = line.length - line.trimStart().length;
-                                    const range = editor.session.getFoldWidgetRange(i);
+                                    const range = getAceFoldWidgetRange(editor.session, i);
                                     if (range && indent > parentIndent) {
                                         childFolds.push({ row: i, indent, range });
                                     }
@@ -607,6 +611,7 @@
                 
                 // Store editor instance globally
                 codeEditorView = editor;
+                updateCollapseExpandButtonState();
                 
                 // Add change listener with debouncing
                 editor.session.on('change', function() {
@@ -759,6 +764,13 @@
             return line.startsWith('{') || line.startsWith('[');
         }
 
+        function getAceFoldWidgetRange(session, row) {
+            if (!session || typeof session.getFoldWidgetRange !== 'function') {
+                return null;
+            }
+            return session.getFoldWidgetRange(row);
+        }
+
         function collapseToTopLevel() {
             // Check which tab is active
             const codeTabActive = codeView.classList.contains('active');
@@ -777,7 +789,7 @@
                 const foldableRanges = [];
                 let topLevelIndent = Infinity;
                 for (let row = 0; row < session.getLength(); row++) {
-                    const range = session.getFoldWidgetRange(row);
+                    const range = getAceFoldWidgetRange(session, row);
                     if (range && !isAceRootContainerRow(session, row)) {
                         const line = session.getLine(row);
                         const indent = line.length - line.trimStart().length;
@@ -848,7 +860,7 @@
                 for (let row = 0; row < session.getLength(); row++) {
                     if (
                         !isAceRootContainerRow(session, row) &&
-                        session.getFoldWidgetRange(row)
+                        getAceFoldWidgetRange(session, row)
                     ) {
                         foldableRows.push(row);
                     }

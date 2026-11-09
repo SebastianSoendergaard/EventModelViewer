@@ -77,4 +77,9 @@ assert.equal(sandbox.codeExpandBtn.disabled, false);
 sandbox.controls.expandNextLevel();
 assert.deepEqual(removeFoldRows, [1, 6]);
 
+delete session.getFoldWidgetRange;
+sandbox.controls.updateCollapseExpandButtonState();
+assert.equal(sandbox.codeCollapseBtn.disabled, true);
+assert.equal(sandbox.codeExpandBtn.disabled, true);
+
 console.log('Progressive ACE collapse controls passed.');
