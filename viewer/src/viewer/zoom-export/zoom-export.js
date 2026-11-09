@@ -14,6 +14,7 @@
         let restoredZoomBelowFitFloor = false;
         let pendingPresentationState = null;
         let fileLoadGeneration = 0;
+        let _exportModel = null;
 
         // DOM references (defined here so this module is self-contained)
         const diagramWrapper = document.getElementById('diagramWrapper');
@@ -179,6 +180,7 @@
 
         // Re-fit whenever what's drawn can change size...
         EventBus.on(Events.MODEL_CHANGED, ({ model }) => {
+            _exportModel = model;
             if (!model) return; // cleared document — nothing to fit
             refreshFitZoom(false);
         });
@@ -408,6 +410,315 @@
             }
         }
 
+        function escapeDrawioXml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
+        }
+
+        function drawioLabel(value) {
+            return escapeDrawioXml(String(value ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '<br>'));
+        }
+
+        function isVisibleForDrawioExport(element) {
+            const style = window.getComputedStyle(element);
+            return style.display !== 'none' && style.visibility !== 'hidden' && element.getClientRects().length > 0;
+        }
+
+        function drawioBounds(element, diagramDiv) {
+            const elementRect = element.getBoundingClientRect();
+            const diagramRect = diagramDiv.getBoundingClientRect();
+            return {
+                x: Math.max(0, elementRect.left - diagramRect.left),
+                y: Math.max(0, elementRect.top - diagramRect.top),
+                width: Math.max(40, elementRect.width),
+                height: Math.max(24, elementRect.height)
+            };
+        }
+
+        function drawioElementLabel(element, kindOverride) {
+            const kind = kindOverride || element.getAttribute('data-inline-edit-kind');
+            if (kind === 'trigger') {
+                return element.closest('.trigger-slot')?.innerText.trim() || 'Trigger';
+            }
+            if (kind === 'slice') {
+                return element.textContent.trim();
+            }
+            if (kind === 'test-case') {
+                return element.querySelector('[data-inline-edit-kind="test-name"]')?.textContent.trim() || 'Test case';
+            }
+            if (kind === 'test-item' || kind === 'test-error' || kind === 'test-name' || kind === 'test-section') {
+                return element.innerText.trim();
+            }
+            if (kind === 'slice-background' || kind === 'slice-border') {
+                return '';
+            }
+            const title = element.querySelector('.element-title')?.textContent.trim() || '';
+            const text = element.querySelector('.element-text')?.textContent.trim() || '';
+            const properties = Array.from(element.querySelectorAll('.element-property'))
+                .map(property => property.textContent.trim())
+                .filter(Boolean);
+            return [title, text, ...properties].filter(Boolean).join('\n');
+        }
+
+        function drawioStyleForElement(element, kindOverride) {
+            const kind = kindOverride || element.getAttribute('data-inline-edit-kind');
+            if (kind === 'title') {
+                return 'text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=18;';
+            }
+            if (kind === 'lane-header' || kind === 'test-section') {
+                return 'text;html=1;align=left;verticalAlign=middle;fontStyle=1;fontSize=12;';
+            }
+            if (kind === 'slice') {
+                return 'text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;';
+            }
+            if (kind === 'slice-background') {
+                const color = element.style.backgroundColor || '#ffffff';
+                return `rounded=1;html=1;fillColor=${color};opacity=18;strokeColor=none;connectable=0;`;
+            }
+            if (kind === 'slice-border') {
+                const color = element.style.borderColor || '#000000';
+                return `rounded=1;html=1;fillColor=none;strokeColor=${color};strokeWidth=3;connectable=0;`;
+            }
+            if (kind === 'test-case') {
+                return 'swimlane;html=1;whiteSpace=wrap;rounded=1;startSize=24;horizontal=1;fillColor=#ffffff;strokeColor=#34495e;fontColor=#2c3e50;container=1;';
+            }
+            if (kind === 'trigger') {
+                return 'ellipse;whiteSpace=wrap;html=1;fillColor=#ecf0f1;strokeColor=#95a5a6;fontColor=#2c3e50;';
+            }
+            if (kind === 'command') {
+                return 'rounded=1;whiteSpace=wrap;html=1;fillColor=#3498db;strokeColor=#21618c;fontColor=#ffffff;';
+            }
+            if (kind === 'view') {
+                return 'rounded=1;whiteSpace=wrap;html=1;fillColor=#2ecc71;strokeColor=#1e8449;fontColor=#ffffff;';
+            }
+            if (kind === 'event') {
+                const isExternal = element.classList.contains('external');
+                return isExternal
+                    ? 'rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#f39c12;fontColor=#333333;'
+                    : 'rounded=1;whiteSpace=wrap;html=1;fillColor=#e67e22;strokeColor=#ba4a00;fontColor=#ffffff;';
+            }
+            if (kind === 'note') {
+                return 'shape=note;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;';
+            }
+            if (kind === 'hotspot') {
+                return 'rounded=1;whiteSpace=wrap;html=1;fillColor=#ff0000;strokeColor=#c0392b;fontColor=#ffffff;';
+            }
+            if (kind === 'test-item') {
+                if (element.classList.contains('test-event')) {
+                    return 'rounded=1;whiteSpace=wrap;html=1;fillColor=#e67e22;strokeColor=#ba4a00;fontColor=#ffffff;';
+                }
+                if (element.classList.contains('test-view')) {
+                    return 'rounded=1;whiteSpace=wrap;html=1;fillColor=#2ecc71;strokeColor=#1e8449;fontColor=#ffffff;';
+                }
+                if (element.classList.contains('test-command')) {
+                    return 'rounded=1;whiteSpace=wrap;html=1;fillColor=#3498db;strokeColor=#21618c;fontColor=#ffffff;';
+                }
+            }
+            if (kind === 'test-error') {
+                return 'rounded=1;whiteSpace=wrap;html=1;fillColor=#e74c3c;strokeColor=#a93226;fontColor=#ffffff;';
+            }
+            return 'rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;';
+        }
+
+        function exportToDrawio() {
+            const restoreZoom = withResetZoomForExport();
+            try {
+                const diagramDiv = document.querySelector('.event-model-diagram');
+                if (!diagramDiv || !_exportModel) {
+                    alert('No diagram to export. Please load an emj or emy file first.');
+                    return;
+                }
+
+                const nodes = [];
+                const nodeByElement = new Map();
+                const testCaseNodes = new Map();
+                let nextId = 2;
+
+                const addNode = (element, label, kindOverride, parentNode) => {
+                    if (!element || !isVisibleForDrawioExport(element) || nodeByElement.has(element)) return null;
+                    const kind = kindOverride || element.getAttribute('data-inline-edit-kind') || '';
+                    const id = `node-${nextId++}`;
+                    const absoluteBounds = drawioBounds(element, diagramDiv);
+                    const bounds = parentNode
+                        ? {
+                            ...absoluteBounds,
+                            x: absoluteBounds.x - parentNode.absoluteBounds.x,
+                            y: absoluteBounds.y - parentNode.absoluteBounds.y
+                        }
+                        : absoluteBounds;
+                    const node = {
+                        id,
+                        element,
+                        kind,
+                        label: label !== undefined ? label : drawioElementLabel(element, kind),
+                        sliceIndex: Number.parseInt(element.getAttribute('data-slice-index'), 10),
+                        bounds,
+                        absoluteBounds,
+                        parent: parentNode ? parentNode.id : '1'
+                    };
+                    nodes.push(node);
+                    nodeByElement.set(element, node);
+                    return node;
+                };
+
+                diagramDiv.querySelectorAll('.slice-background').forEach(element => {
+                    addNode(element, '', 'slice-background');
+                });
+                diagramDiv.querySelectorAll('.slice-border').forEach(element => {
+                    addNode(element, '', 'slice-border');
+                });
+
+                const title = diagramDiv.querySelector('.diagram-title');
+                addNode(title, title?.textContent.trim() || 'Event Model', 'title');
+
+                diagramDiv.querySelectorAll('.lane-header').forEach(element => {
+                    if (element.textContent.trim()) {
+                        addNode(element, element.textContent.trim(), 'lane-header');
+                    }
+                });
+
+                diagramDiv.querySelectorAll('.grid-cell.slice-header[data-slice-index]').forEach(element => {
+                    addNode(element, element.textContent.trim(), 'slice');
+                });
+
+                diagramDiv.querySelectorAll('.test-case[data-inline-edit-kind]').forEach(element => {
+                    const node = addNode(element, undefined, 'test-case');
+                    if (node) testCaseNodes.set(element, node);
+                });
+
+                diagramDiv.querySelectorAll(
+                    '.element[data-inline-edit-kind], ' +
+                    '[data-inline-edit-kind="test-item"], ' +
+                    '[data-inline-edit-kind="test-error"], ' +
+                    '.test-section-label[data-context-menu-test-section]'
+                ).forEach(element => {
+                    if (element.classList.contains('test-case')) return;
+                    const testCase = element.closest('.test-case');
+                    const parentNode = testCase ? testCaseNodes.get(testCase) : null;
+                    const kind = element.matches('.test-section-label') ? 'test-section' : undefined;
+                    addNode(element, undefined, kind, parentNode);
+                });
+
+                const nodesForKind = kind => nodes.filter(node => node.kind === kind);
+                const addEdge = (edges, source, target, dashed = false) => {
+                    if (!source || !target || source === target) return;
+                    const key = `${source.id}->${target.id}`;
+                    if (edges.some(edge => edge.key === key)) return;
+                    edges.push({ key, source, target, dashed });
+                };
+
+                const edges = [];
+                const triggers = nodesForKind('trigger');
+                const commands = nodesForKind('command');
+                const events = nodesForKind('event');
+                const views = nodesForKind('view');
+
+                const bySlice = (collection, sliceIndex) =>
+                    collection.filter(node => node.sliceIndex === sliceIndex);
+                const findByAttribute = (collection, attribute, value) =>
+                    collection.filter(node => node.element.getAttribute(attribute) === value);
+                const precedingOrFollowing = (collection, sliceIndex, preferPreceding) => {
+                    const sameSlice = bySlice(collection, sliceIndex);
+                    if (sameSlice.length > 0) return { node: sameSlice[0], dashed: false };
+
+                    const candidates = collection
+                        .filter(node => Number.isFinite(node.sliceIndex))
+                        .sort((left, right) => left.sliceIndex - right.sliceIndex);
+                    const preceding = candidates.filter(node => node.sliceIndex < sliceIndex);
+                    if (preferPreceding && preceding.length > 0) {
+                        return { node: preceding[preceding.length - 1], dashed: false };
+                    }
+                    const following = candidates.filter(node => node.sliceIndex > sliceIndex);
+                    return following.length > 0
+                        ? { node: following[0], dashed: true }
+                        : null;
+                };
+
+                commands.forEach(command => {
+                    const trigger = bySlice(triggers, command.sliceIndex)[0];
+                    addEdge(edges, trigger, command);
+
+                    const eventIds = (command.element.getAttribute('data-command-events') || '')
+                        .split(',')
+                        .map(value => value.trim())
+                        .filter(Boolean);
+                    const commandEvents = eventIds.length > 0
+                        ? eventIds.flatMap(eventId => findByAttribute(events, 'data-event-id', eventId))
+                        : bySlice(events, command.sliceIndex);
+                    commandEvents.forEach(event => addEdge(edges, command, event));
+                });
+
+                views.forEach(view => {
+                    const eventIds = (view.element.getAttribute('data-view-events') || '')
+                        .split(',')
+                        .map(value => value.trim())
+                        .filter(Boolean);
+                    eventIds.forEach(eventId => {
+                        const matches = findByAttribute(events, 'data-event-id', eventId);
+                        const selected = precedingOrFollowing(matches, view.sliceIndex, true);
+                        if (selected) addEdge(edges, selected.node, view, selected.dashed);
+                    });
+                });
+
+                triggers.forEach(trigger => {
+                    const viewIds = (trigger.element.getAttribute('data-trigger-views') || '')
+                        .split(',')
+                        .map(value => value.trim())
+                        .filter(Boolean);
+                    viewIds.forEach(viewId => {
+                        const matches = findByAttribute(views, 'data-view-id', viewId);
+                        const selected = precedingOrFollowing(matches, trigger.sliceIndex, true);
+                        if (selected) addEdge(edges, trigger, selected.node, selected.dashed);
+                    });
+                });
+
+                const cellXml = nodes.map(node => {
+                    const { x, y, width, height } = node.bounds;
+                    const style = drawioStyleForElement(node.element, node.kind);
+                    return `<mxCell id="${node.id}" value="${drawioLabel(node.label)}" style="${escapeDrawioXml(style)}" vertex="1" parent="${node.parent}"><mxGeometry x="${Math.round(x)}" y="${Math.round(y)}" width="${Math.round(width)}" height="${Math.round(height)}" as="geometry"/></mxCell>`;
+                }).join('');
+
+                const edgeXml = edges.map((edge, index) => {
+                    const dashed = edge.dashed ? 'dashed=1;' : '';
+                    return `<mxCell id="edge-${index + 1}" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;${dashed}" edge="1" parent="1" source="${edge.source.id}" target="${edge.target.id}"><mxGeometry relative="1" as="geometry"/></mxCell>`;
+                }).join('');
+
+                const diagramName = _exportModel.title || 'Event Model';
+                const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net">
+  <diagram id="event-model" name="${escapeDrawioXml(diagramName)}">
+    <mxGraphModel dx="0" dy="0" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        ${cellXml}
+        ${edgeXml}
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>`;
+
+                const blob = new Blob([xml], { type: 'application/xml' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'event-model-diagram.drawio';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Export to Draw.io failed:', error);
+                alert('Failed to export Draw.io diagram: ' + error.message);
+            } finally {
+                restoreZoom();
+            }
+        }
+
         function exportToSVG() {
             const restoreZoom = withResetZoomForExport();
             try {
@@ -499,9 +810,11 @@
         // Export button handlers
         const exportPngBtn = document.getElementById('exportPngBtn');
         const exportSvgBtn = document.getElementById('exportSvgBtn');
+        const exportDrawioBtn = document.getElementById('exportDrawioBtn');
         
         exportPngBtn.addEventListener('click', exportToPNG);
         exportSvgBtn.addEventListener('click', exportToSVG);
+        exportDrawioBtn.addEventListener('click', exportToDrawio);
 
         // Ctrl + scroll to zoom, anchored on the mouse cursor position so the content
         // under the cursor stays put rather than sliding away.
