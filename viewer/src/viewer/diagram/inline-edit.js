@@ -112,6 +112,7 @@
         }
 
         function pathFor(descriptor) {
+            if (descriptor.kind === 'title') return ['title'];
             const slicePath = ['slices', descriptor.sliceIndex];
 
             switch (descriptor.kind) {
@@ -167,6 +168,7 @@
             const kind = element.getAttribute('data-inline-edit-kind');
             const number = attribute => Number.parseInt(element.getAttribute(attribute), 10);
             if (!kind) return null;
+            if (kind === 'title') return { kind };
 
             if (kind === 'hotspot') {
                 return {
@@ -292,6 +294,9 @@
 
         function readDraft(descriptor) {
             const target = getAt(rawJson, pathFor(descriptor));
+            if (descriptor.kind === 'title') {
+                return { title: asText(target) };
+            }
             if (descriptor.kind === 'slice') {
                 const slice = isObject(target) ? target : {};
                 const hasId = Object.prototype.hasOwnProperty.call(slice, 'id');
@@ -527,7 +532,9 @@
             editor.dataset.inlineEditor = 'true';
             const { descriptor, draft } = activeEdit;
 
-            if (descriptor.kind === 'slice') {
+            if (descriptor.kind === 'title') {
+                createField(editor, 'Title', 'input', 'title', draft.title);
+            } else if (descriptor.kind === 'slice') {
                 createField(editor, 'Name', 'input', 'name', draft.name);
                 createIdField(editor, draft.id, draft.idEnabled);
                 createColorField(editor, 'Border', 'border', draft.border);
@@ -798,7 +805,9 @@
 
         function validateDraft() {
             const { descriptor, draft } = activeEdit;
-            if (descriptor.kind === 'slice') {
+            if (descriptor.kind === 'title') {
+                draft.title = draft.title.trim();
+            } else if (descriptor.kind === 'slice') {
                 draft.name = draft.name.trim();
                 if (draft.idEnabled) draft.id = draft.id.trim();
             } else if (descriptor.kind === 'trigger' &&
@@ -899,6 +908,11 @@
             const targetPath = pathFor(descriptor);
             const target = getAt(json, targetPath);
 
+            if (descriptor.kind === 'title') {
+                if (draft.title) setAt(json, targetPath, draft.title);
+                else deleteAt(json, targetPath);
+                return;
+            }
             if (descriptor.kind === 'slice') {
                 target.name = draft.name.trim();
                 if (draft.idEnabled) target.id = draft.id.trim();
@@ -996,17 +1010,18 @@
             renderEditor();
         }
 
-        function beginEdit(element) {
+        function beginEdit(element, requestedDescriptor) {
             if (activeEdit || !rawJson) return;
-            const descriptor = descriptorFromElement(element);
+            const descriptor = requestedDescriptor || descriptorFromElement(element);
             if (!descriptor || pathFor(descriptor) === null) return;
             const target = getAt(rawJson, pathFor(descriptor));
-            if (target === undefined) return;
+            if (target === undefined && descriptor.kind !== 'title') return;
+            const editTarget = element || document.createElement('div');
             activeEdit = {
                 descriptor,
                 target: descriptor.kind === 'trigger'
-                    ? element.closest('.trigger-slot') || element
-                    : element,
+                    ? editTarget.closest?.('.trigger-slot') || editTarget
+                    : editTarget,
                 draft: readDraft(descriptor),
                 originalHtml: ''
             };
@@ -1025,8 +1040,8 @@
             rawJson = cloneJson(json);
         });
 
-        EventBus.on(Events.INLINE_EDIT_REQUESTED, ({ element }) => {
-            if (element) beginEdit(element);
+        EventBus.on(Events.INLINE_EDIT_REQUESTED, ({ element, descriptor }) => {
+            if (element || descriptor) beginEdit(element, descriptor);
         });
 
         EventBus.on(Events.JSON_CHANGED, ({ json }) => {

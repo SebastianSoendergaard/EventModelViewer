@@ -63,6 +63,7 @@
                 };
             }
             if (!kind) return null;
+            if (kind === 'title') return { kind };
             if (kind === 'slice') {
                 return { kind, sliceIndex: number('data-slice-index') };
             }
@@ -143,10 +144,16 @@
                 event.target.closest('[data-inline-edit-kind]');
             const testCaseElement = event.target.closest &&
                 event.target.closest('.test-case[data-inline-edit-kind="test-name"]');
-            contextMenuElement = testSectionElement || inlineEditElement || testCaseElement;
+            const isOutsideSlice = !slice && !testSectionElement && !inlineEditElement && !testCaseElement;
+            const backgroundTitleElement = isOutsideSlice
+                ? contextMenuDiagramElement.querySelector('.diagram-title')
+                : null;
+            contextMenuElement = testSectionElement || inlineEditElement || testCaseElement || backgroundTitleElement;
             contextMenuDescriptor = contextMenuElement
                 ? descriptorForContextElement(contextMenuElement)
-                : null;
+                : isOutsideSlice && contextMenuModel
+                    ? { kind: 'title' }
+                    : null;
 
             contextMenuSliceIndex = slice ? sliceIndex : null;
             diagramContextMenu.replaceChildren();
@@ -156,20 +163,28 @@
             const isTestSection = contextMenuDescriptor &&
                 contextMenuDescriptor.kind === 'test-section';
             const isSliceElement = contextMenuDescriptor && contextMenuDescriptor.kind === 'slice';
+            const isTitleElement = contextMenuDescriptor && contextMenuDescriptor.kind === 'title';
             const canShowSliceActions = slice && !isTestElement &&
                 (!contextMenuElement || isSliceElement || isTestSection);
             if (contextMenuElement && contextMenuDescriptor &&
-                !isTestElement && !isTestSection) {
+                !isTestElement && !isTestSection && !isTitleElement) {
                 diagramContextMenu.appendChild(createContextMenuElement('edit-element', 'Edit', false));
                 diagramContextMenu.appendChild(createContextMenuElement('delete-element', 'Delete', false));
                 if (canShowSliceActions) {
                     diagramContextMenu.appendChild(createContextMenuSeparator());
                 }
             }
+            if (isOutsideSlice && isTitleElement) {
+                diagramContextMenu.appendChild(createContextMenuElement('edit-element', 'Edit', false));
+                diagramContextMenu.appendChild(createContextMenuSeparator());
+                diagramContextMenu.appendChild(createContextMenuElement('add-slice', 'Add slice', false));
+            } else if (contextMenuElement && isTitleElement) {
+                diagramContextMenu.appendChild(createContextMenuElement('edit-element', 'Edit', false));
+            }
             if (contextMenuElement && contextMenuDescriptor && isTestElement) {
                 diagramContextMenu.appendChild(createContextMenuElement('edit-element', 'Edit', false));
                 diagramContextMenu.appendChild(createContextMenuElement('delete-element', 'Delete', false));
-            } else if (!isTestSection && !slice) {
+            } else if (!isTestSection && !slice && !isTitleElement) {
                 diagramContextMenu.appendChild(createContextMenuElement('add-slice', 'Add slice', false));
             }
             if (canShowSliceActions) {
@@ -351,9 +366,10 @@
             if (action === 'edit-element') {
                 event.stopPropagation();
                 const target = contextMenuElement;
+                const descriptor = contextMenuDescriptor;
                 hideDiagramContextMenu();
-                if (target && target.isConnected) {
-                    EventBus.emit(Events.INLINE_EDIT_REQUESTED, { element: target });
+                if ((target && target.isConnected) || descriptor?.kind === 'title') {
+                    EventBus.emit(Events.INLINE_EDIT_REQUESTED, { element: target, descriptor });
                 }
                 return;
             }
@@ -382,7 +398,7 @@
             contextMenuModel = json ? cloneContextMenuJson(json) : null;
         });
 
-        contextMenuDiagramElement.addEventListener('contextmenu', showDiagramContextMenu);
+        contextMenuDiagramContainer.addEventListener('contextmenu', showDiagramContextMenu);
         document.addEventListener('click', event => {
             if (!event.target.closest('.diagram-context-menu')) hideDiagramContextMenu();
         });

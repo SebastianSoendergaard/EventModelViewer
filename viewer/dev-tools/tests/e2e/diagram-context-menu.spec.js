@@ -20,11 +20,24 @@ test.describe('Diagram context menu', () => {
   test('adds a slice from the diagram background', async ({ page }) => {
     await page.locator('#diagram').click({ button: 'right', position: { x: 10, y: 10 } });
     const menu = page.locator('.diagram-context-menu');
-    await expect(menu.locator('button')).toHaveCount(1);
+    await expect(menu.locator('button')).toHaveCount(2);
+    await expect(menu.locator('button').first()).toHaveText('Edit');
     await menu.locator('[data-context-menu-action="add-slice"]').click();
 
     await expect(page.locator('.slice-header')).toHaveCount(3);
     await expect(page.locator('.slice-header').last()).toContainText('New slice');
+  });
+
+  test('offers title editing from blank diagram-container space', async ({ page }) => {
+    const container = page.locator('#diagramContainer');
+    const box = await container.boundingBox();
+    await container.click({
+      button: 'right',
+      position: { x: Math.max(1, box.width - 10), y: Math.max(1, box.height - 10) }
+    });
+
+    const menu = page.locator('.diagram-context-menu');
+    await expect(menu.locator('button')).toHaveText(['Edit', 'Add slice']);
   });
 
   test('offers slice element actions and adds an event', async ({ page }) => {

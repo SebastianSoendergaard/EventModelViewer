@@ -32,7 +32,8 @@ function loadInlineEditor(json) {
     FILE_LOADED: 'file:loaded',
     JSON_CHANGED: 'json:changed',
     MODEL_CHANGED: 'model:changed',
-    FILTER_TOGGLED: 'filter:toggled'
+    FILTER_TOGGLED: 'filter:toggled',
+    INLINE_EDIT_REQUESTED: 'inline-edit:requested'
   };
   dom.window.eval(inlineEditSource);
   dom.window.EventBus.emit('file:loaded', { json });
@@ -63,6 +64,44 @@ describe('diagram inline editing', () => {
 
     expect(target.textContent).toContain('rendered');
     expect(getEditor(dom)).not.toBeNull();
+  });
+
+  it('edits the diagram title', () => {
+    const { dom, changes } = loadInlineEditor({
+      title: 'Shopping cart',
+      slices: []
+    });
+    addTarget(dom, { 'data-inline-edit-kind': 'title' });
+    const editor = getEditor(dom);
+    const title = editor.querySelector('[data-inline-edit-field="title"]');
+
+    expect(title.value).toBe('Shopping cart');
+    title.value = 'Checkout';
+    title.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    editor.querySelector('button:last-child').click();
+
+    expect(changes[0]).toMatchObject({
+      title: 'Checkout',
+      slices: []
+    });
+  });
+
+  it('creates a diagram title when editing a title that is not set', () => {
+    const { dom, changes } = loadInlineEditor({ slices: [] });
+    dom.window.EventBus.emit('inline-edit:requested', {
+      descriptor: { kind: 'title' }
+    });
+    const editor = getEditor(dom);
+    const title = editor.querySelector('[data-inline-edit-field="title"]');
+
+    title.value = 'New title';
+    title.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    editor.querySelector('button:last-child').click();
+
+    expect(changes[0]).toMatchObject({
+      title: 'New title',
+      slices: []
+    });
   });
 
   it('edits slice identity, styling, and hints', () => {

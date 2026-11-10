@@ -2311,7 +2311,7 @@
             <div class="logo-block view"></div>
         </div>
         <h1>Event Model Viewer</h1>
-        <span class="build-number" title="Build number">Build 2026110921</span>
+        <span class="build-number" title="Build number">Build 2026111013</span>
 <button class="help-btn" id="helpBtn" title="Help" aria-label="Open help" aria-expanded="false">?</button>
     </header>
 
@@ -2564,7 +2564,7 @@ trigger types:
         <section class="help-section">
             <h3>About</h3>
             <p>99% wibe coded with love <strong>&hearts;</strong></p>
-            <p>Build <strong>2026110921</strong></p>
+            <p>Build <strong>2026111013</strong></p>
             <p><a href="https://github.com/SebastianSoendergaard/EventModelViewer" target="_blank" rel="noopener noreferrer">GitHub repository</a></p>
         </section>
     </div>
@@ -7043,6 +7043,8 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
             if (!kind) return null;
 
             switch (kind) {
+                case 'title':
+                    return ['title'];
                 case 'slice':
                     return slicePath;
                 case 'trigger':
@@ -7788,7 +7790,7 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
             let html = '<div class="event-model-diagram">';
             
             if (model.title) {
-                html += `<div class="diagram-title">${escapeHtml(model.title)}</div>`;
+                html += `<div class="diagram-title" data-inline-edit-kind="title">${escapeHtml(model.title)}</div>`;
             }
 
             if (Array.isArray(model.hotspots) && model.hotspots.length > 0) {
@@ -8540,6 +8542,7 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
         }
 
         function pathFor(descriptor) {
+            if (descriptor.kind === 'title') return ['title'];
             const slicePath = ['slices', descriptor.sliceIndex];
 
             switch (descriptor.kind) {
@@ -8595,6 +8598,7 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
             const kind = element.getAttribute('data-inline-edit-kind');
             const number = attribute => Number.parseInt(element.getAttribute(attribute), 10);
             if (!kind) return null;
+            if (kind === 'title') return { kind };
 
             if (kind === 'hotspot') {
                 return {
@@ -8720,6 +8724,9 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
 
         function readDraft(descriptor) {
             const target = getAt(rawJson, pathFor(descriptor));
+            if (descriptor.kind === 'title') {
+                return { title: asText(target) };
+            }
             if (descriptor.kind === 'slice') {
                 const slice = isObject(target) ? target : {};
                 const hasId = Object.prototype.hasOwnProperty.call(slice, 'id');
@@ -8955,7 +8962,9 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
             editor.dataset.inlineEditor = 'true';
             const { descriptor, draft } = activeEdit;
 
-            if (descriptor.kind === 'slice') {
+            if (descriptor.kind === 'title') {
+                createField(editor, 'Title', 'input', 'title', draft.title);
+            } else if (descriptor.kind === 'slice') {
                 createField(editor, 'Name', 'input', 'name', draft.name);
                 createIdField(editor, draft.id, draft.idEnabled);
                 createColorField(editor, 'Border', 'border', draft.border);
@@ -9226,7 +9235,9 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
 
         function validateDraft() {
             const { descriptor, draft } = activeEdit;
-            if (descriptor.kind === 'slice') {
+            if (descriptor.kind === 'title') {
+                draft.title = draft.title.trim();
+            } else if (descriptor.kind === 'slice') {
                 draft.name = draft.name.trim();
                 if (draft.idEnabled) draft.id = draft.id.trim();
             } else if (descriptor.kind === 'trigger' &&
@@ -9327,6 +9338,11 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
             const targetPath = pathFor(descriptor);
             const target = getAt(json, targetPath);
 
+            if (descriptor.kind === 'title') {
+                if (draft.title) setAt(json, targetPath, draft.title);
+                else deleteAt(json, targetPath);
+                return;
+            }
             if (descriptor.kind === 'slice') {
                 target.name = draft.name.trim();
                 if (draft.idEnabled) target.id = draft.id.trim();
@@ -9424,17 +9440,18 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
             renderEditor();
         }
 
-        function beginEdit(element) {
+        function beginEdit(element, requestedDescriptor) {
             if (activeEdit || !rawJson) return;
-            const descriptor = descriptorFromElement(element);
+            const descriptor = requestedDescriptor || descriptorFromElement(element);
             if (!descriptor || pathFor(descriptor) === null) return;
             const target = getAt(rawJson, pathFor(descriptor));
-            if (target === undefined) return;
+            if (target === undefined && descriptor.kind !== 'title') return;
+            const editTarget = element || document.createElement('div');
             activeEdit = {
                 descriptor,
                 target: descriptor.kind === 'trigger'
-                    ? element.closest('.trigger-slot') || element
-                    : element,
+                    ? editTarget.closest?.('.trigger-slot') || editTarget
+                    : editTarget,
                 draft: readDraft(descriptor),
                 originalHtml: ''
             };
@@ -9453,8 +9470,8 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
             rawJson = cloneJson(json);
         });
 
-        EventBus.on(Events.INLINE_EDIT_REQUESTED, ({ element }) => {
-            if (element) beginEdit(element);
+        EventBus.on(Events.INLINE_EDIT_REQUESTED, ({ element, descriptor }) => {
+            if (element || descriptor) beginEdit(element, descriptor);
         });
 
         EventBus.on(Events.JSON_CHANGED, ({ json }) => {
@@ -9554,6 +9571,7 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
                 };
             }
             if (!kind) return null;
+            if (kind === 'title') return { kind };
             if (kind === 'slice') {
                 return { kind, sliceIndex: number('data-slice-index') };
             }
@@ -9634,10 +9652,16 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
                 event.target.closest('[data-inline-edit-kind]');
             const testCaseElement = event.target.closest &&
                 event.target.closest('.test-case[data-inline-edit-kind="test-name"]');
-            contextMenuElement = testSectionElement || inlineEditElement || testCaseElement;
+            const isOutsideSlice = !slice && !testSectionElement && !inlineEditElement && !testCaseElement;
+            const backgroundTitleElement = isOutsideSlice
+                ? contextMenuDiagramElement.querySelector('.diagram-title')
+                : null;
+            contextMenuElement = testSectionElement || inlineEditElement || testCaseElement || backgroundTitleElement;
             contextMenuDescriptor = contextMenuElement
                 ? descriptorForContextElement(contextMenuElement)
-                : null;
+                : isOutsideSlice && contextMenuModel
+                    ? { kind: 'title' }
+                    : null;
 
             contextMenuSliceIndex = slice ? sliceIndex : null;
             diagramContextMenu.replaceChildren();
@@ -9647,20 +9671,28 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
             const isTestSection = contextMenuDescriptor &&
                 contextMenuDescriptor.kind === 'test-section';
             const isSliceElement = contextMenuDescriptor && contextMenuDescriptor.kind === 'slice';
+            const isTitleElement = contextMenuDescriptor && contextMenuDescriptor.kind === 'title';
             const canShowSliceActions = slice && !isTestElement &&
                 (!contextMenuElement || isSliceElement || isTestSection);
             if (contextMenuElement && contextMenuDescriptor &&
-                !isTestElement && !isTestSection) {
+                !isTestElement && !isTestSection && !isTitleElement) {
                 diagramContextMenu.appendChild(createContextMenuElement('edit-element', 'Edit', false));
                 diagramContextMenu.appendChild(createContextMenuElement('delete-element', 'Delete', false));
                 if (canShowSliceActions) {
                     diagramContextMenu.appendChild(createContextMenuSeparator());
                 }
             }
+            if (isOutsideSlice && isTitleElement) {
+                diagramContextMenu.appendChild(createContextMenuElement('edit-element', 'Edit', false));
+                diagramContextMenu.appendChild(createContextMenuSeparator());
+                diagramContextMenu.appendChild(createContextMenuElement('add-slice', 'Add slice', false));
+            } else if (contextMenuElement && isTitleElement) {
+                diagramContextMenu.appendChild(createContextMenuElement('edit-element', 'Edit', false));
+            }
             if (contextMenuElement && contextMenuDescriptor && isTestElement) {
                 diagramContextMenu.appendChild(createContextMenuElement('edit-element', 'Edit', false));
                 diagramContextMenu.appendChild(createContextMenuElement('delete-element', 'Delete', false));
-            } else if (!isTestSection && !slice) {
+            } else if (!isTestSection && !slice && !isTitleElement) {
                 diagramContextMenu.appendChild(createContextMenuElement('add-slice', 'Add slice', false));
             }
             if (canShowSliceActions) {
@@ -9842,9 +9874,10 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
             if (action === 'edit-element') {
                 event.stopPropagation();
                 const target = contextMenuElement;
+                const descriptor = contextMenuDescriptor;
                 hideDiagramContextMenu();
-                if (target && target.isConnected) {
-                    EventBus.emit(Events.INLINE_EDIT_REQUESTED, { element: target });
+                if ((target && target.isConnected) || descriptor?.kind === 'title') {
+                    EventBus.emit(Events.INLINE_EDIT_REQUESTED, { element: target, descriptor });
                 }
                 return;
             }
@@ -9873,7 +9906,7 @@ const treeFollowSelectionBtn = document.getElementById('treeFollowSelectionBtn')
             contextMenuModel = json ? cloneContextMenuJson(json) : null;
         });
 
-        contextMenuDiagramElement.addEventListener('contextmenu', showDiagramContextMenu);
+        contextMenuDiagramContainer.addEventListener('contextmenu', showDiagramContextMenu);
         document.addEventListener('click', event => {
             if (!event.target.closest('.diagram-context-menu')) hideDiagramContextMenu();
         });

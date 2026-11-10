@@ -17,6 +17,7 @@ function loadContextMenu(json) {
   );
   const listeners = new Map();
   const changes = [];
+  const editRequests = [];
   dom.window.EventBus = {
     on(event, callback) {
       const callbacks = listeners.get(event) || [];
@@ -25,16 +26,18 @@ function loadContextMenu(json) {
     },
     emit(event, payload) {
       if (event === 'json:changed') changes.push(payload.json);
+      if (event === 'inline-edit:requested') editRequests.push(payload);
       (listeners.get(event) || []).forEach(callback => callback(payload));
     }
   };
   dom.window.Events = {
     FILE_LOADED: 'file:loaded',
-    JSON_CHANGED: 'json:changed'
+    JSON_CHANGED: 'json:changed',
+    INLINE_EDIT_REQUESTED: 'inline-edit:requested'
   };
   dom.window.eval(contextMenuSource);
   dom.window.EventBus.emit('file:loaded', { json });
-  return { dom, changes };
+  return { dom, changes, editRequests };
 }
 
 function openMenu(dom, attributes = {}, className = '') {
@@ -50,16 +53,75 @@ function openMenu(dom, attributes = {}, className = '') {
   return dom.window.document.querySelector('.diagram-context-menu');
 }
 
+function openContainerMenu(dom) {
+  const container = dom.window.document.getElementById('diagramContainer');
+  container.dispatchEvent(new dom.window.MouseEvent('contextmenu', {
+    bubbles: true,
+    clientX: 20,
+    clientY: 20
+  }));
+  return dom.window.document.querySelector('.diagram-context-menu');
+}
+
 describe('diagram context menu', () => {
   it('adds a named slice from the diagram context menu', () => {
     const { dom, changes } = loadContextMenu({ slices: [] });
     const menu = openMenu(dom);
 
     expect([...menu.querySelectorAll('button')].map(button => button.textContent))
-      .toEqual(['Add slice']);
+      .toEqual(['Edit', 'Add slice']);
     menu.querySelector('[data-context-menu-action="add-slice"]').click();
 
     expect(changes[0].slices).toEqual([{ name: 'New slice' }]);
+  });
+
+  it('offers title editing outside slices while retaining Add slice', () => {
+    const { dom, editRequests } = loadContextMenu({
+      title: 'Shopping cart',
+      slices: []
+    });
+    const title = dom.window.document.createElement('div');
+    title.className = 'diagram-title';
+    title.setAttribute('data-inline-edit-kind', 'title');
+    dom.window.document.getElementById('diagram').appendChild(title);
+    const menu = openMenu(dom);
+
+    expect([...menu.querySelectorAll('button')].map(button => button.textContent))
+      .toEqual(['Edit', 'Add slice']);
+    expect(menu.querySelectorAll('hr')).toHaveLength(1);
+    menu.querySelector('[data-context-menu-action="edit-element"]').click();
+
+    expect(editRequests).toHaveLength(1);
+    expect(editRequests[0].element).toBe(title);
+  });
+
+  it('offers title editing when the model has no title element yet', () => {
+    const { dom, editRequests } = loadContextMenu({ slices: [] });
+    const menu = openMenu(dom);
+
+    expect([...menu.querySelectorAll('button')].map(button => button.textContent))
+      .toEqual(['Edit', 'Add slice']);
+    menu.querySelector('[data-context-menu-action="edit-element"]').click();
+
+    expect(editRequests).toHaveLength(1);
+    expect(editRequests[0].element).toBeNull();
+    expect(editRequests[0].descriptor).toEqual({ kind: 'title' });
+  });
+
+  it('opens the title edit option from blank diagram-container space', () => {
+    const { dom } = loadContextMenu({
+      title: 'Shopping cart',
+      slices: [{ name: 'Cart' }]
+    });
+    const title = dom.window.document.createElement('div');
+    title.className = 'diagram-title';
+    title.setAttribute('data-inline-edit-kind', 'title');
+    dom.window.document.getElementById('diagram').appendChild(title);
+
+    const menu = openContainerMenu(dom);
+
+    expect([...menu.querySelectorAll('button')].map(button => button.textContent))
+      .toEqual(['Edit', 'Add slice']);
   });
 
   it('offers slice element actions and adds each supported element', () => {

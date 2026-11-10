@@ -47,6 +47,8 @@
             if (!kind) return null;
 
             switch (kind) {
+                case 'title':
+                    return ['title'];
                 case 'slice':
                     return slicePath;
                 case 'trigger':
@@ -792,7 +794,7 @@
             let html = '<div class="event-model-diagram">';
             
             if (model.title) {
-                html += `<div class="diagram-title">${escapeHtml(model.title)}</div>`;
+                html += `<div class="diagram-title" data-inline-edit-kind="title">${escapeHtml(model.title)}</div>`;
             }
 
             if (Array.isArray(model.hotspots) && model.hotspots.length > 0) {
