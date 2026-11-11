@@ -304,6 +304,12 @@ public class FileService : IDisposable
             return false;
         }
 
+        if (string.Equals(File.ReadAllText(full), content, StringComparison.Ordinal))
+        {
+            error = string.Empty;
+            return true;
+        }
+
         // Pause watcher to avoid self-triggered event
         if (_fileWatcher is not null) _fileWatcher.EnableRaisingEvents = false;
         try { File.WriteAllText(full, content); }

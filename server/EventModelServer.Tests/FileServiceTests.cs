@@ -129,6 +129,22 @@ public class FileServiceTests : IDisposable
     }
 
     [Fact]
+    public void TryUpdateSelected_Does_Not_Write_When_Content_Is_Unchanged()
+    {
+        var path = Path.Combine(_root, "unchanged.emj");
+        const string content = """{"same":true}""";
+        File.WriteAllText(path, content);
+        var originalWriteTime = File.GetLastWriteTimeUtc(path);
+        _svc.TrySelect("unchanged.emj", out _);
+
+        var result = _svc.TryUpdateSelected(content, out var error);
+
+        Assert.True(result, error);
+        Assert.Equal(originalWriteTime, File.GetLastWriteTimeUtc(path));
+        Assert.Equal(content, File.ReadAllText(path));
+    }
+
+    [Fact]
     public void TryUpdateSelected_Writes_Yaml_Content_To_Disk_For_Emy_File()
     {
         File.WriteAllText(Path.Combine(_root, "z.emy"), "{}");
