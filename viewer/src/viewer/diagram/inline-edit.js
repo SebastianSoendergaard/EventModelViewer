@@ -706,16 +706,10 @@
                 const line = lines[lineIndex];
                 if (!line.trim()) continue;
                 const separator = line.indexOf(':');
-                if (separator < 0) {
-                    throw new Error(`Property line ${lineIndex + 1} must contain ":"`);
-                }
-                const name = line.slice(0, separator).trim();
-                const value = line.slice(separator + 1).trim();
+                const name = (separator < 0 ? line : line.slice(0, separator)).trim();
+                const value = separator < 0 ? '' : line.slice(separator + 1).trim();
                 if (!name) {
                     throw new Error(`Property line ${lineIndex + 1} has no name`);
-                }
-                if (field === 'type' && !value) {
-                    throw new Error(`Property "${name}" must have a type`);
                 }
                 if (rejectDuplicates && names.has(name)) {
                     throw new Error(`Property "${name}" is duplicated`);
@@ -764,15 +758,6 @@
             return entries;
         }
 
-        function nameConflicts(json, descriptor, name, renameAll, oldName) {
-            const entries = collectNamedElements(json, descriptor.kind);
-            return entries.some(entry => {
-                if (renameAll && entry.element && entry.element.name === oldName) return false;
-                return !samePath(entry.descriptor, descriptor) && entry.element &&
-                    entry.element.name === name;
-            });
-        }
-
         function duplicateNameMatches(json, descriptor, oldName) {
             return collectNamedElements(json, descriptor.kind)
                 .filter(entry => entry.element && entry.element.name === oldName);
@@ -818,9 +803,6 @@
             if (descriptor.kind === 'command' || descriptor.kind === 'view' || descriptor.kind === 'event') {
                 draft.name = draft.name.trim();
                 if (!draft.name) throw new Error('Name is required');
-                if (nameConflicts(rawJson, descriptor, draft.name, false, '')) {
-                    throw new Error(`A ${descriptor.kind} named "${draft.name}" already exists`);
-                }
                 if (draft.idEnabled) draft.id = draft.id.trim();
                 parseProperties(draft.properties, 'type', true);
             } else if (descriptor.kind === 'trigger' || descriptor.kind === 'test-item') {
