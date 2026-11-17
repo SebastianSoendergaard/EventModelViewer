@@ -81,12 +81,32 @@ async function startServerViewer(page) {
 
   await page.goto(baseUrl);
   await expect(page.locator('body')).toContainText('discovery-fixture.emj');
+  return model;
 }
 
 test('server-mode startup discovers and displays event model files', async ({ page }) => {
   await startServerViewer(page);
 
   await expect(page.locator('body')).toContainText('discovery-fixture.emj');
+});
+
+test('server-mode startup does not autosave an unchanged model', async ({ page }) => {
+  const putRequests = [];
+  page.on('request', request => {
+    if (request.url().endsWith('/selected') && request.method() === 'PUT') {
+      putRequests.push(request);
+    }
+  });
+
+  const model = await startServerViewer(page);
+  await expect(page.locator('body')).toContainText('Create Order');
+  await expect(page.locator('#codeEditor .ace_text-layer')).toBeVisible();
+  await page.evaluate(modelToEmit => {
+    EventBus.emit(Events.JSON_CHANGED, { json: JSON.parse(modelToEmit), source: 'test' });
+  }, model);
+  await page.waitForTimeout(1500);
+
+  expect(putRequests).toHaveLength(0);
 });
 
 test('server task export sends only the selected format and retains that choice', async ({ page }) => {

@@ -208,6 +208,10 @@
             return 'Unclassified';
         }
 
+        function getSliceState(slice) {
+            return slice.background || slice.border || '';
+        }
+
         /**
          * Maps classifySlicePattern()'s human-readable Title Case (used in the
          * Markdown file) to a stable kebab-case code for the JSON task file —
@@ -528,8 +532,7 @@
             var lines = [];
             lines.push('# ' + (slice.name || '(unnamed slice)'));
             lines.push('');
-            lines.push('- **State:** ' + (slice.border || '_none_'));
-            lines.push('- **Background:** ' + (slice.background || '_none_'));
+            lines.push('- **State:** ' + (getSliceState(slice) || '_none_'));
             lines.push('- **Pattern:** ' + pattern);
             lines.push('');
 
@@ -549,9 +552,9 @@
 
         function buildIndexMarkdown(title, entries) {
             var lines = ['# ' + (title || 'Event Model') + ' \u2014 Task Index', '',
-                '| File | Slice | Pattern | State | Background |', '| --- | --- | --- | --- | --- |'];
+                '| File | Slice | Pattern | State |', '| --- | --- | --- | --- |'];
             entries.forEach(function(e) {
-                lines.push('| [' + e.fileName + '](' + e.fileName + ') | ' + e.name + ' | ' + e.pattern + ' | ' + (e.state || '_none_') + ' | ' + (e.background || '_none_') + ' |');
+                lines.push('| [' + e.fileName + '](' + e.fileName + ') | ' + e.name + ' | ' + e.pattern + ' | ' + (e.state || '_none_') + ' |');
             });
             return lines.join('\n') + '\n';
         }
@@ -560,8 +563,7 @@
             var json = {
                 schemaVersion: TASK_JSON_SCHEMA_VERSION,
                 name: slice.name || '',
-                state: slice.border || '',
-                background: slice.background || '',
+                state: getSliceState(slice),
                 pattern: patternToCode(pattern),
                 note: slice.note || undefined,
                 trigger: exportTrigger(slice.trigger),
@@ -589,7 +591,6 @@
                         name: e.name,
                         pattern: patternToCode(e.pattern),
                         state: e.state || '',
-                        background: e.background || '',
                         files: { markdown: e.fileNameMd, json: e.fileNameJson }
                     };
                 })
@@ -636,7 +637,7 @@
 
                 indexEntries.push({
                     id: slice.id, name: slice.name || '(unnamed)', pattern: pattern,
-                    state: slice.border, background: slice.background,
+                    state: getSliceState(slice),
                     fileNameMd: fileNameMd, fileNameJson: fileNameJson
                 });
             });
@@ -658,8 +659,7 @@
                             fileName: e.fileNameMd,
                             name: e.name,
                             pattern: e.pattern,
-                            state: e.state,
-                            background: e.background
+                            state: e.state
                         };
                     })
                 )

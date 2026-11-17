@@ -334,7 +334,7 @@
                 if (selectionGeneration !== _selectionGeneration) return false;
                 const json = Codec.parse(text, _selectedFormat);
                 clearFileError();
-                _lastSavedContent = text;
+                _lastSavedContent = Codec.stringify(json, _selectedFormat);
                 _currentJson = json;
                 EventBus.emit(Events.FILE_LOADED, {
                     json,

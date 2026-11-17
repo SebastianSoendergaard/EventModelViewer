@@ -183,13 +183,13 @@ describe('task export naming and untitled slices', () => {
   });
 });
 
-describe('slice background task export', () => {
-  it('uses the first defined fragment background and exports it', () => {
+describe('slice state task export', () => {
+  it('uses the first defined fragment background as state and omits background metadata', () => {
     const { generateExportFiles } = loadExportGenerator();
     const files = generateExportFiles({
       title: 'Test Model',
       slices: [
-        { id: 'A', name: 'Colored', background: '#E8F5E9' },
+        { id: 'A', name: 'Colored', border: '#4CBB17', background: '#E8F5E9' },
         { id: 'A', name: 'Colored', background: '#FFF8E1' }
       ]
     });
@@ -199,24 +199,74 @@ describe('slice background task export', () => {
     const indexMarkdown = files.find(file => file.name === 'test-model---index.md').content;
     const indexJson = JSON.parse(files.find(file => file.name === 'test-model---index.json').content);
 
-    expect(markdown).toContain('- **Background:** #E8F5E9');
-    expect(json.background).toBe('#E8F5E9');
-    expect(indexMarkdown).toContain('Background');
-    expect(indexMarkdown).toContain('#E8F5E9');
-    expect(indexJson.slices[0].background).toBe('#E8F5E9');
+    expect(markdown).toContain('- **State:** #E8F5E9');
+    expect(markdown).not.toContain('Background');
+    expect(json.state).toBe('#E8F5E9');
+    expect(json).not.toHaveProperty('background');
+    expect(indexMarkdown).toContain('| File | Slice | Pattern | State |');
+    expect(indexMarkdown).not.toContain('Background');
+    expect(indexMarkdown).toContain('| #E8F5E9 |');
+    expect(indexJson.slices[0].state).toBe('#E8F5E9');
+    expect(indexJson.slices[0]).not.toHaveProperty('background');
   });
 
-  it('exports an explicit empty background when a slice has none', () => {
+  it('falls back to border when a slice has no background', () => {
     const { generateExportFiles } = loadExportGenerator();
     const files = generateExportFiles({
       title: 'Test Model',
-      slices: [{ id: 'A', name: 'Plain' }]
+      slices: [{ id: 'A', name: 'Bordered', border: '#4CBB17' }]
     });
 
-    const markdown = files.find(file => file.name === 'test-model---plain.md').content;
-    const json = JSON.parse(files.find(file => file.name === 'test-model---plain.json').content);
+    const markdown = files.find(file => file.name === 'test-model---bordered.md').content;
+    const json = JSON.parse(files.find(file => file.name === 'test-model---bordered.json').content);
+    const indexJson = JSON.parse(files.find(file => file.name === 'test-model---index.json').content);
 
-    expect(markdown).toContain('- **Background:** _none_');
-    expect(json.background).toBe('');
+    expect(markdown).toContain('- **State:** #4CBB17');
+    expect(json.state).toBe('#4CBB17');
+    expect(json).not.toHaveProperty('background');
+    expect(indexJson.slices[0].state).toBe('#4CBB17');
+    expect(indexJson.slices[0]).not.toHaveProperty('background');
+  });
+});
+
+describe('deduplicated slice task export', () => {
+  it('combines properties from every fragment of a slice', () => {
+    const { generateExportFiles } = loadExportGenerator();
+    const files = generateExportFiles({
+      title: 'Test Model',
+      slices: [
+        {
+          name: 'Combined',
+          border: 'black',
+          trigger: {
+            type: 'ui-table',
+            properties: [{ name: 'Title' }]
+          },
+          view: {
+            name: 'Combined View',
+            properties: [{ name: 'Id', type: 'string' }]
+          }
+        },
+        {
+          name: 'Combined',
+          trigger: {
+            type: 'ui-table',
+            properties: [{ name: 'Status' }]
+          },
+          view: {
+            name: 'Combined View',
+            properties: [{ name: 'Status', type: 'string' }]
+          }
+        }
+      ]
+    });
+
+    const markdown = files.find(file => file.name === 'test-model---combined.md').content;
+    const json = JSON.parse(files.find(file => file.name === 'test-model---combined.json').content);
+
+    expect(markdown).toContain('| Status |');
+    expect(markdown).toContain('| Status | string |');
+    expect(json.trigger.properties.map(property => property.name)).toEqual(['Title', 'Status']);
+    expect(json.view.properties.map(property => property.name)).toEqual(['Id', 'Status']);
   });
 });
