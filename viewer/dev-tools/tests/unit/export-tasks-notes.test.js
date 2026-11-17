@@ -245,6 +245,10 @@ describe('deduplicated slice task export', () => {
           view: {
             name: 'Combined View',
             properties: [{ name: 'Id', type: 'string' }]
+          },
+          command: {
+            name: 'Combine',
+            properties: [{ name: 'Amount', type: 'decimal' }]
           }
         },
         {
@@ -256,6 +260,10 @@ describe('deduplicated slice task export', () => {
           view: {
             name: 'Combined View',
             properties: [{ name: 'Status', type: 'string' }]
+          },
+          command: {
+            name: 'Combine',
+            properties: [{ name: 'Reason', type: 'string' }]
           }
         }
       ]
@@ -264,9 +272,10 @@ describe('deduplicated slice task export', () => {
     const markdown = files.find(file => file.name === 'test-model---combined.md').content;
     const json = JSON.parse(files.find(file => file.name === 'test-model---combined.json').content);
 
+    expect(markdown).toContain('| Status |  |');
     expect(markdown).toContain('| Status |');
     expect(markdown).toContain('| Status | string |');
-    expect(json.trigger.properties.map(property => property.name)).toEqual(['Title', 'Status']);
     expect(json.view.properties.map(property => property.name)).toEqual(['Id', 'Status']);
+    expect(json.command.properties.map(property => property.name)).toEqual(['Amount', 'Reason']);
   });
 });

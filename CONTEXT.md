@@ -97,7 +97,7 @@ A static PNG or SVG image of the rendered Event Model diagram, capturing its pre
 _Avoid_: diagram export (ambiguous with Task Export), PNG export (specific to one format)
 
 **Deduplicated Slice**:
-The logical slice formed by merging every raw `slices[]` entry that shares an id (or name, when no id is set). Multiple raw entries with the same id are fragments of one slice — the layout mechanic places a fragment next to whichever elements feed it — not distinct slices. Merging unions their `events`/`tests` and fills in `trigger`/`command`/`view`/`border`/`background` from whichever fragment defines them.
+The logical slice formed by merging every raw `slices[]` entry that shares an id (or name, when no id is set). Multiple raw entries with the same id are fragments of one slice — the layout mechanic places a fragment next to whichever elements feed it — not distinct slices. Merging unions their `events`/`tests`, unions element properties by name, and fills in `trigger`/`command`/`view`/`border`/`background` from whichever fragment defines them.
 _Avoid_: duplicate slice (ambiguous about which side of the merge is meant)
 
 **Slice State Marker**:

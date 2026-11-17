@@ -53,8 +53,9 @@
          * event-model.js's calcId) into one logical "Deduplicated Slice" (see
          * CONTEXT.md). Multiple raw slice entries with the same id are fragments of
          * one slice — the diagram layout places a view fragment next to whichever
-         * events feed it — not distinct slices. Unions events/tests; first fragment
-         * to define trigger/command/view/border/background wins. Notes from all fragments are
+         * events feed it — not distinct slices. Unions events/tests and element
+         * properties; first fragment to define trigger/command/view/border/background
+         * wins for the remaining element fields. Notes from all fragments are
          * combined in source order into one slice note. Because a view (or, less
          * commonly, a trigger/command) fragment is placed next to whichever event
          * feeds it, different fragments of the same view/trigger typically carry a
@@ -84,11 +85,42 @@
             parts.push(note);
         }
 
+        function mergeProperties(existing, incoming) {
+            var result = (existing || []).map(function(property) {
+                return Object.assign({}, property);
+            });
+            (incoming || []).forEach(function(property) {
+                var existingIndex = result.findIndex(function(candidate) {
+                    return candidate && property && candidate.name === property.name;
+                });
+                if (existingIndex === -1) {
+                    result.push(Object.assign({}, property));
+                    return;
+                }
+                Object.keys(property || {}).forEach(function(key) {
+                    if (result[existingIndex][key] === undefined) {
+                        result[existingIndex][key] = property[key];
+                    }
+                });
+            });
+            return result;
+        }
+
         function mergeReferencingElement(merged, incoming, refField) {
             if (!incoming) return merged;
-            if (!merged) return Object.assign({}, incoming);
+            if (!merged) {
+                var first = Object.assign({}, incoming);
+                if (Array.isArray(incoming[refField])) {
+                    first[refField] = incoming[refField].slice();
+                }
+                if (Array.isArray(incoming.properties)) {
+                    first.properties = mergeProperties([], incoming.properties);
+                }
+                return first;
+            }
             var result = Object.assign({}, merged);
             result[refField] = unionRefs(merged[refField], incoming[refField]);
+            result.properties = mergeProperties(merged.properties, incoming.properties);
             return result;
         }
 
